@@ -3,61 +3,44 @@
  * 所有游戏内的关键事件都在此定义
  */
 
+import { Card, CardColor, Player } from "../types/game.types";
+
 /** 游戏核心事件枚举 */
 export enum GameEventType {
     // === 游戏流程事件 ===
-    /** 开始新游戏 */
-    START_GAME = 'START_GAME',
-    /** 游戏结束 */
-    GAME_OVER = 'GAME_OVER',
-    /** 游戏重置 */
-    RESET_GAME = 'RESET_GAME',
+    START_GAME = "START_GAME",
+    GAME_OVER = "GAME_OVER",
+    RESET_GAME = "RESET_GAME",
 
     // === 发牌事件 ===
-    /** 开始发牌 */
-    DEAL_START = 'DEAL_START',
-    /** 发牌动画完成 */
-    DEAL_COMPLETE = 'DEAL_COMPLETE',
+    DEAL_START = "DEAL_START",
+    DEAL_COMPLETE = "DEAL_COMPLETE",
 
     // === 回合事件 ===
-    /** 玩家回合开始 */
-    TURN_STARTED = 'TURN_STARTED',
-    /** 回合超时 */
-    TURN_TIMEOUT = 'TURN_TIMEOUT',
+    TURN_STARTED = "TURN_STARTED",
+    TURN_CHANGED = "TURN_CHANGED",
+    TURN_TIMEOUT = "TURN_TIMEOUT",
 
     // === 卡牌操作事件 ===
-    /** 玩家出牌 */
-    PLAY_CARD = 'PLAY_CARD',
-    /** 玩家摸牌 */
-    DRAW_CARD = 'DRAW_CARD',
-    /** 卡牌已打出(处理完成) */
-    CARD_PLAYED = 'CARD_PLAYED',
-    /** 卡牌已摸取 */
-    CARD_DRAWN = 'CARD_DRAWN',
+    PLAY_CARD = "PLAY_CARD",
+    DRAW_CARD = "DRAW_CARD",
+    CARD_PLAYED = "CARD_PLAYED",
+    CARD_DRAWN = "CARD_DRAWN",
 
     // === UNO相关事件 ===
-    /** 玩家呼叫UNO */
-    CALL_UNO = 'CALL_UNO',
-    /** 玩家被发现在只剩一张时未呼叫UNO */
-    UNO_PENALTY = 'UNO_PENALTY',
+    CALL_UNO = "CALL_UNO",
+    UNO_PENALTY = "UNO_PENALTY",
 
     // === 特殊卡牌效果事件 ===
-    /** 方向改变 */
-    DIRECTION_CHANGED = 'DIRECTION_CHANGED',
-    /** 玩家被跳过 */
-    PLAYER_SKIPPED = 'PLAYER_SKIPPED',
-    /** 需要抽牌 */
-    DRAW_REQUIRED = 'DRAW_REQUIRED',
+    DIRECTION_CHANGED = "DIRECTION_CHANGED",
+    PLAYER_SKIPPED = "PLAYER_SKIPPED",
+    DRAW_REQUIRED = "DRAW_REQUIRED",
 
     // === 状态更新事件 ===
-    /** 手牌更新 */
-    HAND_UPDATED = 'HAND_UPDATED',
-    /** 牌堆更新 */
-    DECK_UPDATED = 'DECK_UPDATED',
-    /** 弃牌堆更新 */
-    DISCARD_UPDATED = 'DISCARD_UPDATED',
-    /** 当前玩家更新 */
-    CURRENT_PLAYER_UPDATED = 'CURRENT_PLAYER_UPDATED',
+    HAND_UPDATED = "HAND_UPDATED",
+    DECK_UPDATED = "DECK_UPDATED",
+    DISCARD_UPDATED = "DISCARD_UPDATED",
+    CURRENT_PLAYER_UPDATED = "CURRENT_PLAYER_UPDATED",
 }
 
 /** 游戏事件基类 */
@@ -76,13 +59,38 @@ export interface StartGameEvent extends GameEvent {
     };
 }
 
+/** 回合变化事件 */
+export interface TurnChangedEvent extends GameEvent {
+    type: GameEventType.TURN_CHANGED;
+    payload: {
+        previousPlayerId: string | null;
+        currentPlayerId: string;
+        currentPlayer: Player;
+        direction: 1 | -1;
+    };
+}
+
 /** 玩家出牌事件 */
 export interface PlayCardEvent extends GameEvent {
     type: GameEventType.PLAY_CARD;
     payload: {
         playerId: string;
         cardId: string;
-        chosenColor?: import('../types/game.types').CardColor;
+        chosenColor?: CardColor;
+    };
+}
+
+/** 卡牌已打出事件 */
+export interface CardPlayedEvent extends GameEvent {
+    type: GameEventType.CARD_PLAYED;
+    payload: {
+        playerId: string;
+        card: Card;
+        newActiveColor: CardColor;
+        isSkipEffect: boolean;
+        isReverseEffect: boolean;
+        isDraw2Effect: boolean;
+        isDraw4Effect: boolean;
     };
 }
 
@@ -95,12 +103,50 @@ export interface DrawCardEvent extends GameEvent {
     };
 }
 
+/** 卡牌已摸取事件 */
+export interface CardDrawnEvent extends GameEvent {
+    type: GameEventType.CARD_DRAWN;
+    payload: {
+        playerId: string;
+        card: Card;
+        totalCards: number;
+    };
+}
+
 /** 游戏结束事件 */
 export interface GameOverEvent extends GameEvent {
     type: GameEventType.GAME_OVER;
     payload: {
         winnerId: string;
         winnerName: string;
+        finalHands: Array<{ playerId: string; cardCount: number }>;
+    };
+}
+
+/** 呼叫UNO事件 */
+export interface CallUnoEvent extends GameEvent {
+    type: GameEventType.CALL_UNO;
+    payload: {
+        playerId: string;
+        playerName: string;
+    };
+}
+
+/** UNO惩罚事件 */
+export interface UnoPenaltyEvent extends GameEvent {
+    type: GameEventType.UNO_PENALTY;
+    payload: {
+        playerId: string;
+        penaltyCards: Card[];
+    };
+}
+
+/** 方向改变事件 */
+export interface DirectionChangedEvent extends GameEvent {
+    type: GameEventType.DIRECTION_CHANGED;
+    payload: {
+        previousDirection: 1 | -1;
+        newDirection: 1 | -1;
     };
 }
 
@@ -109,14 +155,7 @@ export interface PlayerSkippedEvent extends GameEvent {
     type: GameEventType.PLAYER_SKIPPED;
     payload: {
         skippedPlayerId: string;
-    };
-}
-
-/** 方向改变事件 */
-export interface DirectionChangedEvent extends GameEvent {
-    type: GameEventType.DIRECTION_CHANGED;
-    payload: {
-        direction: 1 | -1;
+        skippedPlayerName: string;
     };
 }
 
@@ -126,17 +165,45 @@ export interface DrawRequiredEvent extends GameEvent {
     payload: {
         targetPlayerId: string;
         cardCount: number;
-        reason: 'draw_2' | 'draw_4' | 'penalty';
+        reason: "draw_2" | "draw_4" | "penalty" | "timeout";
     };
 }
 
-/** 玩家输入动作事件 - 来自UI层 */
-export interface PlayerActionEvent {
-    type: 'PLAYER_ACTION';
-    playerId: string;
-    action: 'play' | 'draw' | 'uno';
-    cardId?: string;
-    chosenColor?: import('../types/game.types').CardColor;
+/** 手牌更新事件 */
+export interface HandUpdatedEvent extends GameEvent {
+    type: GameEventType.HAND_UPDATED;
+    payload: {
+        playerId: string;
+        hand: Card[];
+        cardCount: number;
+    };
+}
+
+/** 牌堆更新事件 */
+export interface DeckUpdatedEvent extends GameEvent {
+    type: GameEventType.DECK_UPDATED;
+    payload: {
+        remainingCards: number;
+    };
+}
+
+/** 弃牌堆更新事件 */
+export interface DiscardUpdatedEvent extends GameEvent {
+    type: GameEventType.DISCARD_UPDATED;
+    payload: {
+        topCard: Card;
+        discardCount: number;
+    };
+}
+
+/** 当前玩家更新事件 */
+export interface CurrentPlayerUpdatedEvent extends GameEvent {
+    type: GameEventType.CURRENT_PLAYER_UPDATED;
+    payload: {
+        playerId: string;
+        playerName: string;
+        isHuman: boolean;
+    };
 }
 
 /** 事件总线类型 */
@@ -146,3 +213,22 @@ export type EventListener<T = GameEvent> = (event: T) => void;
 export interface EventSubscription {
     unsubscribe: () => void;
 }
+
+/** 所有事件Payload类型联合 */
+export type GameEventPayload =
+    | StartGameEvent["payload"]
+    | TurnChangedEvent["payload"]
+    | PlayCardEvent["payload"]
+    | CardPlayedEvent["payload"]
+    | DrawCardEvent["payload"]
+    | CardDrawnEvent["payload"]
+    | GameOverEvent["payload"]
+    | CallUnoEvent["payload"]
+    | UnoPenaltyEvent["payload"]
+    | DirectionChangedEvent["payload"]
+    | PlayerSkippedEvent["payload"]
+    | DrawRequiredEvent["payload"]
+    | HandUpdatedEvent["payload"]
+    | DeckUpdatedEvent["payload"]
+    | DiscardUpdatedEvent["payload"]
+    | CurrentPlayerUpdatedEvent["payload"];
