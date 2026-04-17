@@ -5,11 +5,7 @@
 
 import { _decorator, Component, Label, Node, Sprite } from 'cc';
 
-import {
-    GameEvent,
-    GameEventType,
-    subscribeEvent,
-} from '../events/game.events';
+import { eventBus, GameEventType } from '../events';
 
 const { ccclass, property } = _decorator;
 
@@ -37,7 +33,6 @@ export class PlayerIndicator extends Component {
     public cardCountLabel: Label | null = null;
 
     private playerId: string = '';
-    private subscriptions: Array<() => void> = [];
 
     /**
      * 初始化玩家指示器
@@ -59,35 +54,32 @@ export class PlayerIndicator extends Component {
 
     /** 初始化事件订阅 */
     private initEventSubscriptions(): void {
-        // 监听当前玩家更新
-        this.subscriptions.push(
-            subscribeEvent(
-                GameEventType.CURRENT_PLAYER_UPDATED,
-                (event: GameEvent) => {
-                    const payload = (event as any).payload;
-                    this.onCurrentPlayerUpdated(payload);
-                }
-            )
+        eventBus.on(
+            GameEventType.CURRENT_PLAYER_UPDATED,
+            (payload) => {
+                this.onCurrentPlayerUpdated(payload);
+            },
+            this
         );
 
-        // 监听手牌更新
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.HAND_UPDATED, (event: GameEvent) => {
-                const payload = (event as any).payload;
+        eventBus.on(
+            GameEventType.HAND_UPDATED,
+            (payload) => {
                 if (payload.playerId === this.playerId) {
                     this.updateCardCount(payload.cardCount);
                 }
-            })
+            },
+            this
         );
 
-        // 监听UNO呼叫
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.CALL_UNO, (event: GameEvent) => {
-                const payload = (event as any).payload;
+        eventBus.on(
+            GameEventType.CALL_UNO,
+            (payload) => {
                 if (payload.playerId === this.playerId) {
                     this.showUnoIndicator();
                 }
-            })
+            },
+            this
         );
     }
 
@@ -143,9 +135,6 @@ export class PlayerIndicator extends Component {
 
     /** 取消订阅 */
     public dispose(): void {
-        for (const unsubscribe of this.subscriptions) {
-            unsubscribe();
-        }
-        this.subscriptions = [];
+        eventBus.targetOff(this);
     }
 }

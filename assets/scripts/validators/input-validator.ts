@@ -95,12 +95,6 @@ export function validateCanPlayCard(
         }
     }
 
-    if (pendingDraw4Count > 0) {
-        if (card.type !== UnoCardType.WILD_DRAW_4) {
-            return { valid: false, error: 'MUST_PLAY_DRAW4' };
-        }
-    }
-
     if (card.color !== topCard.activeColor) {
         if (
             card.type === UnoCardType.NUMBER &&

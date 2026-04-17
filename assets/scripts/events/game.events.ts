@@ -1,11 +1,5 @@
-/**
- * UNO游戏事件定义
- * 所有游戏内的关键事件都在此定义
- */
-
 import { Card, CardColor, Player } from '../types/game.types';
 
-/** 游戏核心事件枚举 */
 export enum GameEventType {
     // === 游戏流程事件 ===
     START_GAME = 'START_GAME',
@@ -45,211 +39,142 @@ export enum GameEventType {
     CURRENT_PLAYER_UPDATED = 'CURRENT_PLAYER_UPDATED',
 }
 
-/** 游戏事件基类 */
-export interface GameEvent {
-    type: GameEventType;
-    timestamp: number;
-    payload?: unknown;
+// ==================== Payload 类型 ====================
+
+export interface StartGamePayload {
+    playerCount: number;
+    aiCount: number;
 }
 
-/** 开始游戏事件 */
-export interface StartGameEvent extends GameEvent {
-    type: GameEventType.START_GAME;
-    payload: {
-        playerCount: number;
-        aiCount: number;
-    };
+export interface TurnChangedPayload {
+    previousPlayerId: string | null;
+    currentPlayerId: string;
+    currentPlayer: Player;
+    direction: 1 | -1;
 }
 
-/** 回合变化事件 */
-export interface TurnChangedEvent extends GameEvent {
-    type: GameEventType.TURN_CHANGED;
-    payload: {
-        previousPlayerId: string | null;
-        currentPlayerId: string;
-        currentPlayer: Player;
-        direction: 1 | -1;
-    };
+export interface PlayCardPayload {
+    playerId: string;
+    cardId: string;
+    chosenColor?: CardColor;
 }
 
-/** 玩家出牌事件 */
-export interface PlayCardEvent extends GameEvent {
-    type: GameEventType.PLAY_CARD;
-    payload: {
-        playerId: string;
-        cardId: string;
-        chosenColor?: CardColor;
-    };
+export interface CardPlayedPayload {
+    playerId: string;
+    cardId: string;
+    card: Card;
+    newActiveColor?: CardColor;
+    isSkipEffect?: boolean;
+    isReverseEffect?: boolean;
+    isDraw2Effect?: boolean;
+    isDraw4Effect?: boolean;
 }
 
-/** 卡牌已打出事件 */
-export interface CardPlayedEvent extends GameEvent {
-    type: GameEventType.CARD_PLAYED;
-    payload: {
-        playerId: string;
-        card: Card;
-        newActiveColor: CardColor;
-        isSkipEffect: boolean;
-        isReverseEffect: boolean;
-        isDraw2Effect: boolean;
-        isDraw4Effect: boolean;
-    };
+export interface DrawCardPayload {
+    playerId: string;
+    count: number;
 }
 
-/** 玩家摸牌事件 */
-export interface DrawCardEvent extends GameEvent {
-    type: GameEventType.DRAW_CARD;
-    payload: {
-        playerId: string;
-        count: number;
-    };
+export interface CardDrawnPayload {
+    playerId: string;
+    card: Card;
+    totalCards?: number;
 }
 
-/** 卡牌已摸取事件 */
-export interface CardDrawnEvent extends GameEvent {
-    type: GameEventType.CARD_DRAWN;
-    payload: {
-        playerId: string;
-        card: Card;
-        totalCards: number;
-    };
+export interface GameOverPayload {
+    winnerId: string;
+    winnerName: string;
+    finalHands: Array<{ playerId: string; cardCount: number }>;
 }
 
-/** 游戏结束事件 */
-export interface GameOverEvent extends GameEvent {
-    type: GameEventType.GAME_OVER;
-    payload: {
-        winnerId: string;
-        winnerName: string;
-        finalHands: Array<{ playerId: string; cardCount: number }>;
-    };
+export interface CallUnoPayload {
+    playerId: string;
+    playerName?: string;
 }
 
-/** 呼叫UNO事件 */
-export interface CallUnoEvent extends GameEvent {
-    type: GameEventType.CALL_UNO;
-    payload: {
-        playerId: string;
-        playerName: string;
-    };
+export interface UnoPenaltyPayload {
+    playerId: string;
+    penaltyCards: Card[] | number;
 }
 
-/** UNO惩罚事件 */
-export interface UnoPenaltyEvent extends GameEvent {
-    type: GameEventType.UNO_PENALTY;
-    payload: {
-        playerId: string;
-        penaltyCards: Card[];
-    };
+export interface DirectionChangedPayload {
+    previousDirection: 1 | -1;
+    newDirection: 1 | -1;
 }
 
-/** 方向改变事件 */
-export interface DirectionChangedEvent extends GameEvent {
-    type: GameEventType.DIRECTION_CHANGED;
-    payload: {
-        previousDirection: 1 | -1;
-        newDirection: 1 | -1;
-    };
+export interface PlayerSkippedPayload {
+    skippedPlayerId: string;
+    skippedPlayerName: string;
 }
 
-/** 玩家被跳过事件 */
-export interface PlayerSkippedEvent extends GameEvent {
-    type: GameEventType.PLAYER_SKIPPED;
-    payload: {
-        skippedPlayerId: string;
-        skippedPlayerName: string;
-    };
+export interface DrawRequiredPayload {
+    targetPlayerId: string;
+    cardCount: number;
+    reason: 'draw_2' | 'draw_4' | 'penalty' | 'timeout';
 }
 
-/** 抽牌要求事件 */
-export interface DrawRequiredEvent extends GameEvent {
-    type: GameEventType.DRAW_REQUIRED;
-    payload: {
-        targetPlayerId: string;
-        cardCount: number;
-        reason: 'draw_2' | 'draw_4' | 'penalty' | 'timeout';
-    };
+export interface HandUpdatedPayload {
+    playerId: string;
+    hand: Card[];
+    cardCount: number;
 }
 
-/** 手牌更新事件 */
-export interface HandUpdatedEvent extends GameEvent {
-    type: GameEventType.HAND_UPDATED;
-    payload: {
-        playerId: string;
-        hand: Card[];
-        cardCount: number;
-    };
+export interface DeckUpdatedPayload {
+    remainingCards: number;
 }
 
-/** 牌堆更新事件 */
-export interface DeckUpdatedEvent extends GameEvent {
-    type: GameEventType.DECK_UPDATED;
-    payload: {
-        remainingCards: number;
-    };
+export interface DiscardUpdatedPayload {
+    topCard: Card;
+    discardCount: number;
 }
 
-/** 弃牌堆更新事件 */
-export interface DiscardUpdatedEvent extends GameEvent {
-    type: GameEventType.DISCARD_UPDATED;
-    payload: {
-        topCard: Card;
-        discardCount: number;
-    };
+export interface CurrentPlayerUpdatedPayload {
+    playerId: string;
+    playerName: string;
+    isHuman: boolean;
 }
 
-/** 当前玩家更新事件 */
-export interface CurrentPlayerUpdatedEvent extends GameEvent {
-    type: GameEventType.CURRENT_PLAYER_UPDATED;
-    payload: {
-        playerId: string;
-        playerName: string;
-        isHuman: boolean;
-    };
+export interface TurnStartedPayload {
+    playerId: string;
+    playerName: string;
+    isHuman: boolean;
 }
 
-/** 事件总线类型 */
-export type EventListener<T = GameEvent> = (event: T) => void;
-
-/** 事件订阅者记录 */
-export interface EventSubscription {
-    unsubscribe: () => void;
+export interface TimeoutWarningPayload {
+    playerId: string;
+    remainingSeconds: number;
 }
 
-/** 所有事件Payload类型联合 */
-export type GameEventPayload =
-    | StartGameEvent['payload']
-    | TurnChangedEvent['payload']
-    | PlayCardEvent['payload']
-    | CardPlayedEvent['payload']
-    | DrawCardEvent['payload']
-    | CardDrawnEvent['payload']
-    | GameOverEvent['payload']
-    | CallUnoEvent['payload']
-    | UnoPenaltyEvent['payload']
-    | DirectionChangedEvent['payload']
-    | PlayerSkippedEvent['payload']
-    | DrawRequiredEvent['payload']
-    | HandUpdatedEvent['payload']
-    | DeckUpdatedEvent['payload']
-    | DiscardUpdatedEvent['payload']
-    | CurrentPlayerUpdatedEvent['payload']
-    | TimeoutWarningEvent['payload']
-    | TimeoutExpiredEvent['payload'];
-
-/** 超时警告事件 */
-export interface TimeoutWarningEvent extends GameEvent {
-    type: GameEventType.TIMEOUT_WARNING;
-    payload: {
-        playerId: string;
-        remainingSeconds: number;
-    };
+export interface TimeoutExpiredPayload {
+    playerId: string;
 }
 
-/** 超时过期事件 */
-export interface TimeoutExpiredEvent extends GameEvent {
-    type: GameEventType.TIMEOUT_EXPIRED;
-    payload: {
-        playerId: string;
-    };
+// ==================== 事件映射 ====================
+
+export interface GameEvents {
+    [GameEventType.START_GAME]: [payload: StartGamePayload];
+    [GameEventType.GAME_OVER]: [payload: GameOverPayload];
+    [GameEventType.RESET_GAME]: [];
+    [GameEventType.DEAL_START]: [];
+    [GameEventType.DEAL_COMPLETE]: [];
+    [GameEventType.TURN_STARTED]: [payload: TurnStartedPayload];
+    [GameEventType.TURN_CHANGED]: [payload: TurnChangedPayload];
+    [GameEventType.TURN_TIMEOUT]: [];
+    [GameEventType.TIMEOUT_WARNING]: [payload: TimeoutWarningPayload];
+    [GameEventType.TIMEOUT_EXPIRED]: [payload: TimeoutExpiredPayload];
+    [GameEventType.PLAY_CARD]: [payload: PlayCardPayload];
+    [GameEventType.DRAW_CARD]: [payload: DrawCardPayload];
+    [GameEventType.CARD_PLAYED]: [payload: CardPlayedPayload];
+    [GameEventType.CARD_DRAWN]: [payload: CardDrawnPayload];
+    [GameEventType.CALL_UNO]: [payload: CallUnoPayload];
+    [GameEventType.UNO_PENALTY]: [payload: UnoPenaltyPayload];
+    [GameEventType.DIRECTION_CHANGED]: [payload: DirectionChangedPayload];
+    [GameEventType.PLAYER_SKIPPED]: [payload: PlayerSkippedPayload];
+    [GameEventType.DRAW_REQUIRED]: [payload: DrawRequiredPayload];
+    [GameEventType.HAND_UPDATED]: [payload: HandUpdatedPayload];
+    [GameEventType.DECK_UPDATED]: [payload: DeckUpdatedPayload];
+    [GameEventType.DISCARD_UPDATED]: [payload: DiscardUpdatedPayload];
+    [GameEventType.CURRENT_PLAYER_UPDATED]: [
+        payload: CurrentPlayerUpdatedPayload,
+    ];
 }

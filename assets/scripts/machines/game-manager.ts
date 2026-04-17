@@ -5,7 +5,7 @@
 import { createActor } from 'xstate';
 
 import { AIManager } from '../ai/ai-manager';
-import { GameEventType, publishEvent } from '../events/game.events';
+import { eventBus, GameEventType } from '../events';
 import { TimeoutManager } from '../logic/timeout-manager';
 import {
     Card,
@@ -20,17 +20,18 @@ import {
     getPlayableCards,
     validateCanPlayCard,
 } from '../validators/input-validator';
-import { createGameMachine, gameMachineConfig } from './game-machine';
+import { createGameMachine } from './game-machine';
 
 /** 游戏管理器单例 */
 export class GameManager {
     private static instance: GameManager | null = null;
-    private actor: ReturnType<typeof createActor> | null = null;
+    private actor: ReturnType<
+        typeof createActor<ReturnType<typeof createGameMachine>>
+    > | null = null;
     private aiManager: AIManager;
     private timeoutManager: TimeoutManager;
     private config: GameConfig;
     private isProcessing: boolean = false;
-    private subscriptions: Array<() => void> = [];
 
     private constructor(config: GameConfig = DEFAULT_GAME_CONFIG) {
         this.config = config;
@@ -70,8 +71,7 @@ export class GameManager {
 
     /** 初始化状态机 */
     private initMachine(): void {
-        const machine = createGameMachine(gameMachineConfig);
-        this.actor = createActor(machine);
+        this.actor = createActor(createGameMachine());
         this.actor.start();
     }
 
@@ -121,7 +121,7 @@ export class GameManager {
         const topCard = this.getTopCard();
         if (!topCard) return false;
 
-        const card = currentPlayer.hand.find((c) => c.id === cardId);
+        const card = currentPlayer.hand.find((c: Card) => c.id === cardId);
         if (!card) return false;
 
         // WildDraw4 需要额外校验无同色可出
@@ -189,14 +189,10 @@ export class GameManager {
             this.timeoutManager.stop();
         } else {
             // 人类玩家开始回合，启动计时
-            publishEvent({
-                type: GameEventType.TURN_STARTED,
-                timestamp: Date.now(),
-                payload: {
-                    playerId: currentPlayer.id,
-                    playerName: currentPlayer.name,
-                    isHuman: true,
-                },
+            eventBus.emit(GameEventType.TURN_STARTED, {
+                playerId: currentPlayer.id,
+                playerName: currentPlayer.name,
+                isHuman: true,
             });
         }
     }
@@ -238,11 +234,7 @@ export class GameManager {
         if (!currentPlayer || currentPlayer.type !== 'human') return false;
         if (currentPlayer.hand.length !== 2) return false;
 
-        publishEvent({
-            type: GameEventType.CALL_UNO,
-            timestamp: Date.now(),
-            payload: { playerId: currentPlayer.id },
-        });
+        eventBus.emit(GameEventType.CALL_UNO, { playerId: currentPlayer.id });
         return true;
     }
 
@@ -266,10 +258,7 @@ export class GameManager {
         this.actor?.send({ type: 'RESET' });
         this.actor?.stop();
         this.actor = null;
-        publishEvent({
-            type: GameEventType.RESET_GAME,
-            timestamp: Date.now(),
-        });
+        eventBus.emit(GameEventType.RESET_GAME);
     }
 
     /** 获取超时管理器 */
@@ -282,10 +271,6 @@ export class GameManager {
         this.reset();
         this.timeoutManager.dispose();
         this.aiManager.destroy();
-        for (const unsubscribe of this.subscriptions) {
-            unsubscribe();
-        }
-        this.subscriptions = [];
         GameManager.instance = null;
     }
 }

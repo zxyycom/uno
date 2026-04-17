@@ -66,10 +66,6 @@ export function canPlayCard(
         return card.type === UnoCardType.DRAW_2;
     }
 
-    if (pendingDraw4Count > 0) {
-        return card.type === UnoCardType.WILD_DRAW_4;
-    }
-
     // 颜色必须匹配
     if (card.color !== topCard.activeColor) {
         // 数字牌可以匹配数值

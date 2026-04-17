@@ -1,91 +1,69 @@
-/**
- * UI事件集成层
- * 演示UI组件如何订阅游戏事件
- */
-
 import {
-    CallUnoEvent,
-    CardPlayedEvent,
-    GameEvent,
+    CallUnoPayload,
+    CardPlayedPayload,
+    eventBus,
     GameEventType,
-    GameOverEvent,
-    HandUpdatedEvent,
-    subscribeEvent,
-    TurnChangedEvent,
-} from '../events/game.events';
+    GameOverPayload,
+    HandUpdatedPayload,
+    TurnChangedPayload,
+} from '../events';
 
-/** UI事件处理器 */
 export class UIGameEvents {
-    private subscriptions: Array<() => void> = [];
-
     constructor() {
         this.initSubscriptions();
     }
 
-    /** 初始化事件订阅 */
     private initSubscriptions(): void {
-        // 监听回合变化
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.TURN_CHANGED, (event: GameEvent) => {
-                const payload = (event as TurnChangedEvent).payload;
+        eventBus.on(
+            GameEventType.TURN_CHANGED,
+            (payload) => {
                 console.log(`轮到玩家: ${payload.currentPlayerId}`);
                 this.onTurnChanged(payload);
-            })
+            },
+            this
         );
 
-        // 监听出牌
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.CARD_PLAYED, (event: GameEvent) => {
-                const payload = (event as CardPlayedEvent).payload;
+        eventBus.on(
+            GameEventType.CARD_PLAYED,
+            (payload) => {
                 console.log(`玩家 ${payload.playerId} 出牌`);
                 this.onCardPlayed(payload);
-            })
+            },
+            this
         );
 
-        // 监听游戏结束
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.GAME_OVER, (event: GameEvent) => {
-                const payload = (event as GameOverEvent).payload;
+        eventBus.on(
+            GameEventType.GAME_OVER,
+            (payload) => {
                 console.log(`游戏结束! 获胜者: ${payload.winnerName}`);
                 this.onGameOver(payload);
-            })
+            },
+            this
         );
 
-        // 监听手牌更新
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.HAND_UPDATED, (event: GameEvent) => {
-                const payload = (event as HandUpdatedEvent).payload;
+        eventBus.on(
+            GameEventType.HAND_UPDATED,
+            (payload) => {
                 this.onHandUpdated(payload);
-            })
+            },
+            this
         );
 
-        // 监听UNO呼叫
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.CALL_UNO, (event: GameEvent) => {
-                const payload = (event as CallUnoEvent).payload;
-                console.log(`玩家 ${payload.playerName} 呼叫 UNO!`);
+        eventBus.on(
+            GameEventType.CALL_UNO,
+            (payload) => {
+                console.log(`玩家 ${payload.playerId} 呼叫 UNO!`);
                 this.onUnoCalled(payload);
-            })
-        );
-
-        // 通配符订阅（监听所有事件）
-        this.subscriptions.push(
-            subscribeEvent('*' as any, (event: GameEvent) => {
-                // 调试日志
-                // console.log(`[Event] ${event.type}`);
-            })
+            },
+            this
         );
     }
 
-    /** 回合变化回调 */
-    private onTurnChanged(payload: TurnChangedEvent['payload']): void {
+    private onTurnChanged(_payload: TurnChangedPayload): void {
         // TODO: 更新UI显示当前玩家
     }
 
-    /** 出牌回调 */
-    private onCardPlayed(payload: CardPlayedEvent['payload']): void {
-        // TODO: 播放出牌动画
-        // TODO: 更新弃牌堆显示
+    private onCardPlayed(payload: CardPlayedPayload): void {
         if (payload.isSkipEffect) {
             // TODO: 显示跳过提示
         }
@@ -94,27 +72,19 @@ export class UIGameEvents {
         }
     }
 
-    /** 游戏结束回调 */
-    private onGameOver(payload: GameOverEvent['payload']): void {
+    private onGameOver(_payload: GameOverPayload): void {
         // TODO: 显示游戏结束界面
-        // TODO: 显示最终手牌统计
     }
 
-    /** 手牌更新回调 */
-    private onHandUpdated(payload: HandUpdatedEvent['payload']): void {
+    private onHandUpdated(_payload: HandUpdatedPayload): void {
         // TODO: 更新手牌UI显示
     }
 
-    /** UNO呼叫回调 */
-    private onUnoCalled(payload: CallUnoEvent['payload']): void {
+    private onUnoCalled(_payload: CallUnoPayload): void {
         // TODO: 显示UNO提示动画
     }
 
-    /** 取消所有订阅 */
     public dispose(): void {
-        for (const unsubscribe of this.subscriptions) {
-            unsubscribe();
-        }
-        this.subscriptions = [];
+        eventBus.targetOff(this);
     }
 }

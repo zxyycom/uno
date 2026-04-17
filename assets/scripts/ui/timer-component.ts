@@ -5,11 +5,7 @@
 
 import { _decorator, Color, Component, Label, ProgressBar } from 'cc';
 
-import {
-    GameEventType,
-    subscribeEvent,
-    TurnStartedEvent,
-} from '../events/game.events';
+import { eventBus, GameEventType } from '../events';
 
 const { ccclass, property } = _decorator;
 
@@ -32,6 +28,9 @@ export class TimerComponent extends Component {
     private isRunning: boolean = false;
     private currentPlayerId: string = '';
 
+    /** 超时回调 */
+    public onTimeout: (() => void) | null = null;
+
     start() {
         this.initEventSubscriptions();
         this.reset();
@@ -39,21 +38,25 @@ export class TimerComponent extends Component {
 
     onDestroy() {
         this.stop();
+        eventBus.targetOff(this);
     }
 
     private initEventSubscriptions(): void {
-        // 监听回合开始
-        subscribeEvent(
+        eventBus.on(
             GameEventType.TURN_STARTED,
-            (event: TurnStartedEvent) => {
-                this.startTimer(event.payload.playerId);
-            }
+            (payload) => {
+                this.startTimer(payload.playerId);
+            },
+            this
         );
 
-        // 监听回合超时
-        subscribeEvent(GameEventType.TURN_TIMEOUT, () => {
-            this.stop();
-        });
+        eventBus.on(
+            GameEventType.TURN_TIMEOUT,
+            () => {
+                this.stop();
+            },
+            this
+        );
     }
 
     /** 开始计时 */

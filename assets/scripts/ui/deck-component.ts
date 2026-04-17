@@ -5,11 +5,7 @@
 
 import { _decorator, Component, Label } from 'cc';
 
-import {
-    DeckUpdatedEvent,
-    GameEventType,
-    subscribeEvent,
-} from '../events/game.events';
+import { eventBus, GameEventType } from '../events';
 
 const { ccclass, property } = _decorator;
 
@@ -29,18 +25,21 @@ export class DeckComponent extends Component {
     }
 
     private initEventSubscriptions(): void {
-        // 监听牌堆更新
-        subscribeEvent(
+        eventBus.on(
             GameEventType.DECK_UPDATED,
-            (event: DeckUpdatedEvent) => {
-                this.updateDeckCount(event.payload.count);
-            }
+            (payload) => {
+                this.updateDeckCount(payload.remainingCards);
+            },
+            this
         );
 
-        // 监听游戏开始，重置牌堆
-        subscribeEvent(GameEventType.START_GAME, () => {
-            this.updateDeckCount(0);
-        });
+        eventBus.on(
+            GameEventType.START_GAME,
+            () => {
+                this.updateDeckCount(0);
+            },
+            this
+        );
     }
 
     /** 更新牌堆数量显示 */
@@ -57,6 +56,6 @@ export class DeckComponent extends Component {
     }
 
     dispose(): void {
-        // 清理订阅
+        eventBus.targetOff(this);
     }
 }

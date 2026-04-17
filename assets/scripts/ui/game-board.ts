@@ -6,14 +6,14 @@
 import { _decorator, Component, Node } from 'cc';
 
 import {
-    CardPlayedEvent,
-    DirectionChangedEvent,
-    DiscardUpdatedEvent,
+    CardPlayedPayload,
+    DirectionChangedPayload,
+    DiscardUpdatedPayload,
+    eventBus,
     GameEventType,
-    PlayerSkippedEvent,
-    subscribeEvent,
-    TurnChangedEvent,
-} from '../events/game.events';
+    PlayerSkippedPayload,
+    TurnChangedPayload,
+} from '../events';
 
 const { ccclass, property } = _decorator;
 
@@ -31,8 +31,6 @@ export class GameBoard extends Component {
     @property(Node)
     public currentPlayerIndicator: Node | null = null;
 
-    private subscriptions: Array<() => void> = [];
-
     start() {
         this.initEventSubscriptions();
     }
@@ -43,76 +41,74 @@ export class GameBoard extends Component {
 
     /** 初始化事件订阅 */
     private initEventSubscriptions(): void {
-        // 监听出牌
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.CARD_PLAYED, (event) => {
-                const payload = (event as CardPlayedEvent).payload;
+        eventBus.on(
+            GameEventType.CARD_PLAYED,
+            (payload) => {
                 this.onCardPlayed(payload);
-            })
+            },
+            this
         );
 
-        // 监听回合变化
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.TURN_CHANGED, (event) => {
-                const payload = (event as TurnChangedEvent).payload;
+        eventBus.on(
+            GameEventType.TURN_CHANGED,
+            (payload) => {
                 this.onTurnChanged(payload);
-            })
+            },
+            this
         );
 
-        // 监听方向改变
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.DIRECTION_CHANGED, (event) => {
-                const payload = (event as DirectionChangedEvent).payload;
+        eventBus.on(
+            GameEventType.DIRECTION_CHANGED,
+            (payload) => {
                 this.onDirectionChanged(payload);
-            })
+            },
+            this
         );
 
-        // 监听玩家被跳过
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.PLAYER_SKIPPED, (event) => {
-                const payload = (event as PlayerSkippedEvent).payload;
+        eventBus.on(
+            GameEventType.PLAYER_SKIPPED,
+            (payload) => {
                 this.onPlayerSkipped(payload);
-            })
+            },
+            this
         );
 
-        // 监听弃牌堆更新
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.DISCARD_UPDATED, (event) => {
-                const payload = (event as DiscardUpdatedEvent).payload;
+        eventBus.on(
+            GameEventType.DISCARD_UPDATED,
+            (payload) => {
                 this.onDiscardUpdated(payload);
-            })
+            },
+            this
         );
     }
 
     /** 处理出牌事件 */
-    private onCardPlayed(payload: CardPlayedEvent['payload']): void {
+    private onCardPlayed(payload: CardPlayedPayload): void {
         // TODO: 播放出牌动画
         // TODO: 更新弃牌堆显示
         console.log(`[GameBoard] 玩家 ${payload.playerId} 出牌`);
     }
 
     /** 处理回合变化 */
-    private onTurnChanged(payload: TurnChangedEvent['payload']): void {
+    private onTurnChanged(payload: TurnChangedPayload): void {
         // TODO: 更新当前玩家指示器
         console.log(`[GameBoard] 轮到: ${payload.currentPlayerId}`);
     }
 
     /** 处理方向改变 */
-    private onDirectionChanged(
-        payload: DirectionChangedEvent['payload']
-    ): void {
+    private onDirectionChanged(payload: DirectionChangedPayload): void {
         // TODO: 旋转方向指示器
         console.log(`[GameBoard] 方向改变: ${payload.newDirection}`);
     }
 
     /** 处理玩家被跳过 */
-    private onPlayerSkipped(payload: PlayerSkippedEvent['payload']): void {
+    private onPlayerSkipped(payload: PlayerSkippedPayload): void {
         // TODO: 显示跳过提示动画
         console.log(`[GameBoard] 玩家 ${payload.skippedPlayerName} 被跳过`);
     }
 
     /** 处理弃牌堆更新 */
-    private onDiscardUpdated(payload: DiscardUpdatedEvent['payload']): void {
+    private onDiscardUpdated(payload: DiscardUpdatedPayload): void {
         // TODO: 更新弃牌堆显示
         // TODO: 显示顶牌
         console.log(`[GameBoard] 弃牌堆: ${payload.discardCount} 张`);
@@ -120,9 +116,6 @@ export class GameBoard extends Component {
 
     /** 取消订阅 */
     public dispose(): void {
-        for (const unsubscribe of this.subscriptions) {
-            unsubscribe();
-        }
-        this.subscriptions = [];
+        eventBus.targetOff(this);
     }
 }

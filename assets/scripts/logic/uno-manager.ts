@@ -4,13 +4,11 @@
  */
 
 import {
-    CardPlayedEvent,
-    GameEvent,
+    CardPlayedPayload,
+    eventBus,
     GameEventType,
-    publishEvent,
-    subscribeEvent,
-    TurnStartedEvent,
-} from '../events/game.events';
+    TurnStartedPayload,
+} from '../events';
 
 /** UNO状态 */
 export enum UnoState {
@@ -48,7 +46,6 @@ export class UnoManager {
         string,
         { handCount: number; unoCalled: boolean }
     > = new Map();
-    private subscriptions: Array<() => void> = [];
     private graceTimer: number | null = null;
 
     /** UNO状态变化回调 */
@@ -71,38 +68,39 @@ export class UnoManager {
 
     /** 初始化事件订阅 */
     init(): void {
-        // 监听回合开始
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.TURN_STARTED, (event: GameEvent) => {
-                const payload = (event as TurnStartedEvent).payload;
+        eventBus.on(
+            GameEventType.TURN_STARTED,
+            (payload) => {
                 this.onTurnStarted(payload);
-            })
+            },
+            this
         );
 
-        // 监听出牌
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.CARD_PLAYED, (event: GameEvent) => {
-                const payload = (event as CardPlayedEvent).payload;
+        eventBus.on(
+            GameEventType.CARD_PLAYED,
+            (payload) => {
                 this.onCardPlayed(payload);
-            })
+            },
+            this
         );
 
-        // 监听游戏重置
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.RESET_GAME, () => {
+        eventBus.on(
+            GameEventType.RESET_GAME,
+            () => {
                 this.reset();
-            })
+            },
+            this
         );
     }
 
     /** 处理回合开始 */
-    private onTurnStarted(payload: TurnStartedEvent['payload']): void {
+    private onTurnStarted(payload: TurnStartedPayload): void {
         // 检查上一位玩家是否需要呼叫UNO
         this.checkLastPlayerUno();
     }
 
     /** 处理出牌 */
-    private onCardPlayed(payload: CardPlayedEvent['payload']): void {
+    private onCardPlayed(payload: CardPlayedPayload): void {
         const player = this.playerStack.get(payload.playerId);
         const handCount = this.getHandCount(payload.playerId);
 
@@ -143,11 +141,7 @@ export class UnoManager {
         this.state = UnoState.CALLED;
 
         // 发布UNO呼叫事件
-        publishEvent({
-            type: GameEventType.CALL_UNO,
-            timestamp: Date.now(),
-            payload: { playerId },
-        });
+        eventBus.emit(GameEventType.CALL_UNO, { playerId });
 
         // 触发回调
         if (this.onStateChange) {
@@ -189,13 +183,9 @@ export class UnoManager {
         this.state = UnoState.PENALIZED;
 
         // 发布惩罚事件
-        publishEvent({
-            type: GameEventType.UNO_PENALTY,
-            timestamp: Date.now(),
-            payload: {
-                playerId,
-                penaltyCards: this.config.penaltyDrawCount,
-            },
+        eventBus.emit(GameEventType.UNO_PENALTY, {
+            playerId,
+            penaltyCards: this.config.penaltyDrawCount,
         });
 
         // 触发惩罚回调（通知GameManager抽牌）
@@ -268,10 +258,7 @@ export class UnoManager {
     /** 清理资源 */
     dispose(): void {
         this.reset();
-        for (const unsubscribe of this.subscriptions) {
-            unsubscribe();
-        }
-        this.subscriptions = [];
+        eventBus.targetOff(this);
         UnoManager.instance = null;
     }
 }

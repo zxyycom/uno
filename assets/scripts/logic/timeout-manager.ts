@@ -3,13 +3,7 @@
  * 处理玩家操作超时，自动触发摸牌
  */
 
-import {
-    GameEvent,
-    GameEventType,
-    publishEvent,
-    subscribeEvent,
-    TurnStartedEvent,
-} from '../events/game.events';
+import { eventBus, GameEventType, TurnStartedPayload } from '../events';
 
 export interface TimeoutConfig {
     /** 超时时间（秒） */
@@ -46,8 +40,6 @@ export class TimeoutManager {
     private intervalId: number | null = null;
     private currentPlayerId: string = '';
     private isHumanTurn: boolean = false;
-    private subscriptions: Array<() => void> = [];
-
     /** 超时回调 */
     private onTimeoutCallback: TimeoutCallback | null = null;
     /** 警告回调 */
@@ -69,28 +61,33 @@ export class TimeoutManager {
 
     /** 初始化事件订阅 */
     init(): void {
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.TURN_STARTED, (event: GameEvent) => {
-                const payload = (event as TurnStartedEvent).payload;
+        eventBus.on(
+            GameEventType.TURN_STARTED,
+            (payload) => {
                 this.onTurnStarted(payload);
-            })
+            },
+            this
         );
 
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.GAME_OVER, () => {
+        eventBus.on(
+            GameEventType.GAME_OVER,
+            () => {
                 this.stop();
-            })
+            },
+            this
         );
 
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.RESET_GAME, () => {
+        eventBus.on(
+            GameEventType.RESET_GAME,
+            () => {
                 this.stop();
-            })
+            },
+            this
         );
     }
 
     /** 处理回合开始 */
-    private onTurnStarted(payload: TurnStartedEvent['payload']): void {
+    private onTurnStarted(payload: TurnStartedPayload): void {
         this.currentPlayerId = payload.playerId;
         this.isHumanTurn = payload.isHuman;
 
@@ -143,13 +140,9 @@ export class TimeoutManager {
             if (this.onWarningCallback) {
                 this.onWarningCallback(TimeoutState.WARNING);
             }
-            publishEvent({
-                type: GameEventType.TIMEOUT_WARNING,
-                timestamp: Date.now(),
-                payload: {
-                    playerId: this.currentPlayerId,
-                    remainingSeconds: this.remainingTime,
-                },
+            eventBus.emit(GameEventType.TIMEOUT_WARNING, {
+                playerId: this.currentPlayerId,
+                remainingSeconds: this.remainingTime,
             });
         }
 
@@ -165,12 +158,8 @@ export class TimeoutManager {
         this.stop();
 
         // 发布超时事件
-        publishEvent({
-            type: GameEventType.TIMEOUT_EXPIRED,
-            timestamp: Date.now(),
-            payload: {
-                playerId: this.currentPlayerId,
-            },
+        eventBus.emit(GameEventType.TIMEOUT_EXPIRED, {
+            playerId: this.currentPlayerId,
         });
 
         // 触发超时回调
@@ -232,10 +221,7 @@ export class TimeoutManager {
     /** 清理资源 */
     dispose(): void {
         this.stop();
-        for (const unsubscribe of this.subscriptions) {
-            unsubscribe();
-        }
-        this.subscriptions = [];
+        eventBus.targetOff(this);
         TimeoutManager.instance = null;
     }
 }

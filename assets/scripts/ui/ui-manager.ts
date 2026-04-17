@@ -6,13 +6,12 @@
 import { _decorator, Component, Node } from 'cc';
 
 import {
-    CurrentPlayerUpdatedEvent,
-    GameEvent,
+    CurrentPlayerUpdatedPayload,
+    eventBus,
     GameEventType,
-    HandUpdatedEvent,
-    subscribeEvent,
-    TurnChangedEvent,
-} from '../events/game.events';
+    HandUpdatedPayload,
+    TurnChangedPayload,
+} from '../events';
 import { GameManager } from '../machines/game-manager';
 import { DeckComponent } from './deck-component';
 import { GameBoard } from './game-board';
@@ -44,7 +43,6 @@ export class UIManager extends Component {
     public gameMessage: GameMessage | null = null;
 
     private gameManager: GameManager | null = null;
-    private subscriptions: Array<() => void> = [];
 
     start() {
         this.initUIComponents();
@@ -86,37 +84,33 @@ export class UIManager extends Component {
 
     /** 初始化游戏事件订阅 */
     private initGameEvents(): void {
-        // 监听回合变化
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.TURN_CHANGED, (event: GameEvent) => {
-                const payload = (event as TurnChangedEvent).payload;
+        eventBus.on(
+            GameEventType.TURN_CHANGED,
+            (payload) => {
                 this.onTurnChanged(payload);
-            })
+            },
+            this
         );
 
-        // 监听当前玩家更新
-        this.subscriptions.push(
-            subscribeEvent(
-                GameEventType.CURRENT_PLAYER_UPDATED,
-                (event: GameEvent) => {
-                    const payload = (event as CurrentPlayerUpdatedEvent)
-                        .payload;
-                    this.updateActivePlayerIndicator(payload);
-                }
-            )
+        eventBus.on(
+            GameEventType.CURRENT_PLAYER_UPDATED,
+            (payload) => {
+                this.updateActivePlayerIndicator(payload);
+            },
+            this
         );
 
-        // 监听手牌更新
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.HAND_UPDATED, (event: GameEvent) => {
-                const payload = (event as HandUpdatedEvent).payload;
+        eventBus.on(
+            GameEventType.HAND_UPDATED,
+            (payload) => {
                 this.onHandUpdated(payload);
-            })
+            },
+            this
         );
     }
 
     /** 处理回合变化 */
-    private onTurnChanged(payload: TurnChangedEvent['payload']): void {
+    private onTurnChanged(payload: TurnChangedPayload): void {
         // 更新玩家指示器
         this.updateActivePlayerIndicator({
             playerId: payload.currentPlayerId,
@@ -127,7 +121,7 @@ export class UIManager extends Component {
 
     /** 更新当前玩家指示器 */
     private updateActivePlayerIndicator(
-        payload: CurrentPlayerUpdatedEvent['payload']
+        payload: CurrentPlayerUpdatedPayload
     ): void {
         if (!this.playerIndicators) return;
 
@@ -143,7 +137,7 @@ export class UIManager extends Component {
     }
 
     /** 处理手牌更新 */
-    private onHandUpdated(payload: HandUpdatedEvent['payload']): void {
+    private onHandUpdated(payload: HandUpdatedPayload): void {
         // 更新对应玩家的指示器
         if (!this.playerIndicators) return;
 
@@ -172,9 +166,6 @@ export class UIManager extends Component {
 
     /** 取消订阅 */
     public dispose(): void {
-        for (const unsubscribe of this.subscriptions) {
-            unsubscribe();
-        }
-        this.subscriptions = [];
+        eventBus.targetOff(this);
     }
 }

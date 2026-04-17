@@ -5,13 +5,7 @@
 
 import { _decorator, Component, Label, tween, Vec3 } from 'cc';
 
-import {
-    GameEvent,
-    GameEventType,
-    GameOverEvent,
-    PlayerSkippedEvent,
-    subscribeEvent,
-} from '../events/game.events';
+import { eventBus, GameEventType } from '../events';
 
 const { ccclass, property } = _decorator;
 
@@ -29,8 +23,6 @@ export class GameMessage extends Component {
     @property
     public fadeOutDuration: number = 0.3;
 
-    private subscriptions: Array<() => void> = [];
-
     start() {
         this.initEventSubscriptions();
         this.node.active = false;
@@ -42,34 +34,36 @@ export class GameMessage extends Component {
 
     /** 初始化事件订阅 */
     private initEventSubscriptions(): void {
-        // 监听玩家被跳过
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.PLAYER_SKIPPED, (event: GameEvent) => {
-                const payload = (event as PlayerSkippedEvent).payload;
+        eventBus.on(
+            GameEventType.PLAYER_SKIPPED,
+            (payload) => {
                 this.showMessage(`${payload.skippedPlayerName} 被跳过!`);
-            })
+            },
+            this
         );
 
-        // 监听UNO惩罚
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.UNO_PENALTY, (event: GameEvent) => {
+        eventBus.on(
+            GameEventType.UNO_PENALTY,
+            () => {
                 this.showMessage(`UNO 犯规! 抽2张牌惩罚`);
-            })
+            },
+            this
         );
 
-        // 监听游戏结束
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.GAME_OVER, (event: GameEvent) => {
-                const payload = (event as GameOverEvent).payload;
+        eventBus.on(
+            GameEventType.GAME_OVER,
+            (payload) => {
                 this.showMessage(`${payload.winnerName} 获胜!`, 5.0);
-            })
+            },
+            this
         );
 
-        // 监听方向改变
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.DIRECTION_CHANGED, () => {
+        eventBus.on(
+            GameEventType.DIRECTION_CHANGED,
+            () => {
                 this.showMessage(`方向改变!`);
-            })
+            },
+            this
         );
     }
 
@@ -99,9 +93,6 @@ export class GameMessage extends Component {
 
     /** 取消订阅 */
     public dispose(): void {
-        for (const unsubscribe of this.subscriptions) {
-            unsubscribe();
-        }
-        this.subscriptions = [];
+        eventBus.targetOff(this);
     }
 }

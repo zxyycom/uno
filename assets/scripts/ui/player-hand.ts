@@ -5,12 +5,7 @@
 
 import { _decorator, Component, instantiate, Node, Prefab } from 'cc';
 
-import {
-    CallUnoEvent,
-    GameEventType,
-    HandUpdatedEvent,
-    subscribeEvent,
-} from '../events/game.events';
+import { eventBus, GameEventType, HandUpdatedPayload } from '../events';
 import { Card } from '../types/game.types';
 
 const { ccclass, property } = _decorator;
@@ -25,7 +20,6 @@ export class PlayerHand extends Component {
 
     private cardNodes: Node[] = [];
     private playerId: string = '';
-    private subscriptions: Array<() => void> = [];
 
     /**
      * 初始化手牌（指定玩家ID）
@@ -45,29 +39,29 @@ export class PlayerHand extends Component {
 
     /** 初始化事件订阅 */
     private initEventSubscriptions(): void {
-        // 监听手牌更新
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.HAND_UPDATED, (event) => {
-                const payload = (event as HandUpdatedEvent).payload;
+        eventBus.on(
+            GameEventType.HAND_UPDATED,
+            (payload) => {
                 if (payload.playerId === this.playerId) {
                     this.onHandUpdated(payload);
                 }
-            })
+            },
+            this
         );
 
-        // 监听UNO呼叫
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.CALL_UNO, (event) => {
-                const payload = (event as CallUnoEvent).payload;
+        eventBus.on(
+            GameEventType.CALL_UNO,
+            (payload) => {
                 if (payload.playerId === this.playerId) {
                     this.onUnoCalled();
                 }
-            })
+            },
+            this
         );
     }
 
     /** 处理手牌更新 */
-    private onHandUpdated(payload: HandUpdatedEvent['payload']): void {
+    private onHandUpdated(payload: HandUpdatedPayload): void {
         this.updateCardDisplay(payload.hand, payload.cardCount);
     }
 
@@ -113,9 +107,6 @@ export class PlayerHand extends Component {
 
     /** 取消订阅 */
     public dispose(): void {
-        for (const unsubscribe of this.subscriptions) {
-            unsubscribe();
-        }
-        this.subscriptions = [];
+        eventBus.targetOff(this);
     }
 }
