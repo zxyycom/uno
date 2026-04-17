@@ -1,5 +1,6 @@
 {
     "name": "uno",
+    "type": "module",
     "scripts": {
         "bundle:libraries": "node ./scripts/bundle-libraries.js",
         "fromat": "npx prettier --write .",
