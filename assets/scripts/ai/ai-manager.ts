@@ -3,13 +3,12 @@
  * 负责协调AI玩家的行为决策
  */
 
-import { CardColor, GameConfig, Player } from "../types/game.types";
-import { TopCard } from "../types/game.types";
-import { decideAIAction, shouldAICallUno } from "./ai-strategy";
+import { CardColor, GameConfig, Player, TopCard } from '../types/game.types';
+import { decideAIAction, shouldAICallUno } from './ai-strategy';
 
 /** AI决策回调 */
 export type AIActionCallback = (action: {
-    action: "play" | "draw";
+    action: 'play' | 'draw';
     cardId?: string;
     chosenColor?: CardColor;
 }) => void;
@@ -36,7 +35,7 @@ export class AIManager {
         pendingDraw2Count: number,
         pendingDraw4Count: number,
         canDrawFreely: boolean,
-        callback: AIActionCallback,
+        callback: AIActionCallback
     ): void {
         // 模拟AI思考延迟
         const thinkTime = this.config.aiThinkDelay + Math.random() * 500;
@@ -48,7 +47,7 @@ export class AIManager {
                 topCard,
                 pendingDraw2Count,
                 pendingDraw4Count,
-                canDrawFreely,
+                canDrawFreely
             );
             callback(action);
 

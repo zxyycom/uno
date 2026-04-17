@@ -2,6 +2,6 @@
  * 游戏逻辑模块导出
  */
 
-export * from "./deck.logic";
-export * from "./timeout-manager";
-export * from "./uno-manager";
+export * from './deck.logic';
+export * from './timeout-manager';
+export * from './uno-manager';

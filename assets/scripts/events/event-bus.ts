@@ -26,7 +26,10 @@ class EventBus {
     }
 
     /** 订阅事件 */
-    subscribe(eventType: GameEventType | '*', listener: EventListener): EventSubscription {
+    subscribe(
+        eventType: GameEventType | '*',
+        listener: EventListener
+    ): EventSubscription {
         if (!this.listeners.has(eventType)) {
             this.listeners.set(eventType, new Set());
         }
@@ -34,7 +37,9 @@ class EventBus {
 
         return {
             unsubscribe: () => {
-                this.listeners.get(eventType)?.delete(listener as EventListener);
+                this.listeners
+                    .get(eventType)
+                    ?.delete(listener as EventListener);
             },
         };
     }
@@ -48,7 +53,10 @@ class EventBus {
                 try {
                     listener(event);
                 } catch (error) {
-                    console.error(`Error in event listener for ${event.type}:`, error);
+                    console.error(
+                        `Error in event listener for ${event.type}:`,
+                        error
+                    );
                 }
             }
         }
@@ -95,7 +103,7 @@ export function publishEvent(event: GameEvent): void {
 /** 快捷订阅函数 */
 export function subscribeEvent(
     eventType: GameEventType | '*',
-    listener: EventListener,
+    listener: EventListener
 ): EventSubscription {
     return eventBus.subscribe(eventType, listener);
 }

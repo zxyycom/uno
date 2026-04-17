@@ -4,12 +4,12 @@
  */
 
 import {
-    GameEventType,
-    TurnStartedEvent,
     GameEvent,
-    subscribeEvent,
+    GameEventType,
     publishEvent,
-} from "../events/game.events";
+    subscribeEvent,
+    TurnStartedEvent,
+} from '../events/game.events';
 
 export interface TimeoutConfig {
     /** 超时时间（秒） */
@@ -28,10 +28,10 @@ const DEFAULT_CONFIG: TimeoutConfig = {
 
 /** 超时状态 */
 export enum TimeoutState {
-    IDLE = "idle",
-    RUNNING = "running",
-    WARNING = "warning",
-    EXPIRED = "expired",
+    IDLE = 'idle',
+    RUNNING = 'running',
+    WARNING = 'warning',
+    EXPIRED = 'expired',
 }
 
 /** 超时事件回调 */
@@ -39,12 +39,12 @@ export type TimeoutCallback = (state: TimeoutState) => void;
 
 export class TimeoutManager {
     private static instance: TimeoutManager | null = null;
-    
+
     private config: TimeoutConfig;
     private state: TimeoutState = TimeoutState.IDLE;
     private remainingTime: number = 0;
     private intervalId: number | null = null;
-    private currentPlayerId: string = "";
+    private currentPlayerId: string = '';
     private isHumanTurn: boolean = false;
     private subscriptions: Array<() => void> = [];
 
@@ -90,7 +90,7 @@ export class TimeoutManager {
     }
 
     /** 处理回合开始 */
-    private onTurnStarted(payload: TurnStartedEvent["payload"]): void {
+    private onTurnStarted(payload: TurnStartedEvent['payload']): void {
         this.currentPlayerId = payload.playerId;
         this.isHumanTurn = payload.isHuman;
 
@@ -135,8 +135,10 @@ export class TimeoutManager {
         }
 
         // 检查是否进入警告状态
-        if (this.remainingTime <= this.config.warningThreshold && 
-            this.state !== TimeoutState.WARNING) {
+        if (
+            this.remainingTime <= this.config.warningThreshold &&
+            this.state !== TimeoutState.WARNING
+        ) {
             this.state = TimeoutState.WARNING;
             if (this.onWarningCallback) {
                 this.onWarningCallback(TimeoutState.WARNING);
@@ -161,7 +163,7 @@ export class TimeoutManager {
     /** 超时处理 */
     private onTimeout(): void {
         this.stop();
-        
+
         // 发布超时事件
         publishEvent({
             type: GameEventType.TIMEOUT_EXPIRED,
@@ -212,7 +214,10 @@ export class TimeoutManager {
 
     /** 恢复计时 */
     resume(): void {
-        if (this.state === TimeoutState.RUNNING || this.state === TimeoutState.WARNING) {
+        if (
+            this.state === TimeoutState.RUNNING ||
+            this.state === TimeoutState.WARNING
+        ) {
             this.intervalId = setInterval(() => {
                 this.tick();
             }, 1000) as unknown as number;

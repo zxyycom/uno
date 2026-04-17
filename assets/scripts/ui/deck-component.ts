@@ -3,16 +3,17 @@
  * 显示剩余牌数量
  */
 
-import { _decorator, Component, Label } from "cc";
+import { _decorator, Component, Label } from 'cc';
+
 import {
-    GameEventType,
     DeckUpdatedEvent,
+    GameEventType,
     subscribeEvent,
-} from "../events/game.events";
+} from '../events/game.events';
 
 const { ccclass, property } = _decorator;
 
-@ccclass("DeckComponent")
+@ccclass('DeckComponent')
 export class DeckComponent extends Component {
     @property(Label)
     public countLabel: Label | null = null;
@@ -29,9 +30,12 @@ export class DeckComponent extends Component {
 
     private initEventSubscriptions(): void {
         // 监听牌堆更新
-        subscribeEvent(GameEventType.DECK_UPDATED, (event: DeckUpdatedEvent) => {
-            this.updateDeckCount(event.payload.count);
-        });
+        subscribeEvent(
+            GameEventType.DECK_UPDATED,
+            (event: DeckUpdatedEvent) => {
+                this.updateDeckCount(event.payload.count);
+            }
+        );
 
         // 监听游戏开始，重置牌堆
         subscribeEvent(GameEventType.START_GAME, () => {

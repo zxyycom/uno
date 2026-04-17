@@ -4,16 +4,15 @@
  */
 
 import {
-    GameEventType,
-    GameEvent,
-    eventBus,
-    subscribeEvent,
+    CallUnoEvent,
     CardPlayedEvent,
-    TurnChangedEvent,
+    GameEvent,
+    GameEventType,
     GameOverEvent,
     HandUpdatedEvent,
-    CallUnoEvent,
-} from "../events/game.events";
+    subscribeEvent,
+    TurnChangedEvent,
+} from '../events/game.events';
 
 /** UI事件处理器 */
 export class UIGameEvents {
@@ -71,7 +70,7 @@ export class UIGameEvents {
 
         // 通配符订阅（监听所有事件）
         this.subscriptions.push(
-            subscribeEvent("*" as any, (event: GameEvent) => {
+            subscribeEvent('*' as any, (event: GameEvent) => {
                 // 调试日志
                 // console.log(`[Event] ${event.type}`);
             })
@@ -79,12 +78,12 @@ export class UIGameEvents {
     }
 
     /** 回合变化回调 */
-    private onTurnChanged(payload: TurnChangedEvent["payload"]): void {
+    private onTurnChanged(payload: TurnChangedEvent['payload']): void {
         // TODO: 更新UI显示当前玩家
     }
 
     /** 出牌回调 */
-    private onCardPlayed(payload: CardPlayedEvent["payload"]): void {
+    private onCardPlayed(payload: CardPlayedEvent['payload']): void {
         // TODO: 播放出牌动画
         // TODO: 更新弃牌堆显示
         if (payload.isSkipEffect) {
@@ -96,18 +95,18 @@ export class UIGameEvents {
     }
 
     /** 游戏结束回调 */
-    private onGameOver(payload: GameOverEvent["payload"]): void {
+    private onGameOver(payload: GameOverEvent['payload']): void {
         // TODO: 显示游戏结束界面
         // TODO: 显示最终手牌统计
     }
 
     /** 手牌更新回调 */
-    private onHandUpdated(payload: HandUpdatedEvent["payload"]): void {
+    private onHandUpdated(payload: HandUpdatedEvent['payload']): void {
         // TODO: 更新手牌UI显示
     }
 
     /** UNO呼叫回调 */
-    private onUnoCalled(payload: CallUnoEvent["payload"]): void {
+    private onUnoCalled(payload: CallUnoEvent['payload']): void {
         // TODO: 显示UNO提示动画
     }
 

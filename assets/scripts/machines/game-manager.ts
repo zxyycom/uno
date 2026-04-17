@@ -2,24 +2,25 @@
  * 游戏管理器 - 整合状态机与游戏逻辑
  */
 
-import { createActor } from "xstate";
+import { createActor } from 'xstate';
+
+import { AIManager } from '../ai/ai-manager';
+import { GameEventType, publishEvent } from '../events/game.events';
+import { TimeoutManager } from '../logic/timeout-manager';
 import {
+    Card,
     CardColor,
     DEFAULT_GAME_CONFIG,
     GameConfig,
-    UnoCardType,
-    Card,
     TopCard,
-} from "../types/game.types";
+    UnoCardType,
+} from '../types/game.types';
 import {
-    GameEventType,
-    publishEvent,
-    subscribeEvent,
-} from "../events/game.events";
-import { createGameMachine, gameMachineConfig } from "./game-machine";
-import { AIManager } from "../ai/ai-manager";
-import { validateCanPlayCard, getPlayableCards, canPlayWildDraw4 } from "../validators/input-validator";
-import { TimeoutManager, TimeoutState } from "../logic/timeout-manager";
+    canPlayWildDraw4,
+    getPlayableCards,
+    validateCanPlayCard,
+} from '../validators/input-validator';
+import { createGameMachine, gameMachineConfig } from './game-machine';
 
 /** 游戏管理器单例 */
 export class GameManager {
@@ -35,9 +36,9 @@ export class GameManager {
         this.config = config;
         this.aiManager = new AIManager(config);
         this.timeoutManager = TimeoutManager.getInstance();
-        
+
         this.aiManager.setUnoCallback((playerId) => {
-            this.actor?.send({ type: "CALL_UNO", playerId });
+            this.actor?.send({ type: 'CALL_UNO', playerId });
         });
 
         this.initTimeoutManager();
@@ -54,7 +55,7 @@ export class GameManager {
     /** 初始化超时管理器 */
     private initTimeoutManager(): void {
         this.timeoutManager.init();
-        
+
         // 设置超时回调 - 自动摸牌
         this.timeoutManager.setOnTimeout(() => {
             this.onTimeoutExpired();
@@ -63,7 +64,7 @@ export class GameManager {
 
     /** 处理超时过期 */
     private onTimeoutExpired(): void {
-        console.log("[GameManager] 玩家超时，自动摸牌");
+        console.log('[GameManager] 玩家超时，自动摸牌');
         this.drawCard();
     }
 
@@ -78,13 +79,13 @@ export class GameManager {
     startGame(playerCount: number = 1, aiCount: number = 1): void {
         this.initMachine();
         this.actor?.send({
-            type: "START_GAME",
+            type: 'START_GAME',
             playerCount,
             aiCount,
         });
         // 发牌
         setTimeout(() => {
-            this.actor?.send({ type: "DEAL_COMPLETE" });
+            this.actor?.send({ type: 'DEAL_COMPLETE' });
             this.onTurnStarted();
         }, 500);
     }
@@ -101,7 +102,8 @@ export class GameManager {
     getTopCard(): TopCard | null {
         const state = this.actor?.getSnapshot();
         if (!state || state.context.discardPile.length === 0) return null;
-        const top = state.context.discardPile[state.context.discardPile.length - 1];
+        const top =
+            state.context.discardPile[state.context.discardPile.length - 1];
         return {
             card: top,
             activeColor: state.context.activeColor,
@@ -114,7 +116,7 @@ export class GameManager {
     playCard(cardId: string, chosenColor?: CardColor): boolean {
         if (this.isProcessing) return false;
         const currentPlayer = this.getCurrentPlayer();
-        if (!currentPlayer || currentPlayer.type !== "human") return false;
+        if (!currentPlayer || currentPlayer.type !== 'human') return false;
 
         const topCard = this.getTopCard();
         if (!topCard) return false;
@@ -133,7 +135,7 @@ export class GameManager {
             card,
             topCard,
             topCard.draw2Count,
-            topCard.draw4Count,
+            topCard.draw4Count
         );
 
         if (!validation.valid) {
@@ -142,7 +144,7 @@ export class GameManager {
 
         this.isProcessing = true;
         this.actor?.send({
-            type: "PLAY_CARD",
+            type: 'PLAY_CARD',
             playerId: currentPlayer.id,
             cardId,
             chosenColor,
@@ -160,11 +162,11 @@ export class GameManager {
     drawCard(): boolean {
         if (this.isProcessing) return false;
         const currentPlayer = this.getCurrentPlayer();
-        if (!currentPlayer || currentPlayer.type !== "human") return false;
+        if (!currentPlayer || currentPlayer.type !== 'human') return false;
 
         this.isProcessing = true;
         this.actor?.send({
-            type: "DRAW_CARD",
+            type: 'DRAW_CARD',
             playerId: currentPlayer.id,
         });
 
@@ -181,7 +183,7 @@ export class GameManager {
         const currentPlayer = this.getCurrentPlayer();
         if (!currentPlayer) return;
 
-        if (currentPlayer.type === "ai") {
+        if (currentPlayer.type === 'ai') {
             this.handleAITurn();
             // AI回合不需要计时
             this.timeoutManager.stop();
@@ -212,28 +214,28 @@ export class GameManager {
             topCard.draw4Count,
             true,
             (action) => {
-                if (action.action === "play" && action.cardId) {
+                if (action.action === 'play' && action.cardId) {
                     this.actor?.send({
-                        type: "PLAY_CARD",
+                        type: 'PLAY_CARD',
                         playerId: currentPlayer.id,
                         cardId: action.cardId,
                         chosenColor: action.chosenColor,
                     });
                 } else {
                     this.actor?.send({
-                        type: "DRAW_CARD",
+                        type: 'DRAW_CARD',
                         playerId: currentPlayer.id,
                     });
                 }
                 setTimeout(() => this.onTurnStarted(), 500);
-            },
+            }
         );
     }
 
     /** 呼叫UNO */
     callUno(): boolean {
         const currentPlayer = this.getCurrentPlayer();
-        if (!currentPlayer || currentPlayer.type !== "human") return false;
+        if (!currentPlayer || currentPlayer.type !== 'human') return false;
         if (currentPlayer.hand.length !== 2) return false;
 
         publishEvent({
@@ -254,14 +256,14 @@ export class GameManager {
             currentPlayer,
             topCard,
             topCard.draw2Count,
-            topCard.draw4Count,
+            topCard.draw4Count
         );
     }
 
     /** 重置游戏 */
     reset(): void {
         this.timeoutManager.stop();
-        this.actor?.send({ type: "RESET" });
+        this.actor?.send({ type: 'RESET' });
         this.actor?.stop();
         this.actor = null;
         publishEvent({

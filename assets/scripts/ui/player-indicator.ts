@@ -3,13 +3,13 @@
  * 显示当前玩家和玩家状态
  */
 
-import { _decorator, Component, Node, Label, Sprite } from "cc";
+import { _decorator, Component, Label, Node, Sprite } from 'cc';
+
 import {
-    GameEventType,
     GameEvent,
+    GameEventType,
     subscribeEvent,
-} from "../events/game.events";
-import { PlayerType } from "../types/game.types";
+} from '../events/game.events';
 
 const { ccclass, property } = _decorator;
 
@@ -19,7 +19,7 @@ interface TurnStartedPayload {
     isHuman: boolean;
 }
 
-@ccclass("PlayerIndicator")
+@ccclass('PlayerIndicator')
 export class PlayerIndicator extends Component {
     @property(Label)
     public nameLabel: Label | null = null;
@@ -36,7 +36,7 @@ export class PlayerIndicator extends Component {
     @property(Label)
     public cardCountLabel: Label | null = null;
 
-    private playerId: string = "";
+    private playerId: string = '';
     private subscriptions: Array<() => void> = [];
 
     /**
@@ -61,10 +61,13 @@ export class PlayerIndicator extends Component {
     private initEventSubscriptions(): void {
         // 监听当前玩家更新
         this.subscriptions.push(
-            subscribeEvent(GameEventType.CURRENT_PLAYER_UPDATED, (event: GameEvent) => {
-                const payload = (event as any).payload;
-                this.onCurrentPlayerUpdated(payload);
-            })
+            subscribeEvent(
+                GameEventType.CURRENT_PLAYER_UPDATED,
+                (event: GameEvent) => {
+                    const payload = (event as any).payload;
+                    this.onCurrentPlayerUpdated(payload);
+                }
+            )
         );
 
         // 监听手牌更新

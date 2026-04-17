@@ -3,20 +3,19 @@
  * 显示游戏中的各种提示信息
  */
 
-import { _decorator, Component, Node, Label, tween, Vec3 } from "cc";
+import { _decorator, Component, Label, tween, Vec3 } from 'cc';
+
 import {
-    GameEventType,
     GameEvent,
-    subscribeEvent,
-    UnoPenaltyEvent,
-    PlayerSkippedEvent,
+    GameEventType,
     GameOverEvent,
-    DirectionChangedEvent,
-} from "../events/game.events";
+    PlayerSkippedEvent,
+    subscribeEvent,
+} from '../events/game.events';
 
 const { ccclass, property } = _decorator;
 
-@ccclass("GameMessage")
+@ccclass('GameMessage')
 export class GameMessage extends Component {
     @property(Label)
     public messageLabel: Label | null = null;
@@ -77,7 +76,10 @@ export class GameMessage extends Component {
     /**
      * 显示消息
      */
-    public showMessage(text: string, duration: number = this.displayDuration): void {
+    public showMessage(
+        text: string,
+        duration: number = this.displayDuration
+    ): void {
         if (!this.messageLabel) return;
 
         this.messageLabel.string = text;

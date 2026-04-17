@@ -3,34 +3,34 @@
  * 纯逻辑测试，不依赖Cocos运行时
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, expect, it } from 'vitest';
+
+import { createDeck, shuffle } from '../logic/deck.logic';
 import {
     Card,
     CardColor,
-    UnoCardType,
     Player,
     PlayerType,
-} from "../types/game.types";
-import { createDeck, shuffle } from "../logic/deck.logic";
+    UnoCardType,
+} from '../types/game.types';
 import {
-    validateCanPlayCard,
     getPlayableCards,
-    canPlayWildDraw4,
+    validateCanPlayCard,
     validateCardInHand,
-} from "../validators/input-validator";
+} from '../validators/input-validator';
 
 /** 创建测试用卡牌 */
 function createCard(
     type: UnoCardType,
     color: CardColor | null = CardColor.RED,
-    value: number | null = null,
+    value: number | null = null
 ): Card {
     return {
         id: `test_${type}_${color}_${value}_${Date.now()}`,
         type,
         color,
         value,
-        spriteName: "test",
+        spriteName: 'test',
     };
 }
 
@@ -46,7 +46,10 @@ function createPlayer(id: string, hand: Card[]): Player {
 }
 
 /** 创建测试用顶牌 */
-function createTopCard(card: Card, activeColor: CardColor = card.color || CardColor.RED) {
+function createTopCard(
+    card: Card,
+    activeColor: CardColor = card.color || CardColor.RED
+) {
     return {
         card,
         activeColor,
@@ -55,19 +58,21 @@ function createTopCard(card: Card, activeColor: CardColor = card.color || CardCo
     };
 }
 
-describe("UNO卡组生成", () => {
-    it("应该生成108张卡牌", () => {
+describe('UNO卡组生成', () => {
+    it('应该生成108张卡牌', () => {
         const deck = createDeck();
         expect(deck.length).toBe(108);
     });
 
-    it("应该包含4种颜色", () => {
+    it('应该包含4种颜色', () => {
         const deck = createDeck();
-        const colors = new Set(deck.map((c) => c.color).filter((c) => c !== null));
+        const colors = new Set(
+            deck.map((c) => c.color).filter((c) => c !== null)
+        );
         expect(colors.size).toBe(4);
     });
 
-    it("数字牌0每种颜色只有一张", () => {
+    it('数字牌0每种颜色只有一张', () => {
         const deck = createDeck();
         const zeroCards = deck.filter(
             (c) => c.type === UnoCardType.NUMBER && c.value === 0
@@ -75,7 +80,7 @@ describe("UNO卡组生成", () => {
         expect(zeroCards.length).toBe(4);
     });
 
-    it("数字牌1-9每种颜色有两张", () => {
+    it('数字牌1-9每种颜色有两张', () => {
         const deck = createDeck();
         for (let v = 1; v <= 9; v++) {
             const cards = deck.filter(
@@ -85,57 +90,65 @@ describe("UNO卡组生成", () => {
         }
     });
 
-    it("洗牌后数量不变", () => {
+    it('洗牌后数量不变', () => {
         const deck = createDeck();
         const shuffled = shuffle([...deck]);
         expect(shuffled.length).toBe(deck.length);
     });
 });
 
-describe("卡牌校验", () => {
-    describe("validateCardInHand", () => {
-        it("在手牌中找到卡牌", () => {
+describe('卡牌校验', () => {
+    describe('validateCardInHand', () => {
+        it('在手牌中找到卡牌', () => {
             const card = createCard(UnoCardType.NUMBER, CardColor.RED, 5);
-            const player = createPlayer("p1", [card]);
+            const player = createPlayer('p1', [card]);
             const result = validateCardInHand(card.id, player);
             expect(result.valid).toBe(true);
         });
 
-        it("找不到不在手牌的卡牌", () => {
-            const player = createPlayer("p1", []);
-            const result = validateCardInHand("non_existent", player);
+        it('找不到不在手牌的卡牌', () => {
+            const player = createPlayer('p1', []);
+            const result = validateCardInHand('non_existent', player);
             expect(result.valid).toBe(false);
-            expect(result.error).toBe("CARD_NOT_IN_HAND");
+            expect(result.error).toBe('CARD_NOT_IN_HAND');
         });
     });
 
-    describe("validateCanPlayCard - 颜色匹配", () => {
-        it("同色卡牌可以打出", () => {
-            const topCard = createTopCard(createCard(UnoCardType.NUMBER, CardColor.RED, 5));
+    describe('validateCanPlayCard - 颜色匹配', () => {
+        it('同色卡牌可以打出', () => {
+            const topCard = createTopCard(
+                createCard(UnoCardType.NUMBER, CardColor.RED, 5)
+            );
             const playCard = createCard(UnoCardType.NUMBER, CardColor.RED, 3);
             const result = validateCanPlayCard(playCard, topCard, 0, 0);
             expect(result.valid).toBe(true);
         });
 
-        it("异色卡牌不能打出", () => {
-            const topCard = createTopCard(createCard(UnoCardType.NUMBER, CardColor.RED, 5));
+        it('异色卡牌不能打出', () => {
+            const topCard = createTopCard(
+                createCard(UnoCardType.NUMBER, CardColor.RED, 5)
+            );
             const playCard = createCard(UnoCardType.NUMBER, CardColor.BLUE, 3);
             const result = validateCanPlayCard(playCard, topCard, 0, 0);
             expect(result.valid).toBe(false);
-            expect(result.error).toBe("COLOR_MISMATCH");
+            expect(result.error).toBe('COLOR_MISMATCH');
         });
     });
 
-    describe("validateCanPlayCard - 万能牌", () => {
-        it("万能牌任何时候都可以打出", () => {
-            const topCard = createTopCard(createCard(UnoCardType.NUMBER, CardColor.RED, 5));
+    describe('validateCanPlayCard - 万能牌', () => {
+        it('万能牌任何时候都可以打出', () => {
+            const topCard = createTopCard(
+                createCard(UnoCardType.NUMBER, CardColor.RED, 5)
+            );
             const playCard = createCard(UnoCardType.WILD);
             const result = validateCanPlayCard(playCard, topCard, 0, 0);
             expect(result.valid).toBe(true);
         });
 
-        it("+4万能牌任何时候都可以打出", () => {
-            const topCard = createTopCard(createCard(UnoCardType.NUMBER, CardColor.RED, 5));
+        it('+4万能牌任何时候都可以打出', () => {
+            const topCard = createTopCard(
+                createCard(UnoCardType.NUMBER, CardColor.RED, 5)
+            );
             const playCard = createCard(UnoCardType.WILD_DRAW_4);
             const result = validateCanPlayCard(playCard, topCard, 0, 0);
             expect(result.valid).toBe(true);
@@ -143,9 +156,11 @@ describe("卡牌校验", () => {
     });
 });
 
-describe("getPlayableCards", () => {
-    it("返回可出的卡牌列表", () => {
-        const topCard = createTopCard(createCard(UnoCardType.NUMBER, CardColor.RED, 5));
+describe('getPlayableCards', () => {
+    it('返回可出的卡牌列表', () => {
+        const topCard = createTopCard(
+            createCard(UnoCardType.NUMBER, CardColor.RED, 5)
+        );
         const cards = [
             createCard(UnoCardType.NUMBER, CardColor.RED, 3),
             createCard(UnoCardType.NUMBER, CardColor.BLUE, 3),

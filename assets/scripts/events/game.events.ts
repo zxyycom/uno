@@ -3,46 +3,46 @@
  * 所有游戏内的关键事件都在此定义
  */
 
-import { Card, CardColor, Player } from "../types/game.types";
+import { Card, CardColor, Player } from '../types/game.types';
 
 /** 游戏核心事件枚举 */
 export enum GameEventType {
     // === 游戏流程事件 ===
-    START_GAME = "START_GAME",
-    GAME_OVER = "GAME_OVER",
-    RESET_GAME = "RESET_GAME",
+    START_GAME = 'START_GAME',
+    GAME_OVER = 'GAME_OVER',
+    RESET_GAME = 'RESET_GAME',
 
     // === 发牌事件 ===
-    DEAL_START = "DEAL_START",
-    DEAL_COMPLETE = "DEAL_COMPLETE",
+    DEAL_START = 'DEAL_START',
+    DEAL_COMPLETE = 'DEAL_COMPLETE',
 
     // === 回合事件 ===
-    TURN_STARTED = "TURN_STARTED",
-    TURN_CHANGED = "TURN_CHANGED",
-    TURN_TIMEOUT = "TURN_TIMEOUT",
-    TIMEOUT_WARNING = "TIMEOUT_WARNING",
-    TIMEOUT_EXPIRED = "TIMEOUT_EXPIRED",
+    TURN_STARTED = 'TURN_STARTED',
+    TURN_CHANGED = 'TURN_CHANGED',
+    TURN_TIMEOUT = 'TURN_TIMEOUT',
+    TIMEOUT_WARNING = 'TIMEOUT_WARNING',
+    TIMEOUT_EXPIRED = 'TIMEOUT_EXPIRED',
 
     // === 卡牌操作事件 ===
-    PLAY_CARD = "PLAY_CARD",
-    DRAW_CARD = "DRAW_CARD",
-    CARD_PLAYED = "CARD_PLAYED",
-    CARD_DRAWN = "CARD_DRAWN",
+    PLAY_CARD = 'PLAY_CARD',
+    DRAW_CARD = 'DRAW_CARD',
+    CARD_PLAYED = 'CARD_PLAYED',
+    CARD_DRAWN = 'CARD_DRAWN',
 
     // === UNO相关事件 ===
-    CALL_UNO = "CALL_UNO",
-    UNO_PENALTY = "UNO_PENALTY",
+    CALL_UNO = 'CALL_UNO',
+    UNO_PENALTY = 'UNO_PENALTY',
 
     // === 特殊卡牌效果事件 ===
-    DIRECTION_CHANGED = "DIRECTION_CHANGED",
-    PLAYER_SKIPPED = "PLAYER_SKIPPED",
-    DRAW_REQUIRED = "DRAW_REQUIRED",
+    DIRECTION_CHANGED = 'DIRECTION_CHANGED',
+    PLAYER_SKIPPED = 'PLAYER_SKIPPED',
+    DRAW_REQUIRED = 'DRAW_REQUIRED',
 
     // === 状态更新事件 ===
-    HAND_UPDATED = "HAND_UPDATED",
-    DECK_UPDATED = "DECK_UPDATED",
-    DISCARD_UPDATED = "DISCARD_UPDATED",
-    CURRENT_PLAYER_UPDATED = "CURRENT_PLAYER_UPDATED",
+    HAND_UPDATED = 'HAND_UPDATED',
+    DECK_UPDATED = 'DECK_UPDATED',
+    DISCARD_UPDATED = 'DISCARD_UPDATED',
+    CURRENT_PLAYER_UPDATED = 'CURRENT_PLAYER_UPDATED',
 }
 
 /** 游戏事件基类 */
@@ -167,7 +167,7 @@ export interface DrawRequiredEvent extends GameEvent {
     payload: {
         targetPlayerId: string;
         cardCount: number;
-        reason: "draw_2" | "draw_4" | "penalty" | "timeout";
+        reason: 'draw_2' | 'draw_4' | 'penalty' | 'timeout';
     };
 }
 
@@ -218,24 +218,24 @@ export interface EventSubscription {
 
 /** 所有事件Payload类型联合 */
 export type GameEventPayload =
-    | StartGameEvent["payload"]
-    | TurnChangedEvent["payload"]
-    | PlayCardEvent["payload"]
-    | CardPlayedEvent["payload"]
-    | DrawCardEvent["payload"]
-    | CardDrawnEvent["payload"]
-    | GameOverEvent["payload"]
-    | CallUnoEvent["payload"]
-    | UnoPenaltyEvent["payload"]
-    | DirectionChangedEvent["payload"]
-    | PlayerSkippedEvent["payload"]
-    | DrawRequiredEvent["payload"]
-    | HandUpdatedEvent["payload"]
-    | DeckUpdatedEvent["payload"]
-    | DiscardUpdatedEvent["payload"]
-    | CurrentPlayerUpdatedEvent["payload"]
-    | TimeoutWarningEvent["payload"]
-    | TimeoutExpiredEvent["payload"];
+    | StartGameEvent['payload']
+    | TurnChangedEvent['payload']
+    | PlayCardEvent['payload']
+    | CardPlayedEvent['payload']
+    | DrawCardEvent['payload']
+    | CardDrawnEvent['payload']
+    | GameOverEvent['payload']
+    | CallUnoEvent['payload']
+    | UnoPenaltyEvent['payload']
+    | DirectionChangedEvent['payload']
+    | PlayerSkippedEvent['payload']
+    | DrawRequiredEvent['payload']
+    | HandUpdatedEvent['payload']
+    | DeckUpdatedEvent['payload']
+    | DiscardUpdatedEvent['payload']
+    | CurrentPlayerUpdatedEvent['payload']
+    | TimeoutWarningEvent['payload']
+    | TimeoutExpiredEvent['payload'];
 
 /** 超时警告事件 */
 export interface TimeoutWarningEvent extends GameEvent {

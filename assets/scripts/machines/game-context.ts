@@ -2,7 +2,13 @@
  * 游戏状态机上下文与类型定义
  */
 
-import { Actor, Card, CardColor,GameConfig, GameDirection, Player } from '../types/game.types';
+import {
+    Card,
+    CardColor,
+    GameConfig,
+    GameDirection,
+    Player,
+} from '../types/game.types';
 
 /** 游戏状态机上下文 */
 export interface GameContext {
@@ -34,7 +40,12 @@ export interface GameContext {
 export type GameMachineEvent =
     | { type: 'START_GAME'; playerCount: number; aiCount: number }
     | { type: 'DEAL_COMPLETE' }
-    | { type: 'PLAY_CARD'; playerId: string; cardId: string; chosenColor?: CardColor }
+    | {
+          type: 'PLAY_CARD';
+          playerId: string;
+          cardId: string;
+          chosenColor?: CardColor;
+      }
     | { type: 'DRAW_CARD'; playerId: string }
     | { type: 'TURN_TIMEOUT' }
     | { type: 'CALL_UNO'; playerId: string }
@@ -42,13 +53,15 @@ export type GameMachineEvent =
     | { type: 'RESET' };
 
 /** 创建初始上下文 */
-export function createInitialContext(config: GameConfig = {
-    playerCount: 1,
-    aiCount: 1,
-    timeoutSeconds: 30,
-    dealInterval: 100,
-    aiThinkDelay: 1500,
-}): GameContext {
+export function createInitialContext(
+    config: GameConfig = {
+        playerCount: 1,
+        aiCount: 1,
+        timeoutSeconds: 30,
+        dealInterval: 100,
+        aiThinkDelay: 1500,
+    }
+): GameContext {
     return {
         players: [],
         currentPlayerIndex: 0,

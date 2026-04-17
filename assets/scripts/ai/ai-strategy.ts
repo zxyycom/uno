@@ -2,12 +2,18 @@
  * AI玩家策略逻辑
  */
 
-import { Card, CardColor, Player, PlayerType, UnoCardType } from "../types/game.types";
-import { TopCard } from "../types/game.types";
+import {
+    Card,
+    CardColor,
+    Player,
+    PlayerType,
+    TopCard,
+    UnoCardType,
+} from '../types/game.types';
 
 /** AI决策结果 */
 export interface AIAction {
-    action: "play" | "draw";
+    action: 'play' | 'draw';
     cardId?: string;
     chosenColor?: CardColor;
 }
@@ -43,7 +49,7 @@ export function canPlayCard(
     card: Card,
     topCard: TopCard,
     pendingDraw2Count: number,
-    pendingDraw4Count: number,
+    pendingDraw4Count: number
 ): boolean {
     // 万能牌随时可出
     if (card.type === UnoCardType.WILD) {
@@ -67,7 +73,10 @@ export function canPlayCard(
     // 颜色必须匹配
     if (card.color !== topCard.activeColor) {
         // 数字牌可以匹配数值
-        if (card.type === UnoCardType.NUMBER && topCard.card.type === UnoCardType.NUMBER) {
+        if (
+            card.type === UnoCardType.NUMBER &&
+            topCard.card.type === UnoCardType.NUMBER
+        ) {
             return card.value === topCard.card.value;
         }
         return false;
@@ -80,7 +89,7 @@ function getPlayableCardsSorted(
     player: Player,
     topCard: TopCard,
     pendingDraw2Count: number,
-    pendingDraw4Count: number,
+    pendingDraw4Count: number
 ): Card[] {
     const playable: Card[] = [];
 
@@ -99,11 +108,16 @@ function getPlayableCardsSorted(
 /** 获取卡牌优先级 */
 function getCardPriority(card: Card): number {
     switch (card.type) {
-        case UnoCardType.DRAW_2: return 100;
-        case UnoCardType.REVERSE: return 90;
-        case UnoCardType.SKIP: return 80;
-        case UnoCardType.WILD: return 70;
-        case UnoCardType.WILD_DRAW_4: return 60;
+        case UnoCardType.DRAW_2:
+            return 100;
+        case UnoCardType.REVERSE:
+            return 90;
+        case UnoCardType.SKIP:
+            return 80;
+        case UnoCardType.WILD:
+            return 70;
+        case UnoCardType.WILD_DRAW_4:
+            return 60;
         case UnoCardType.NUMBER:
             return card.value !== null ? card.value : 0;
         default:
@@ -126,11 +140,11 @@ export function decideAIAction(
     topCard: TopCard,
     pendingDraw2Count: number,
     pendingDraw4Count: number,
-    _canDrawFreely: boolean,
+    _canDrawFreely: boolean
 ): AIAction {
     // 确保是AI玩家
     if (player.type !== PlayerType.AI) {
-        return { action: "draw" };
+        return { action: 'draw' };
     }
 
     // 获取可出的牌
@@ -138,13 +152,13 @@ export function decideAIAction(
         player,
         topCard,
         pendingDraw2Count,
-        pendingDraw4Count,
+        pendingDraw4Count
     );
 
     if (playableCards.length > 0) {
         // 过滤掉+4(如果有其他可出的牌)
         let bestCard = playableCards[0];
-        
+
         if (bestCard.type === UnoCardType.WILD_DRAW_4) {
             if (hasNonWildDraw4Playable(player, topCard)) {
                 // 有其他可出的牌，不出+4，选择第二优的牌
@@ -155,19 +169,22 @@ export function decideAIAction(
         let chosenColor: CardColor | undefined;
 
         // 万能牌需要选择颜色
-        if (bestCard.type === UnoCardType.WILD || bestCard.type === UnoCardType.WILD_DRAW_4) {
+        if (
+            bestCard.type === UnoCardType.WILD ||
+            bestCard.type === UnoCardType.WILD_DRAW_4
+        ) {
             chosenColor = selectBestColor(player);
         }
 
         return {
-            action: "play",
+            action: 'play',
             cardId: bestCard.id,
             chosenColor,
         };
     }
 
     // 没有可出的牌，选择摸牌
-    return { action: "draw" };
+    return { action: 'draw' };
 }
 
 /** AI是否应该呼叫UNO */

@@ -3,8 +3,16 @@
  * 封装游戏状态的修改操作
  */
 
-import { Card, CardColor, GameConfig,GameDirection, Player, PlayerType, UnoCardType } from '../types/game.types';
-import { TopCard } from '../types/game.types';
+import {
+    Card,
+    CardColor,
+    GameConfig,
+    GameDirection,
+    Player,
+    PlayerType,
+    TopCard,
+    UnoCardType,
+} from '../types/game.types';
 import { createDeck, shuffle } from './deck.logic';
 
 /** 初始化游戏 */
@@ -46,7 +54,7 @@ export function initializeGame(config: GameConfig): {
 export function dealCardsToPlayer(
     player: Player,
     deck: Card[],
-    count: number,
+    count: number
 ): { player: Player; deck: Card[] } {
     const drawnCards = deck.slice(0, count);
     return {
@@ -61,7 +69,7 @@ export function dealCardsToPlayer(
 /** 初始发牌(每人7张) */
 export function dealInitialCards(
     players: Player[],
-    deck: Card[],
+    deck: Card[]
 ): { players: Player[]; deck: Card[] } {
     const updatedPlayers = players.map((player) => ({
         ...player,
@@ -88,7 +96,7 @@ export function getTopCard(discardPile: Card[]): TopCard {
 export function playCard(
     player: Player,
     cardId: string,
-    chosenColor: CardColor | undefined,
+    chosenColor: CardColor | undefined
 ): { player: Player; card: Card } | null {
     const cardIndex = player.hand.findIndex((c) => c.id === cardId);
     if (cardIndex === -1) {
@@ -100,7 +108,10 @@ export function playCard(
     newHand.splice(cardIndex, 1);
 
     // 更新万能牌颜色
-    if (card.type === UnoCardType.WILD || card.type === UnoCardType.WILD_DRAW_4) {
+    if (
+        card.type === UnoCardType.WILD ||
+        card.type === UnoCardType.WILD_DRAW_4
+    ) {
         card.color = chosenColor || CardColor.RED;
     }
 
@@ -114,7 +125,7 @@ export function playCard(
 export function getNextPlayerIndex(
     currentIndex: number,
     playerCount: number,
-    direction: GameDirection,
+    direction: GameDirection
 ): number {
     let nextIndex = currentIndex + direction;
     if (nextIndex < 0) {
@@ -131,7 +142,7 @@ export function processCardEffect(
     currentDirection: GameDirection,
     currentActiveColor: CardColor,
     pendingDraw2Count: number,
-    pendingDraw4Count: number,
+    pendingDraw4Count: number
 ): {
     newDirection: GameDirection;
     newActiveColor: CardColor;
@@ -151,9 +162,10 @@ export function processCardEffect(
 
     switch (card.type) {
         case UnoCardType.REVERSE:
-            newDirection = currentDirection === GameDirection.CLOCKWISE
-                ? GameDirection.COUNTERCLOCKWISE
-                : GameDirection.CLOCKWISE;
+            newDirection =
+                currentDirection === GameDirection.CLOCKWISE
+                    ? GameDirection.COUNTERCLOCKWISE
+                    : GameDirection.CLOCKWISE;
             break;
 
         case UnoCardType.SKIP:

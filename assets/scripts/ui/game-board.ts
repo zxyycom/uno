@@ -3,20 +3,21 @@
  * 监听游戏事件更新桌面显示
  */
 
-import { _decorator, Component, Node } from "cc";
+import { _decorator, Component, Node } from 'cc';
+
 import {
-    GameEventType,
     CardPlayedEvent,
-    TurnChangedEvent,
     DirectionChangedEvent,
-    PlayerSkippedEvent,
     DiscardUpdatedEvent,
+    GameEventType,
+    PlayerSkippedEvent,
     subscribeEvent,
-} from "../events/game.events";
+    TurnChangedEvent,
+} from '../events/game.events';
 
 const { ccclass, property } = _decorator;
 
-@ccclass("GameBoard")
+@ccclass('GameBoard')
 export class GameBoard extends Component {
     @property(Node)
     public discardPileNode: Node | null = null;
@@ -84,32 +85,34 @@ export class GameBoard extends Component {
     }
 
     /** 处理出牌事件 */
-    private onCardPlayed(payload: CardPlayedEvent["payload"]): void {
+    private onCardPlayed(payload: CardPlayedEvent['payload']): void {
         // TODO: 播放出牌动画
         // TODO: 更新弃牌堆显示
         console.log(`[GameBoard] 玩家 ${payload.playerId} 出牌`);
     }
 
     /** 处理回合变化 */
-    private onTurnChanged(payload: TurnChangedEvent["payload"]): void {
+    private onTurnChanged(payload: TurnChangedEvent['payload']): void {
         // TODO: 更新当前玩家指示器
         console.log(`[GameBoard] 轮到: ${payload.currentPlayerId}`);
     }
 
     /** 处理方向改变 */
-    private onDirectionChanged(payload: DirectionChangedEvent["payload"]): void {
+    private onDirectionChanged(
+        payload: DirectionChangedEvent['payload']
+    ): void {
         // TODO: 旋转方向指示器
         console.log(`[GameBoard] 方向改变: ${payload.newDirection}`);
     }
 
     /** 处理玩家被跳过 */
-    private onPlayerSkipped(payload: PlayerSkippedEvent["payload"]): void {
+    private onPlayerSkipped(payload: PlayerSkippedEvent['payload']): void {
         // TODO: 显示跳过提示动画
         console.log(`[GameBoard] 玩家 ${payload.skippedPlayerName} 被跳过`);
     }
 
     /** 处理弃牌堆更新 */
-    private onDiscardUpdated(payload: DiscardUpdatedEvent["payload"]): void {
+    private onDiscardUpdated(payload: DiscardUpdatedEvent['payload']): void {
         // TODO: 更新弃牌堆显示
         // TODO: 显示顶牌
         console.log(`[GameBoard] 弃牌堆: ${payload.discardCount} 张`);

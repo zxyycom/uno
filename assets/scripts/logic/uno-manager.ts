@@ -4,20 +4,20 @@
  */
 
 import {
-    GameEventType,
-    TurnStartedEvent,
     CardPlayedEvent,
     GameEvent,
-    subscribeEvent,
+    GameEventType,
     publishEvent,
-} from "../events/game.events";
+    subscribeEvent,
+    TurnStartedEvent,
+} from '../events/game.events';
 
 /** UNO状态 */
 export enum UnoState {
-    NORMAL = "normal",
-    MUST_CALL = "must_call",
-    CALLED = "called",
-    PENALIZED = "penalized",
+    NORMAL = 'normal',
+    MUST_CALL = 'must_call',
+    CALLED = 'called',
+    PENALIZED = 'penalized',
 }
 
 /** UNO惩罚配置 */
@@ -44,14 +44,18 @@ export class UnoManager {
 
     private config: UnoPenaltyConfig;
     private state: UnoState = UnoState.NORMAL;
-    private playerStack: Map<string, { handCount: number; unoCalled: boolean }> = new Map();
+    private playerStack: Map<
+        string,
+        { handCount: number; unoCalled: boolean }
+    > = new Map();
     private subscriptions: Array<() => void> = [];
     private graceTimer: number | null = null;
 
     /** UNO状态变化回调 */
     private onStateChange: UnoCallback | null = null;
     /** 惩罚回调 */
-    private onPenalty: ((playerId: string, drawCount: number) => void) | null = null;
+    private onPenalty: ((playerId: string, drawCount: number) => void) | null =
+        null;
 
     private constructor(config: UnoPenaltyConfig = DEFAULT_CONFIG) {
         this.config = { ...DEFAULT_CONFIG, ...config };
@@ -92,13 +96,13 @@ export class UnoManager {
     }
 
     /** 处理回合开始 */
-    private onTurnStarted(payload: TurnStartedEvent["payload"]): void {
+    private onTurnStarted(payload: TurnStartedEvent['payload']): void {
         // 检查上一位玩家是否需要呼叫UNO
         this.checkLastPlayerUno();
     }
 
     /** 处理出牌 */
-    private onCardPlayed(payload: CardPlayedEvent["payload"]): void {
+    private onCardPlayed(payload: CardPlayedEvent['payload']): void {
         const player = this.playerStack.get(payload.playerId);
         const handCount = this.getHandCount(payload.playerId);
 
@@ -110,7 +114,7 @@ export class UnoManager {
         // 如果只剩1张牌，需要在宽限期内呼叫UNO
         if (handCount === 1) {
             this.state = UnoState.MUST_CALL;
-            
+
             // 设置宽限期计时器
             if (this.config.gracePeriodMs > 0) {
                 this.graceTimer = setTimeout(() => {
@@ -157,7 +161,11 @@ export class UnoManager {
     private checkLastPlayerUno(): void {
         for (const [playerId, data] of this.playerStack.entries()) {
             // 如果上一回合手牌剩1张但未呼叫UNO
-            if (data.handCount === 1 && !data.unoCalled && this.state === UnoState.MUST_CALL) {
+            if (
+                data.handCount === 1 &&
+                !data.unoCalled &&
+                this.state === UnoState.MUST_CALL
+            ) {
                 this.applyPenalty(playerId);
             }
         }
@@ -222,7 +230,10 @@ export class UnoManager {
 
     /** 检查玩家是否需要呼叫UNO */
     isMustCall(playerId: string): boolean {
-        return this.state === UnoState.MUST_CALL && this.getHandCount(playerId) === 1;
+        return (
+            this.state === UnoState.MUST_CALL &&
+            this.getHandCount(playerId) === 1
+        );
     }
 
     /** 设置状态变化回调 */
@@ -231,7 +242,9 @@ export class UnoManager {
     }
 
     /** 设置惩罚回调 */
-    setOnPenalty(callback: (playerId: string, drawCount: number) => void): void {
+    setOnPenalty(
+        callback: (playerId: string, drawCount: number) => void
+    ): void {
         this.onPenalty = callback;
     }
 

@@ -3,19 +3,19 @@
  * 监听手牌更新事件
  */
 
-import { _decorator, Component, Node, Prefab, instantiate } from "cc";
+import { _decorator, Component, instantiate, Node, Prefab } from 'cc';
+
 import {
+    CallUnoEvent,
     GameEventType,
     HandUpdatedEvent,
-    CallUnoEvent,
-    HandUpdatedEvent,
     subscribeEvent,
-} from "../events/game.events";
-import { Card } from "../types/game.types";
+} from '../events/game.events';
+import { Card } from '../types/game.types';
 
 const { ccclass, property } = _decorator;
 
-@ccclass("PlayerHand")
+@ccclass('PlayerHand')
 export class PlayerHand extends Component {
     @property(Prefab)
     public cardPrefab: Prefab | null = null;
@@ -24,7 +24,7 @@ export class PlayerHand extends Component {
     public maxVisibleCards: number = 10;
 
     private cardNodes: Node[] = [];
-    private playerId: string = "";
+    private playerId: string = '';
     private subscriptions: Array<() => void> = [];
 
     /**
@@ -67,7 +67,7 @@ export class PlayerHand extends Component {
     }
 
     /** 处理手牌更新 */
-    private onHandUpdated(payload: HandUpdatedEvent["payload"]): void {
+    private onHandUpdated(payload: HandUpdatedEvent['payload']): void {
         this.updateCardDisplay(payload.hand, payload.cardCount);
     }
 

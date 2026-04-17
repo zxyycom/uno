@@ -3,16 +3,17 @@
  * 显示玩家回合剩余时间
  */
 
-import { _decorator, Component, Label, ProgressBar, Color } from "cc";
+import { _decorator, Color, Component, Label, ProgressBar } from 'cc';
+
 import {
     GameEventType,
-    TurnStartedEvent,
     subscribeEvent,
-} from "../events/game.events";
+    TurnStartedEvent,
+} from '../events/game.events';
 
 const { ccclass, property } = _decorator;
 
-@ccclass("TimerComponent")
+@ccclass('TimerComponent')
 export class TimerComponent extends Component {
     @property(Label)
     public timeLabel: Label | null = null;
@@ -29,7 +30,7 @@ export class TimerComponent extends Component {
     private remainingTime: number = 0;
     private timerId: number | null = null;
     private isRunning: boolean = false;
-    private currentPlayerId: string = "";
+    private currentPlayerId: string = '';
 
     start() {
         this.initEventSubscriptions();
@@ -42,9 +43,12 @@ export class TimerComponent extends Component {
 
     private initEventSubscriptions(): void {
         // 监听回合开始
-        subscribeEvent(GameEventType.TURN_STARTED, (event: TurnStartedEvent) => {
-            this.startTimer(event.payload.playerId);
-        });
+        subscribeEvent(
+            GameEventType.TURN_STARTED,
+            (event: TurnStartedEvent) => {
+                this.startTimer(event.payload.playerId);
+            }
+        );
 
         // 监听回合超时
         subscribeEvent(GameEventType.TURN_TIMEOUT, () => {
@@ -100,7 +104,7 @@ export class TimerComponent extends Component {
         if (this.timeLabel) {
             const minutes = Math.floor(this.remainingTime / 60);
             const seconds = this.remainingTime % 60;
-            this.timeLabel.string = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+            this.timeLabel.string = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
             // 警告状态变色
             if (this.remainingTime <= this.warningThreshold) {
@@ -112,7 +116,8 @@ export class TimerComponent extends Component {
 
         // 更新进度条
         if (this.progressBar) {
-            this.progressBar.progress = this.remainingTime / this.timeoutSeconds;
+            this.progressBar.progress =
+                this.remainingTime / this.timeoutSeconds;
         }
     }
 

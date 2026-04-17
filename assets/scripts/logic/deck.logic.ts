@@ -5,12 +5,20 @@
 import { Card, CardColor, UnoCardType } from '../types/game.types';
 
 /** 生成唯一ID */
-function generateCardId(type: string, color: string, value: number | string): string {
+function generateCardId(
+    type: string,
+    color: string,
+    value: number | string
+): string {
     return `${type}_${color}_${value}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 }
 
 /** 根据颜色和类型获取精灵图名称 */
-function getSpriteName(color: CardColor, type: UnoCardType, value: number | null): string {
+function getSpriteName(
+    color: CardColor,
+    type: UnoCardType,
+    value: number | null
+): string {
     if (type === UnoCardType.WILD || type === UnoCardType.WILD_DRAW_4) {
         return 'Wild';
     }
@@ -62,7 +70,11 @@ function createNumberCards(color: CardColor): Card[] {
 /** 创建颜色功能卡牌 */
 function createColorSpecialCards(color: CardColor): Card[] {
     const cards: Card[] = [];
-    const specialTypes: UnoCardType[] = [UnoCardType.REVERSE, UnoCardType.SKIP, UnoCardType.DRAW_2];
+    const specialTypes: UnoCardType[] = [
+        UnoCardType.REVERSE,
+        UnoCardType.SKIP,
+        UnoCardType.DRAW_2,
+    ];
 
     for (const type of specialTypes) {
         // 每种功能牌每种颜色各两张
@@ -96,7 +108,11 @@ function createWildCards(): Card[] {
             type: UnoCardType.WILD_DRAW_4,
             color: null,
             value: null,
-            spriteName: getSpriteName(CardColor.RED, UnoCardType.WILD_DRAW_4, null),
+            spriteName: getSpriteName(
+                CardColor.RED,
+                UnoCardType.WILD_DRAW_4,
+                null
+            ),
         });
     }
     return cards;
@@ -107,7 +123,12 @@ export function createDeck(): Card[] {
     const deck: Card[] = [];
 
     // 每种颜色的数字牌
-    const colors = [CardColor.RED, CardColor.YELLOW, CardColor.GREEN, CardColor.BLUE];
+    const colors = [
+        CardColor.RED,
+        CardColor.YELLOW,
+        CardColor.GREEN,
+        CardColor.BLUE,
+    ];
     for (const color of colors) {
         deck.push(...createNumberCards(color));
         deck.push(...createColorSpecialCards(color));
@@ -130,7 +151,10 @@ export function shuffle<T>(array: T[]): T[] {
 }
 
 /** 从牌堆抽牌 */
-export function drawFromDeck(deck: Card[], count: number): { drawn: Card[]; remaining: Card[] } {
+export function drawFromDeck(
+    deck: Card[],
+    count: number
+): { drawn: Card[]; remaining: Card[] } {
     if (deck.length === 0) {
         throw new Error('Deck is empty');
     }

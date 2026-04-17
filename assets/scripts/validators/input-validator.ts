@@ -3,7 +3,7 @@
  * 负责校验玩家出牌是否符合规则
  */
 
-import { Card, CardColor, Player, TopCard, UnoCardType } from "../types/game.types";
+import { Card, Player, TopCard, UnoCardType } from '../types/game.types';
 
 /** 校验结果 */
 export interface ValidationResult {
@@ -13,36 +13,39 @@ export interface ValidationResult {
 
 /** 校验错误类型 */
 export type ValidationError =
-    | "NOT_CURRENT_PLAYER"
-    | "PLAYER_NOT_FOUND"
-    | "CARD_NOT_IN_HAND"
-    | "WILD_DRAW4_MUST_MATCH_COLOR"
-    | "WILD_DRAW4_NO_SAME_COLOR_CARD"
-    | "MUST_PLAY_DRAW2"
-    | "MUST_PLAY_DRAW4"
-    | "COLOR_MISMATCH"
-    | "COLOR_AND_VALUE_MISMATCH";
+    | 'NOT_CURRENT_PLAYER'
+    | 'PLAYER_NOT_FOUND'
+    | 'CARD_NOT_IN_HAND'
+    | 'WILD_DRAW4_MUST_MATCH_COLOR'
+    | 'WILD_DRAW4_NO_SAME_COLOR_CARD'
+    | 'MUST_PLAY_DRAW2'
+    | 'MUST_PLAY_DRAW4'
+    | 'COLOR_MISMATCH'
+    | 'COLOR_AND_VALUE_MISMATCH';
 
 /** 校验玩家输入的基础条件 */
 export function validatePlayerInput(
     playerId: string,
     currentPlayerId: string,
-    player: Player | undefined,
+    player: Player | undefined
 ): ValidationResult {
     if (playerId !== currentPlayerId) {
-        return { valid: false, error: "NOT_CURRENT_PLAYER" };
+        return { valid: false, error: 'NOT_CURRENT_PLAYER' };
     }
     if (!player) {
-        return { valid: false, error: "PLAYER_NOT_FOUND" };
+        return { valid: false, error: 'PLAYER_NOT_FOUND' };
     }
     return { valid: true };
 }
 
 /** 校验卡牌是否在玩家手牌中 */
-export function validateCardInHand(cardId: string, player: Player): ValidationResult {
+export function validateCardInHand(
+    cardId: string,
+    player: Player
+): ValidationResult {
     const card = player.hand.find((c) => c.id === cardId);
     if (!card) {
-        return { valid: false, error: "CARD_NOT_IN_HAND" };
+        return { valid: false, error: 'CARD_NOT_IN_HAND' };
     }
     return { valid: true };
 }
@@ -57,9 +60,11 @@ export function canPlayWildDraw4(player: Player, topCard: TopCard): boolean {
         if (card.type === UnoCardType.WILD_DRAW_4) continue;
         if (card.type === UnoCardType.WILD) return true;
         if (card.color === activeColor) return true;
-        if (card.type === UnoCardType.NUMBER &&
+        if (
+            card.type === UnoCardType.NUMBER &&
             topCard.card.type === UnoCardType.NUMBER &&
-            card.value === topCard.card.value) {
+            card.value === topCard.card.value
+        ) {
             return true;
         }
     }
@@ -71,7 +76,7 @@ export function validateCanPlayCard(
     card: Card,
     topCard: TopCard,
     pendingDraw2Count: number,
-    pendingDraw4Count: number,
+    pendingDraw4Count: number
 ): ValidationResult {
     if (card.type === UnoCardType.WILD) {
         return { valid: true };
@@ -86,23 +91,26 @@ export function validateCanPlayCard(
 
     if (pendingDraw2Count > 0) {
         if (card.type !== UnoCardType.DRAW_2) {
-            return { valid: false, error: "MUST_PLAY_DRAW2" };
+            return { valid: false, error: 'MUST_PLAY_DRAW2' };
         }
     }
 
     if (pendingDraw4Count > 0) {
         if (card.type !== UnoCardType.WILD_DRAW_4) {
-            return { valid: false, error: "MUST_PLAY_DRAW4" };
+            return { valid: false, error: 'MUST_PLAY_DRAW4' };
         }
     }
 
     if (card.color !== topCard.activeColor) {
-        if (card.type === UnoCardType.NUMBER && topCard.card.type === UnoCardType.NUMBER) {
+        if (
+            card.type === UnoCardType.NUMBER &&
+            topCard.card.type === UnoCardType.NUMBER
+        ) {
             if (card.value !== topCard.card.value) {
-                return { valid: false, error: "COLOR_AND_VALUE_MISMATCH" };
+                return { valid: false, error: 'COLOR_AND_VALUE_MISMATCH' };
             }
         } else {
-            return { valid: false, error: "COLOR_MISMATCH" };
+            return { valid: false, error: 'COLOR_MISMATCH' };
         }
     }
 
@@ -119,7 +127,7 @@ export function validatePlayCard(
     player: Player | undefined,
     topCard: TopCard,
     pendingDraw2Count: number,
-    pendingDraw4Count: number,
+    pendingDraw4Count: number
 ): ValidationResult {
     const playerCheck = validatePlayerInput(playerId, currentPlayerId, player);
     if (!playerCheck.valid) return playerCheck;
@@ -133,7 +141,7 @@ export function validatePlayCard(
         card,
         topCard,
         pendingDraw2Count,
-        pendingDraw4Count,
+        pendingDraw4Count
     );
     if (!canPlayCheck.valid) return canPlayCheck;
 
@@ -145,14 +153,14 @@ export function getPlayableCards(
     player: Player,
     topCard: TopCard,
     pendingDraw2Count: number,
-    pendingDraw4Count: number,
+    pendingDraw4Count: number
 ): Card[] {
     return player.hand.filter((card) => {
         const result = validateCanPlayCard(
             card,
             topCard,
             pendingDraw2Count,
-            pendingDraw4Count,
+            pendingDraw4Count
         );
         return result.valid;
     });
