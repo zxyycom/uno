@@ -20,6 +20,8 @@ export enum GameEventType {
     TURN_STARTED = "TURN_STARTED",
     TURN_CHANGED = "TURN_CHANGED",
     TURN_TIMEOUT = "TURN_TIMEOUT",
+    TIMEOUT_WARNING = "TIMEOUT_WARNING",
+    TIMEOUT_EXPIRED = "TIMEOUT_EXPIRED",
 
     // === 卡牌操作事件 ===
     PLAY_CARD = "PLAY_CARD",
@@ -231,4 +233,23 @@ export type GameEventPayload =
     | HandUpdatedEvent["payload"]
     | DeckUpdatedEvent["payload"]
     | DiscardUpdatedEvent["payload"]
-    | CurrentPlayerUpdatedEvent["payload"];
+    | CurrentPlayerUpdatedEvent["payload"]
+    | TimeoutWarningEvent["payload"]
+    | TimeoutExpiredEvent["payload"];
+
+/** 超时警告事件 */
+export interface TimeoutWarningEvent extends GameEvent {
+    type: GameEventType.TIMEOUT_WARNING;
+    payload: {
+        playerId: string;
+        remainingSeconds: number;
+    };
+}
+
+/** 超时过期事件 */
+export interface TimeoutExpiredEvent extends GameEvent {
+    type: GameEventType.TIMEOUT_EXPIRED;
+    payload: {
+        playerId: string;
+    };
+}

@@ -14,25 +14,33 @@ import {
 import {
     GameEventType,
     publishEvent,
+    subscribeEvent,
 } from "../events/game.events";
-import { createGameMachine, gameMachineConfig, GameMachineEvent } from "./game-machine";
+import { createGameMachine, gameMachineConfig } from "./game-machine";
 import { AIManager } from "../ai/ai-manager";
 import { validateCanPlayCard, getPlayableCards, canPlayWildDraw4 } from "../validators/input-validator";
+import { TimeoutManager, TimeoutState } from "../logic/timeout-manager";
 
 /** 游戏管理器单例 */
 export class GameManager {
     private static instance: GameManager | null = null;
     private actor: ReturnType<typeof createActor> | null = null;
     private aiManager: AIManager;
+    private timeoutManager: TimeoutManager;
     private config: GameConfig;
     private isProcessing: boolean = false;
+    private subscriptions: Array<() => void> = [];
 
     private constructor(config: GameConfig = DEFAULT_GAME_CONFIG) {
         this.config = config;
         this.aiManager = new AIManager(config);
+        this.timeoutManager = TimeoutManager.getInstance();
+        
         this.aiManager.setUnoCallback((playerId) => {
             this.actor?.send({ type: "CALL_UNO", playerId });
         });
+
+        this.initTimeoutManager();
     }
 
     /** 获取单例实例 */
@@ -41,6 +49,22 @@ export class GameManager {
             GameManager.instance = new GameManager(config);
         }
         return GameManager.instance;
+    }
+
+    /** 初始化超时管理器 */
+    private initTimeoutManager(): void {
+        this.timeoutManager.init();
+        
+        // 设置超时回调 - 自动摸牌
+        this.timeoutManager.setOnTimeout(() => {
+            this.onTimeoutExpired();
+        });
+    }
+
+    /** 处理超时过期 */
+    private onTimeoutExpired(): void {
+        console.log("[GameManager] 玩家超时，自动摸牌");
+        this.drawCard();
     }
 
     /** 初始化状态机 */
@@ -101,7 +125,6 @@ export class GameManager {
         // WildDraw4 需要额外校验无同色可出
         if (card.type === UnoCardType.WILD_DRAW_4 && topCard.draw4Count === 0) {
             if (canPlayWildDraw4(currentPlayer, topCard)) {
-                // 有其他可出的牌，不能出+4
                 return false;
             }
         }
@@ -125,6 +148,9 @@ export class GameManager {
             chosenColor,
         });
 
+        // 出牌成功，停止计时器
+        this.timeoutManager.stop();
+
         setTimeout(() => this.onTurnStarted(), 300);
         this.isProcessing = false;
         return true;
@@ -142,6 +168,9 @@ export class GameManager {
             playerId: currentPlayer.id,
         });
 
+        // 摸牌后停止计时器
+        this.timeoutManager.stop();
+
         setTimeout(() => this.onTurnStarted(), 300);
         this.isProcessing = false;
         return true;
@@ -154,11 +183,18 @@ export class GameManager {
 
         if (currentPlayer.type === "ai") {
             this.handleAITurn();
+            // AI回合不需要计时
+            this.timeoutManager.stop();
         } else {
+            // 人类玩家开始回合，启动计时
             publishEvent({
                 type: GameEventType.TURN_STARTED,
                 timestamp: Date.now(),
-                payload: { playerId: currentPlayer.id },
+                payload: {
+                    playerId: currentPlayer.id,
+                    playerName: currentPlayer.name,
+                    isHuman: true,
+                },
             });
         }
     }
@@ -224,6 +260,7 @@ export class GameManager {
 
     /** 重置游戏 */
     reset(): void {
+        this.timeoutManager.stop();
         this.actor?.send({ type: "RESET" });
         this.actor?.stop();
         this.actor = null;
@@ -233,10 +270,20 @@ export class GameManager {
         });
     }
 
+    /** 获取超时管理器 */
+    getTimeoutManager(): TimeoutManager {
+        return this.timeoutManager;
+    }
+
     /** 销毁实例 */
     destroy(): void {
         this.reset();
+        this.timeoutManager.dispose();
         this.aiManager.destroy();
+        for (const unsubscribe of this.subscriptions) {
+            unsubscribe();
+        }
+        this.subscriptions = [];
         GameManager.instance = null;
     }
 }
