@@ -30,6 +30,9 @@ export class GameManager {
     private constructor(config: GameConfig = DEFAULT_GAME_CONFIG) {
         this.config = config;
         this.aiManager = new AIManager(config);
+        this.aiManager.setUnoCallback((playerId) => {
+            this.actor?.send({ type: "CALL_UNO", playerId });
+        });
     }
 
     /** 获取单例实例 */
@@ -45,7 +48,6 @@ export class GameManager {
         const machine = createGameMachine(gameMachineConfig);
         this.actor = createActor(machine);
         this.actor.start();
-    }
     }
 
     /** 开始新游戏 */
