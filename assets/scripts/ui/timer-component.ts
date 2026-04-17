@@ -1,23 +1,16 @@
 /**
- * 回合计时器UI组件
- * 监听回合事件启动/停止计时
+ * 计时器UI组件
+ * 显示玩家回合剩余时间
  */
 
-import { _decorator, Component, Node, Label, ProgressBar, Color } from "cc";
+import { _decorator, Component, Label, ProgressBar, Color } from "cc";
 import {
     GameEventType,
     TurnStartedEvent,
-    GameEvent,
     subscribeEvent,
 } from "../events/game.events";
 
 const { ccclass, property } = _decorator;
-
-interface TurnStartedPayload {
-    playerId: string;
-    playerName: string;
-    isHuman: boolean;
-}
 
 @ccclass("TimerComponent")
 export class TimerComponent extends Component {
@@ -34,125 +27,97 @@ export class TimerComponent extends Component {
     public warningThreshold: number = 10;
 
     private remainingTime: number = 0;
-    private timerInterval: number | null = null;
+    private timerId: number | null = null;
     private isRunning: boolean = false;
-    private subscriptions: Array<() => void> = [];
-
-    /** 回合超时回调 */
-    public onTimeout: (() => void) | null = null;
+    private currentPlayerId: string = "";
 
     start() {
         this.initEventSubscriptions();
-        this.stopTimer();
+        this.reset();
     }
 
     onDestroy() {
-        this.dispose();
+        this.stop();
     }
 
-    /** 初始化事件订阅 */
     private initEventSubscriptions(): void {
         // 监听回合开始
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.TURN_STARTED, (event: GameEvent) => {
-                const payload = (event as any).payload as TurnStartedPayload;
-                this.onTurnStarted(payload);
-            })
-        );
+        subscribeEvent(GameEventType.TURN_STARTED, (event: TurnStartedEvent) => {
+            this.startTimer(event.payload.playerId);
+        });
 
-        // 监听游戏结束
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.GAME_OVER, () => {
-                this.stopTimer();
-            })
-        );
-
-        // 监听游戏重置
-        this.subscriptions.push(
-            subscribeEvent(GameEventType.RESET_GAME, () => {
-                this.stopTimer();
-            })
-        );
+        // 监听回合超时
+        subscribeEvent(GameEventType.TURN_TIMEOUT, () => {
+            this.stop();
+        });
     }
 
-    /** 处理回合开始 */
-    private onTurnStarted(payload: TurnStartedPayload): void {
-        // 只有人类玩家需要显示计时器
-        if (payload.isHuman) {
-            this.startTimer();
-        } else {
-            this.stopTimer();
-        }
-    }
-
-    /** 启动计时器 */
-    public startTimer(): void {
-        if (this.isRunning) return;
-
+    /** 开始计时 */
+    public startTimer(playerId: string): void {
+        this.stop();
+        this.currentPlayerId = playerId;
+        this.remainingTime = this.timeoutSeconds;
         this.isRunning = true;
+        this.updateDisplay();
+
+        this.timerId = setInterval(() => {
+            this.tick();
+        }, 1000);
+    }
+
+    /** 停止计时 */
+    public stop(): void {
+        if (this.timerId !== null) {
+            clearInterval(this.timerId);
+            this.timerId = null;
+        }
+        this.isRunning = false;
+    }
+
+    /** 重置计时器 */
+    public reset(): void {
+        this.stop();
         this.remainingTime = this.timeoutSeconds;
         this.updateDisplay();
-
-        this.timerInterval = setInterval(() => {
-            this.tick();
-        }, 1000) as unknown as number;
     }
 
-    /** 停止计时器 */
-    public stopTimer(): void {
-        this.isRunning = false;
-
-        if (this.timerInterval !== null) {
-            clearInterval(this.timerInterval);
-            this.timerInterval = null;
-        }
-
-        this.updateDisplay();
-    }
-
-    /** 计时器 tick */
+    /** 每秒更新 */
     private tick(): void {
+        if (!this.isRunning) return;
+
         this.remainingTime--;
         this.updateDisplay();
 
         if (this.remainingTime <= 0) {
-            this.stopTimer();
-            if (this.onTimeout) {
-                this.onTimeout();
-            }
+            this.stop();
+            // 超时事件由状态机处理
         }
     }
 
     /** 更新显示 */
     private updateDisplay(): void {
-        // 更新时间标签
+        // 更新标签
         if (this.timeLabel) {
-            this.timeLabel.string = this.isRunning
-                ? Math.max(0, this.remainingTime).toString()
-                : "--";
+            const minutes = Math.floor(this.remainingTime / 60);
+            const seconds = this.remainingTime % 60;
+            this.timeLabel.string = `${minutes}:${seconds.toString().padStart(2, "0")}`;
 
-            // 警告颜色
-            if (this.isRunning && this.remainingTime <= this.warningThreshold) {
-                this.timeLabel.color = new Color(255, 0, 0);
+            // 警告状态变色
+            if (this.remainingTime <= this.warningThreshold) {
+                this.timeLabel.color = new Color(255, 0, 0, 255);
             } else {
-                this.timeLabel.color = new Color(255, 255, 255);
+                this.timeLabel.color = new Color(255, 255, 255, 255);
             }
         }
 
         // 更新进度条
         if (this.progressBar) {
-            this.progressBar.progress = this.isRunning
-                ? this.remainingTime / this.timeoutSeconds
-                : 0;
+            this.progressBar.progress = this.remainingTime / this.timeoutSeconds;
         }
     }
 
-    /** 取消订阅 */
-    public dispose(): void {
-        this.stopTimer();
-        for (const unsubscribe of this.subscriptions) {
-            unsubscribe();
-        }
-        this.subscriptions = [];
+    /** 获取剩余时间 */
+    public getRemainingTime(): number {
+        return this.remainingTime;
     }
 }
