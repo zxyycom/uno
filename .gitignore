@@ -1,0 +1,37 @@
+
+#///////////////////////////
+# Cocos Creator 3D Project
+#///////////////////////////
+library/
+temp/
+local/
+build/
+profiles/
+native
+#//////////////////////////
+# NPM
+#//////////////////////////
+node_modules/
+
+# 构建目录
+dist/*
+**/dist/*
+
+# 补丁文件
+*.patch
+
+# 临时文件
+commit_log.txt
+
+# 缓存文件
+**/cache/*
+
+# 测试文件
+tests/res/*
+tests/logs/*
+tests/test-results/*
+.allure/*
+*.cpuprofile
+
+# 日志文件
+*.log

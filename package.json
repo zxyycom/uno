@@ -1,0 +1,43 @@
+{
+    "name": "uno",
+    "scripts": {
+        "bundle:libraries": "node ./scripts/bundle-libraries.js",
+        "fromat": "npx prettier --write .",
+        "lint": "eslint ."
+    },
+    "dependencies": {
+        "globals": "17.0.0",
+        "lodash-es": "4.17.23",
+        "mnemonist": "0.40.3",
+        "nanostores": "1.1.0",
+        "neverthrow": "8.2.0",
+        "random": "5.4.1",
+        "xstate": "5.25.1"
+    },
+    "devDependencies": {
+        "@eslint/js": "9.39.2",
+        "@rollup/plugin-commonjs": "29.0.0",
+        "@rollup/plugin-node-resolve": "16.0.3",
+        "@rollup/plugin-typescript": "12.3.0",
+        "@trivago/prettier-plugin-sort-imports": "6.0.2",
+        "@types/canvas-confetti": "1.9.0",
+        "@types/lodash-es": "4.17.12",
+        "@types/node": "25.0.10",
+        "@typescript-eslint/eslint-plugin": "8.53.1",
+        "@typescript-eslint/parser": "8.53.1",
+        "eslint": "9.39.2",
+        "eslint-config-prettier": "10.1.8",
+        "eslint-plugin-prettier": "5.5.5",
+        "eslint-plugin-simple-import-sort": "12.1.1",
+        "prettier": "3.8.1",
+        "prettier-plugin-organize-imports": "4.3.0",
+        "prettier-plugin-packagejson": "3.0.0",
+        "rollup": "4.55.3",
+        "rollup-plugin-dts": "6.3.0",
+        "tsconfig-paths": "4.2.0"
+    },
+    "creator": {
+        "version": "3.8.8"
+    },
+    "uuid": "ebc50fc8-d5d9-4f9e-8a0f-e010d32e32e8"
+}

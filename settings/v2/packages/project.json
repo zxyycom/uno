@@ -1,0 +1,15 @@
+{
+  "__version__": "1.0.6",
+  "general": {
+    "designResolution": {
+      "width": 1920,
+      "height": 1080
+    }
+  },
+  "physics": {
+    "gravity": {
+      "y": 0
+    }
+  },
+  "custom_joint_texture_layouts": []
+}

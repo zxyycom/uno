@@ -1,0 +1,12 @@
+{
+    /* Base configuration. Do not edit this field. */
+    "extends": "./temp/tsconfig.cocos.json",
+    /* Add your custom configuration here. */
+    "compilerOptions": {
+        "target": "es2022",
+        "module": "node16",
+        "moduleResolution": "node16",
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+    }
+}

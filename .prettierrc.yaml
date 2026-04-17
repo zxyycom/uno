@@ -1,0 +1,24 @@
+plugins:
+    - prettier-plugin-packagejson
+    - prettier-plugin-organize-imports # 这个好像不会调整导入排序
+#     - '@trivago/prettier-plugin-sort-imports' # 这个无法解析ts装饰器，所以可以排好序后就注释掉
+# importOrder:
+#     - '^[./]'
+#     - '^@/(.*)$'
+# importOrderSeparation: true # 导入分组，空行分隔
+# importOrderSortSpecifiers: true # 按字母顺序排序
+
+# 缩进使用 4 个空格
+tabWidth: 4
+# 不使用制表符（tab），使用空格
+useTabs: false
+# 是否使用单引号
+singleQuote: true
+# 语句末尾是否加分号
+semi: true
+# 对象、数组等末尾添加逗号（符合 ES5 规范）
+trailingComma: 'es5'
+# 使用 CRLF 换行符（Windows 风格）
+endOfLine: 'crlf'
+# 每行代码的最大长度（超过会自动换行）
+printWidth: 80
