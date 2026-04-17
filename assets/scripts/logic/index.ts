@@ -4,3 +4,4 @@
 
 export * from "./deck.logic";
 export * from "./timeout-manager";
+export * from "./uno-manager";
