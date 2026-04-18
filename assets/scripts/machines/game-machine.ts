@@ -27,6 +27,8 @@ export type GameMachineContext = {
     topCard: TopCard;
     config: GameConfig;
     winner: Player | null;
+    /** 当前回合数 */
+    turn: number;
 };
 
 // ==================== 事件类型 ====================
@@ -38,15 +40,16 @@ type GameMachineEvent =
           aiCount: number;
       }
     | { type: '初始化结束' }
-    | { type: '放弃出牌'; playerId: string }
-    | { type: '超时'; playerId: string }
+    | { type: '放弃出牌'; playerId: string; turn: number }
+    | { type: '超时'; playerId: string; turn: number }
     | {
           type: '出牌';
           playerId: string;
           card: Card;
           chosenColor?: CardColor;
+          turn: number;
       }
-    | { type: '摸牌结束'; playerId: string };
+    | { type: '摸牌结束'; playerId: string; turn: number };
 
 // ==================== 状态机 ====================
 
@@ -66,18 +69,19 @@ export const gameMachine = setup({
         是否胜利: ({ context }) => {
             return context.winner !== null;
         },
-        是当前玩家: ({ context, event }) => {
-            let eventId: string | null = null;
-            eventId =
-                event.type === '放弃出牌' ||
-                event.type === '超时' ||
-                event.type === '出牌' ||
-                event.type === '摸牌结束'
-                    ? event.playerId
-                    : null;
-            return eventId
-                ? context.playManager.isCurrentPlayer(eventId)
-                : false;
+        合法事件: ({ context, event }) => {
+            if (
+                event.type !== '放弃出牌' &&
+                event.type !== '超时' &&
+                event.type !== '出牌' &&
+                event.type !== '摸牌结束'
+            ) {
+                return false;
+            }
+            return (
+                context.turn === event.turn &&
+                context.playManager.isCurrentPlayer(event.playerId)
+            );
         },
     },
     actions: {
@@ -90,6 +94,10 @@ export const gameMachine = setup({
             context.deckManager = deckManager;
             context.topCard = topCard;
             context.winner = null;
+            context.turn = 0;
+        },
+        增加回合: ({ context }) => {
+            context.turn += 1;
         },
         应用卡牌效果: ({ context }) => {
             const { topCard, playManager } = context;
@@ -231,7 +239,7 @@ export const gameMachine = setup({
             },
         },
         回合开始: {
-            entry: [{ type: '应用卡牌效果' }],
+            entry: [{ type: '增加回合' }, { type: '应用卡牌效果' }],
             always: {
                 target: '等待出牌',
             },
@@ -240,11 +248,11 @@ export const gameMachine = setup({
             on: {
                 放弃出牌: {
                     target: '摸牌',
-                    guard: { type: '是当前玩家' },
+                    guard: { type: '合法事件' },
                 },
                 超时: {
                     target: '摸牌',
-                    guard: { type: '是当前玩家' },
+                    guard: { type: '合法事件' },
                 },
                 出牌: {
                     target: '回合结束',
@@ -253,7 +261,7 @@ export const gameMachine = setup({
                             type: '合法出牌',
                         },
                         {
-                            type: '是当前玩家',
+                            type: '合法事件',
                         },
                     ]),
                     actions: [{ type: '出牌' }, { type: '更新赢家' }],
@@ -265,7 +273,7 @@ export const gameMachine = setup({
             on: {
                 摸牌结束: {
                     target: '回合开始',
-                    guard: { type: '是当前玩家' },
+                    guard: { type: '合法事件' },
                 },
             },
         },
