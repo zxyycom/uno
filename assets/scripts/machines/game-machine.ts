@@ -10,7 +10,6 @@ import { DeckManager } from '../logic/deck-manager';
 import {
     Card,
     CardColor,
-    GameConfig,
     Player,
     TopCard,
     UnoCardType,
@@ -25,7 +24,6 @@ export type GameMachineContext = {
     deckManager: DeckManager;
     /** 牌堆顶的卡牌信息 */
     topCard: TopCard;
-    config: GameConfig;
     winner: Player | null;
     /** 当前回合数 */
     turn: number;
