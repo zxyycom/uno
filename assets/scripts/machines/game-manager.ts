@@ -4,6 +4,7 @@
  */
 
 import { Actor, createActor } from 'xstate';
+import { _decorator, Component } from 'cc';
 
 import {
     Card,
@@ -14,23 +15,23 @@ import {
 } from '../types/game.types';
 import { gameMachine } from './game-machine';
 
-/** 游戏管理器单例 */
-export class GameManager {
+const { ccclass, property } = _decorator;
+
+@ccclass('GameManager')
+export class GameManager extends Component {
     private static instance: GameManager | null = null;
     private actor: Actor<typeof gameMachine> | null = null;
-    private config: GameConfig;
+    @property
+    private config: GameConfig = DEFAULT_GAME_CONFIG; // CC序列化，无需读取
     /** 当前回合数 - 由状态机同步自动更新 */
     private currentTurn: number = 0;
 
-    private constructor(config: GameConfig = DEFAULT_GAME_CONFIG) {
-        this.config = config;
+    onLoad() {
+        GameManager.instance = this;
     }
 
     /** 获取单例实例 */
-    static getInstance(config?: GameConfig): GameManager {
-        if (!GameManager.instance) {
-            GameManager.instance = new GameManager(config);
-        }
+    static getInstance(): GameManager | null {
         return GameManager.instance;
     }
 
@@ -40,8 +41,34 @@ export class GameManager {
         // 订阅状态变化，自动同步 turn
         this.actor.subscribe((state) => {
             this.currentTurn = state.context.turn;
+            // 监听进入等待出牌状态，启动超时定时器
+            if (state.matches('等待出牌')) {
+                this.startTimeoutTimer();
+            }
         });
         this.actor.start();
+    }
+
+    /** 超时定时器回调 */
+    private timeoutCallback: (() => void) | null = null;
+
+    /** 启动超时定时器 */
+    private startTimeoutTimer(): void {
+        this.cancelTimeoutTimer();
+        const currentPlayer = this.getCurrentPlayer();
+        if (!currentPlayer) return;
+        this.timeoutCallback = () => {
+            this.onTimeout(currentPlayer.id);
+        };
+        this.scheduleOnce(this.timeoutCallback, this.config.timeoutSeconds);
+    }
+
+    /** 取消超时定时器 */
+    private cancelTimeoutTimer(): void {
+        if (this.timeoutCallback) {
+            this.unschedule(this.timeoutCallback);
+            this.timeoutCallback = null;
+        }
     }
 
     /** 开始新游戏 */
@@ -52,9 +79,9 @@ export class GameManager {
             playerCount,
             aiCount,
         });
-        setTimeout(() => {
+        this.scheduleOnce(() => {
             this.actor?.send({ type: '初始化结束' });
-        }, 500);
+        }, this.config.timeoutSeconds);
     }
 
     /** 获取当前玩家 */
@@ -91,8 +118,8 @@ export class GameManager {
         });
     }
 
-    /** 超时 - 直接转发事件到状态机 */
-    timeout(playerId: string): void {
+    /** 超时 - 内部使用，状态机自动处理 */
+    private onTimeout(playerId: string): void {
         this.actor?.send({
             type: '超时',
             playerId,
