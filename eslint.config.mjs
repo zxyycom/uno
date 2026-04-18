@@ -3,7 +3,6 @@ import tsEslint from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 import prettierConfig from 'eslint-config-prettier';
 import prettierPlugin from 'eslint-plugin-prettier';
-import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import globals from 'globals';
 
 export default [
@@ -34,6 +33,7 @@ export default [
             'library/**',
             'docs/**',
             '**/*.d.ts',
+            'extensions/**',
         ],
     },
 
@@ -64,27 +64,27 @@ export default [
         },
     },
 
-    // 导入排序
-    {
-        plugins: {
-            'simple-import-sort': simpleImportSort,
-        },
-        rules: {
-            'simple-import-sort/imports': [
-                'warn',
-                {
-                    groups: [
-                        // 第三方库
-                        [String.raw`^@?\w`],
-                        // 内部路径
-                        ['^@/'],
-                        // 相对路径
-                        [String.raw`^\.`],
-                    ],
-                },
-            ],
-        },
-    },
+    // // 导入排序
+    // {
+    //     plugins: {
+    //         'simple-import-sort': simpleImportSort,
+    //     },
+    //     rules: {
+    //         'simple-import-sort/imports': [
+    //             'warn',
+    //             {
+    //                 groups: [
+    //                     // 第三方库
+    //                     [String.raw`^@?\w`],
+    //                     // 内部路径
+    //                     ['^@/'],
+    //                     // 相对路径
+    //                     [String.raw`^\.`],
+    //                 ],
+    //             },
+    //         ],
+    //     },
+    // },
 
     // Prettier集成
     {

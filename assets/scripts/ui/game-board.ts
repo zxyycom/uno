@@ -86,13 +86,13 @@ export class GameBoard extends Component {
     private onCardPlayed(payload: CardPlayedPayload): void {
         // TODO: 播放出牌动画
         // TODO: 更新弃牌堆显示
-        console.log(`[GameBoard] 玩家 ${payload.playerId} 出牌`);
+        console.log(`[GameBoard] 玩家 ${payload.player.id} 出牌`);
     }
 
     /** 处理回合变化 */
     private onTurnChanged(payload: TurnChangedPayload): void {
         // TODO: 更新当前玩家指示器
-        console.log(`[GameBoard] 轮到: ${payload.currentPlayerId}`);
+        console.log(`[GameBoard] 轮到: ${payload.currentPlayer.id}`);
     }
 
     /** 处理方向改变 */
@@ -104,7 +104,7 @@ export class GameBoard extends Component {
     /** 处理玩家被跳过 */
     private onPlayerSkipped(payload: PlayerSkippedPayload): void {
         // TODO: 显示跳过提示动画
-        console.log(`[GameBoard] 玩家 ${payload.skippedPlayerName} 被跳过`);
+        console.log(`[GameBoard] 玩家 ${payload.skippedPlayer.name} 被跳过`);
     }
 
     /** 处理弃牌堆更新 */

@@ -52,7 +52,7 @@ export class PlayerHand extends Component {
         eventBus.on(
             GameEventType.CALL_UNO,
             (payload) => {
-                if (payload.playerId === this.playerId) {
+                if (payload.player.id === this.playerId) {
                     this.onUnoCalled();
                 }
             },

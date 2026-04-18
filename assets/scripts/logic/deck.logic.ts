@@ -3,6 +3,7 @@
  */
 
 import { Card, CardColor, UnoCardType } from '../types/game.types';
+import { getSpriteName } from './deck-resources';
 
 /** 生成唯一ID */
 function generateCardId(
@@ -11,41 +12,6 @@ function generateCardId(
     value: number | string
 ): string {
     return `${type}_${color}_${value}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-}
-
-/** 根据颜色和类型获取精灵图名称 */
-function getSpriteName(
-    color: CardColor,
-    type: UnoCardType,
-    value: number | null
-): string {
-    if (type === UnoCardType.WILD || type === UnoCardType.WILD_DRAW_4) {
-        return 'Wild';
-    }
-
-    const colorMap: Record<CardColor, string> = {
-        [CardColor.RED]: 'Red',
-        [CardColor.YELLOW]: 'Yellow',
-        [CardColor.GREEN]: 'Green',
-        [CardColor.BLUE]: 'Blue',
-    };
-
-    const prefix = colorMap[color];
-
-    if (type === UnoCardType.NUMBER && value !== null) {
-        return `${prefix}_${value}`;
-    }
-
-    switch (type) {
-        case UnoCardType.REVERSE:
-            return `${prefix}_Reverse`;
-        case UnoCardType.SKIP:
-            return `${prefix}_Skip`;
-        case UnoCardType.DRAW_2:
-            return `${prefix}_Draw`;
-        default:
-            return `${prefix}_${type}`;
-    }
 }
 
 /** 创建数字卡牌 */

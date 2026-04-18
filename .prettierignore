@@ -20,3 +20,4 @@ pnpm-lock.yaml
 README.md
 docs/.vitepress/dist
 docs/.vitepress/cache
+extensions/

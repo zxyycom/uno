@@ -5,15 +5,13 @@
 
 import { _decorator, Component, Label, Node, Sprite } from 'cc';
 
-import { eventBus, GameEventType } from '../events';
+import {
+    CurrentPlayerUpdatedPayload,
+    eventBus,
+    GameEventType,
+} from '../events';
 
 const { ccclass, property } = _decorator;
-
-interface TurnStartedPayload {
-    playerId: string;
-    playerName: string;
-    isHuman: boolean;
-}
 
 @ccclass('PlayerIndicator')
 export class PlayerIndicator extends Component {
@@ -75,7 +73,7 @@ export class PlayerIndicator extends Component {
         eventBus.on(
             GameEventType.CALL_UNO,
             (payload) => {
-                if (payload.playerId === this.playerId) {
+                if (payload.player.id === this.playerId) {
                     this.showUnoIndicator();
                 }
             },
@@ -84,8 +82,8 @@ export class PlayerIndicator extends Component {
     }
 
     /** 处理当前玩家更新 */
-    private onCurrentPlayerUpdated(payload: TurnStartedPayload): void {
-        const isActive = payload.playerId === this.playerId;
+    private onCurrentPlayerUpdated(payload: CurrentPlayerUpdatedPayload): void {
+        const isActive = payload.player.id === this.playerId;
         this.setActive(isActive);
     }
 

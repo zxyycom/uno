@@ -37,7 +37,7 @@ export class GameMessage extends Component {
         eventBus.on(
             GameEventType.PLAYER_SKIPPED,
             (payload) => {
-                this.showMessage(`${payload.skippedPlayerName} 被跳过!`);
+                this.showMessage(`${payload.skippedPlayer.name} 被跳过!`);
             },
             this
         );
@@ -53,7 +53,7 @@ export class GameMessage extends Component {
         eventBus.on(
             GameEventType.GAME_OVER,
             (payload) => {
-                this.showMessage(`${payload.winnerName} 获胜!`, 5.0);
+                this.showMessage(`${payload.winner.name} 获胜!`, 5.0);
             },
             this
         );

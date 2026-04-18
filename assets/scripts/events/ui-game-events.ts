@@ -17,7 +17,7 @@ export class UIGameEvents {
         eventBus.on(
             GameEventType.TURN_CHANGED,
             (payload) => {
-                console.log(`轮到玩家: ${payload.currentPlayerId}`);
+                console.log(`轮到玩家: ${payload.currentPlayer.id}`);
                 this.onTurnChanged(payload);
             },
             this
@@ -26,7 +26,7 @@ export class UIGameEvents {
         eventBus.on(
             GameEventType.CARD_PLAYED,
             (payload) => {
-                console.log(`玩家 ${payload.playerId} 出牌`);
+                console.log(`玩家 ${payload.player.id} 出牌`);
                 this.onCardPlayed(payload);
             },
             this
@@ -35,7 +35,7 @@ export class UIGameEvents {
         eventBus.on(
             GameEventType.GAME_OVER,
             (payload) => {
-                console.log(`游戏结束! 获胜者: ${payload.winnerName}`);
+                console.log(`游戏结束! 获胜者: ${payload.winner.name}`);
                 this.onGameOver(payload);
             },
             this
@@ -52,7 +52,7 @@ export class UIGameEvents {
         eventBus.on(
             GameEventType.CALL_UNO,
             (payload) => {
-                console.log(`玩家 ${payload.playerId} 呼叫 UNO!`);
+                console.log(`玩家 ${payload.player.id} 呼叫 UNO!`);
                 this.onUnoCalled(payload);
             },
             this

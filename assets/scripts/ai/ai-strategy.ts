@@ -14,7 +14,7 @@ import {
 /** AI决策结果 */
 export interface AIAction {
     action: 'play' | 'draw';
-    cardId?: string;
+    card?: Card;
     chosenColor?: CardColor;
 }
 
@@ -174,16 +174,11 @@ export function decideAIAction(
 
         return {
             action: 'play',
-            cardId: bestCard.id,
+            card: bestCard,
             chosenColor,
         };
     }
 
     // 没有可出的牌，选择摸牌
     return { action: 'draw' };
-}
-
-/** AI是否应该呼叫UNO */
-export function shouldAICallUno(player: Player): boolean {
-    return player.hand.length === 1 && !player.calledUno;
 }

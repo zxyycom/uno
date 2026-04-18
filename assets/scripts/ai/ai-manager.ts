@@ -3,13 +3,19 @@
  * 负责协调AI玩家的行为决策
  */
 
-import { CardColor, GameConfig, Player, TopCard } from '../types/game.types';
-import { decideAIAction, shouldAICallUno } from './ai-strategy';
+import {
+    Card,
+    CardColor,
+    GameConfig,
+    Player,
+    TopCard,
+} from '../types/game.types';
+import { decideAIAction } from './ai-strategy';
 
 /** AI决策回调 */
 export type AIActionCallback = (action: {
     action: 'play' | 'draw';
-    cardId?: string;
+    card?: Card;
     chosenColor?: CardColor;
 }) => void;
 
@@ -17,15 +23,8 @@ export type AIActionCallback = (action: {
 export class AIManager {
     private config: GameConfig;
     private thinkTimerId: number | null = null;
-    private callUnoCallback: ((playerId: string) => void) | null = null;
-
     constructor(config: GameConfig) {
         this.config = config;
-    }
-
-    /** 设置UNO呼叫回调 */
-    setUnoCallback(callback: (playerId: string) => void): void {
-        this.callUnoCallback = callback;
     }
 
     /** 请求AI做出决策 */
@@ -50,15 +49,6 @@ export class AIManager {
                 canDrawFreely
             );
             callback(action);
-
-            // 如果手牌只剩一张，检查是否需要呼叫UNO
-            if (shouldAICallUno(player)) {
-                setTimeout(() => {
-                    if (this.callUnoCallback) {
-                        this.callUnoCallback(player.id);
-                    }
-                }, 300);
-            }
         }, thinkTime) as unknown as number;
     }
 
@@ -78,6 +68,5 @@ export class AIManager {
     /** 销毁 */
     destroy(): void {
         this.cancelAIThink();
-        this.callUnoCallback = null;
     }
 }

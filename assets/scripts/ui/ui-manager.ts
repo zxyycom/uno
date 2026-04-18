@@ -113,9 +113,7 @@ export class UIManager extends Component {
     private onTurnChanged(payload: TurnChangedPayload): void {
         // 更新玩家指示器
         this.updateActivePlayerIndicator({
-            playerId: payload.currentPlayerId,
-            playerName: payload.currentPlayer.name,
-            isHuman: payload.currentPlayer.type === 'human',
+            player: payload.currentPlayer,
         });
     }
 
@@ -130,7 +128,7 @@ export class UIManager extends Component {
             const indicator = node.getComponent(PlayerIndicator);
             if (indicator) {
                 indicator.setActive(
-                    indicator.getPlayerId() === payload.playerId
+                    indicator.getPlayerId() === payload.player.id
                 );
             }
         }
@@ -153,7 +151,7 @@ export class UIManager extends Component {
     /** 回合超时处理 */
     private onTurnTimeout(): void {
         if (this.gameManager) {
-            this.gameManager.drawCard();
+            this.gameManager.drawCard('player_0');
         }
     }
 

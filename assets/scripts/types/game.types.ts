@@ -97,12 +97,6 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
     aiThinkDelay: 1500,
 };
 
-/** 卡牌可出的判定信息 */
-export interface PlayableCard {
-    card: Card;
-    reason: string;
-}
-
 /** 当前打出的卡牌信息 */
 export interface TopCard {
     card: Card;

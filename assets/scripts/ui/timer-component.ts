@@ -45,7 +45,7 @@ export class TimerComponent extends Component {
         eventBus.on(
             GameEventType.TURN_STARTED,
             (payload) => {
-                this.startTimer(payload.playerId);
+                this.startTimer(payload.player.id);
             },
             this
         );
