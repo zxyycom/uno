@@ -3,7 +3,11 @@
     "extends": "./temp/tsconfig.cocos.json",
     /* Add your custom configuration here. */
     "compilerOptions": {
+        "target": "esnext",
+        "module": "esnext",
         "esModuleInterop": true,
-        "allowSyntheticDefaultImports": true
-    }
+        "allowSyntheticDefaultImports": true,
+        "skipLibCheck": true
+    },
+    "include": ["assets/**/*"]
 }

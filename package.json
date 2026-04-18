@@ -4,7 +4,8 @@
     "scripts": {
         "bundle:libraries": "node ./scripts/bundle-libraries.js",
         "fromat": "npx prettier --write .",
-        "lint": "eslint ."
+        "lint": "eslint .",
+        "type-check": "tsc --noEmit"
     },
     "dependencies": {
         "globals": "17.0.0",
