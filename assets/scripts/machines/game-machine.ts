@@ -3,7 +3,7 @@
  * 管理游戏完整流程状态转换
  */
 
-import { and, setup } from 'xstate';
+import { and, assign, setup } from 'xstate';
 
 import { eventBus, GameEventType } from '../events';
 import { DeckManager } from '../logic/deck-manager';
@@ -94,9 +94,11 @@ export const gameMachine = setup({
             context.winner = null;
             context.turn = 0;
         },
-        增加回合: ({ context }) => {
-            context.turn += 1;
-        },
+        增加回合: assign(({ context }) => {
+            return {
+                turn: context.turn + 1,
+            };
+        }),
         应用卡牌效果: ({ context }) => {
             const { topCard, playManager } = context;
 

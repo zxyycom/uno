@@ -19,6 +19,8 @@ export class GameManager {
     private static instance: GameManager | null = null;
     private actor: Actor<typeof gameMachine> | null = null;
     private config: GameConfig;
+    /** 当前回合数 - 由状态机同步自动更新 */
+    private currentTurn: number = 0;
 
     private constructor(config: GameConfig = DEFAULT_GAME_CONFIG) {
         this.config = config;
@@ -35,6 +37,10 @@ export class GameManager {
     /** 初始化状态机 */
     private initMachine(): void {
         this.actor = createActor(gameMachine);
+        // 订阅状态变化，自动同步 turn
+        this.actor.subscribe((state) => {
+            this.currentTurn = state.context.turn;
+        });
         this.actor.start();
     }
 
@@ -72,14 +78,16 @@ export class GameManager {
             playerId,
             card,
             chosenColor,
+            turn: this.currentTurn,
         });
     }
 
-    /** 摸牌 - 直接转发事件到状态机 */
+    /** 放弃出牌(摸牌) - 直接转发事件到状态机 */
     drawCard(playerId: string): void {
         this.actor?.send({
             type: '放弃出牌',
             playerId,
+            turn: this.currentTurn,
         });
     }
 
@@ -88,6 +96,7 @@ export class GameManager {
         this.actor?.send({
             type: '超时',
             playerId,
+            turn: this.currentTurn,
         });
     }
 }
