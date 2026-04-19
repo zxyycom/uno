@@ -4,6 +4,7 @@
 
 import { Card, CardColor, UnoCardType } from '../../foundation/types/game.types';
 import { getSpriteName } from '../deck/deck-resources';
+import { shuffle as shuffleWithSeed, randomFloat } from '../../foundation/utils/random-seed';
 
 /** 生成唯一ID */
 function generateCardId(
@@ -11,7 +12,7 @@ function generateCardId(
     color: string,
     value: number | string
 ): string {
-    return `${type}_${color}_${value}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    return `${type}_${color}_${value}_${Date.now()}_${randomFloat(0, 1).toString(36).slice(2, 6)}`;
 }
 
 /** 创建数字卡牌 */
@@ -108,11 +109,6 @@ export function createDeck(): Card[] {
 
 /** Fisher-Yates 洗牌算法 */
 export function shuffle<T>(array: T[]): T[] {
-    const result = [...array];
-    for (let i = result.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [result[i], result[j]] = [result[j], result[i]];
-    }
-    return result;
+    return shuffleWithSeed(array);
 }
 

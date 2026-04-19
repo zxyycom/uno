@@ -5,6 +5,7 @@
 
 import { DeckManager } from '../deck/deck-manager';
 import { createDeck, shuffle } from '../utils/deck-helper';
+import { initRandom } from '../../foundation/utils/random-seed';
 import {
     CardColor,
     GameDirection,
@@ -117,6 +118,9 @@ export function dealInitialHands(
  * @returns 初始化结果
  */
 export function initializeGame(aiCount: number): InitResult {
+    // 初始化全局随机种子
+    initRandom();
+
     // 1. 创建玩家
     const players = createPlayers(aiCount);
     const playManager = new PlayManager(players, 0, GameDirection.CLOCKWISE);
