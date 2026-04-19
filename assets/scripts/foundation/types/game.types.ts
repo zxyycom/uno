@@ -100,7 +100,7 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
 /** 当前打出的卡牌信息 */
 export interface TopCard {
     card: Card;
-    /** 当前生效颜色(用于万能牌后) */
+    /** 当前生效颜色 */
     activeColor: CardColor;
     /** +2连续计数 */
     draw2Count: number;

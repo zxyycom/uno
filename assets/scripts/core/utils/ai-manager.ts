@@ -2,14 +2,16 @@
  * AI管理器
  */
 
+import { Random } from 'random';
 import {
     Card,
     CardColor,
     GameConfig,
     Player,
     TopCard,
+    UnoCardType,
 } from '../../foundation/types/game.types';
-import { decideAIAction } from './ai-helper';
+import { getPlayableCards } from './input-validator';
 
 export type AIActionCallback = (action: {
     action: 'play' | 'draw';
@@ -20,6 +22,7 @@ export type AIActionCallback = (action: {
 export class AIManager {
     private config: GameConfig;
     private thinkTimerId: number | null = null;
+    private random: Random = new Random();
 
     constructor(config: GameConfig) {
         this.config = config;
@@ -28,23 +31,41 @@ export class AIManager {
     requestAIDecision(
         player: Player,
         topCard: TopCard,
-        pendingDraw2Count: number,
-        pendingDraw4Count: number,
-        canDrawFreely: boolean,
         callback: AIActionCallback
     ): void {
         const thinkTime = this.config.aiThinkDelay + Math.random() * 500;
 
         this.thinkTimerId = setTimeout(() => {
-            const action = decideAIAction(
-                player,
-                topCard,
-                pendingDraw2Count,
-                pendingDraw4Count,
-                canDrawFreely
-            );
+            const action = this.decideAIAction(player, topCard);
             callback(action);
-        }, thinkTime) as unknown as number;
+        }, thinkTime);
+    }
+
+    decideAIAction(
+        player: Player,
+        topCard: TopCard
+    ): { action: 'play' | 'draw'; card?: Card; chosenColor?: CardColor } {
+        const playableCards = getPlayableCards(player, topCard);
+
+        if (playableCards.length === 0) {
+            return { action: 'draw' };
+        }
+
+        // 道具牌（REVERSE、SKIP、DRAW_2、WILD、WILD_DRAW_4）
+        const actionCards = playableCards.filter(
+            (c) => c.type !== UnoCardType.NUMBER
+        );
+        // 20% 概率出道具牌
+        if (actionCards.length > 0 && this.random.int(0, 99) < 20) {
+            const card = this.random.choice(actionCards);
+            return { action: 'play', card };
+        }
+        // 随机出牌
+        const cardToPlay = this.random.choice(
+            playableCards.filter((c) => c.type === UnoCardType.NUMBER)
+        );
+
+        return { action: 'play', card: cardToPlay };
     }
 
     cancelAIThink(): void {
@@ -62,3 +83,4 @@ export class AIManager {
         this.cancelAIThink();
     }
 }
+

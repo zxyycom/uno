@@ -6,7 +6,6 @@
 import { and, assign, setup } from 'xstate';
 
 import { eventBus, GameEventType } from '../../foundation/events';
-import { DeckManager } from '../deck/deck-manager';
 import {
     Card,
     CardColor,
@@ -14,8 +13,13 @@ import {
     TopCard,
     UnoCardType,
 } from '../../foundation/types/game.types';
+import { DeckManager } from '../deck/deck-manager';
 import { initializeGame } from '../game/game-initializer';
 import { PlayManager } from '../game/play-manager';
+import {
+    validateCanPlayCard,
+    validateCardInHand,
+} from '../utils/input-validator';
 
 // ==================== 类型定义 ====================
 
@@ -59,10 +63,15 @@ export const gameMachine = setup({
     guards: {
         合法出牌: ({ context, event }) => {
             if (event.type !== '出牌') return false;
+            const { topCard, playManager } = context;
             const { playerId, card } = event;
-            const player = context.playManager.getPlayerById(playerId);
-            if (!player) return false;
-            return player.hand.some((c) => c.id === card.id) ?? false;
+            const play = playManager.getPlayerById(playerId);
+            if (!play) return false;
+            // 牌在手中且符合出牌限制
+            return (
+                validateCanPlayCard(card, topCard) &&
+                validateCardInHand(card.id, play)
+            );
         },
         是否胜利: ({ context }) => {
             return context.winner !== null;

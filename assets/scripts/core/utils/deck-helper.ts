@@ -116,15 +116,3 @@ export function shuffle<T>(array: T[]): T[] {
     return result;
 }
 
-/** 从牌堆抽牌 */
-export function drawFromDeck(
-    deck: Card[],
-    count: number
-): { drawn: Card[]; remaining: Card[] } {
-    if (deck.length === 0) {
-        throw new Error('Deck is empty');
-    }
-    const drawn = deck.slice(0, count);
-    const remaining = deck.slice(count);
-    return { drawn, remaining };
-}
