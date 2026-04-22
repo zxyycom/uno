@@ -5,6 +5,7 @@
 
 import { _decorator, Component, Node } from 'cc';
 
+import { GameManager } from '../../core/machine/game-manager';
 import {
     CurrentPlayerUpdatedPayload,
     eventBus,
@@ -12,7 +13,6 @@ import {
     HandUpdatedPayload,
     TurnChangedPayload,
 } from '../../foundation/events';
-import { GameManager } from '../../core/machine/game-manager';
 import { DeckComponent } from './deck-component';
 import { GameBoard } from './game-board';
 import { GameMessage } from './game-message';

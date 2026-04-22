@@ -5,7 +5,11 @@
 
 import { resources, SpriteFrame } from 'cc';
 
-import { Card, CardColor, UnoCardType } from '../../foundation/types/game.types';
+import {
+    Card,
+    CardColor,
+    UnoCardType,
+} from '../../foundation/types/game.types';
 
 // 资源路径前缀
 const SPRITE_PATH_PREFIX = 'image/';

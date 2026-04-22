@@ -5,7 +5,11 @@
 
 import { _decorator, Component, instantiate, Node, Prefab } from 'cc';
 
-import { eventBus, GameEventType, HandUpdatedPayload } from '../../foundation/events';
+import {
+    eventBus,
+    GameEventType,
+    HandUpdatedPayload,
+} from '../../foundation/events';
 import { Card } from '../../foundation/types/game.types';
 
 const { ccclass, property } = _decorator;

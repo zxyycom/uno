@@ -3,9 +3,6 @@
  * 集中管理游戏初始化的所有逻辑
  */
 
-import { DeckManager } from '../deck/deck-manager';
-import { createDeck, shuffle } from '../utils/deck-helper';
-import { initRandom } from '../../foundation/utils/random-seed';
 import {
     CardColor,
     GameDirection,
@@ -14,6 +11,9 @@ import {
     TopCard,
     UnoCardType,
 } from '../../foundation/types/game.types';
+import { initRandom } from '../../foundation/utils/random-seed';
+import { DeckManager } from '../deck/deck-manager';
+import { createDeck, shuffle } from '../utils/deck-helper';
 import { PlayManager } from './play-manager';
 
 export interface InitResult {

@@ -3,7 +3,7 @@
  * 管理游戏完整流程状态转换
  */
 
-import { and, assign, setup } from 'xstate';
+import { and, assign, setup } from '../../../libs/npm/xstate/xstate.js';
 
 import { eventBus, GameEventType } from '../../foundation/events';
 import {

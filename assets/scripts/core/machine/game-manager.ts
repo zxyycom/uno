@@ -3,8 +3,8 @@
  * 仅负责转发事件到状态机，所有业务校验由状态机完成
  */
 
-import { Actor, createActor } from 'xstate';
 import { _decorator, Component } from 'cc';
+import { Actor, createActor } from '../../../libs/npm/xstate/xstate.js';
 
 import {
     Card,

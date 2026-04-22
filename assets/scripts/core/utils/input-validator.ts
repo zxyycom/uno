@@ -51,4 +51,3 @@ export function validateCanPlayCard(card: Card, topCard: TopCard): boolean {
 
     return false;
 }
-

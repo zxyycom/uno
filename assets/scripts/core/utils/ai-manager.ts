@@ -10,12 +10,12 @@ import {
     TopCard,
     UnoCardType,
 } from '../../foundation/types/game.types';
-import { getPlayableCards } from './input-validator';
 import {
-    randomInt,
     randomChoice,
     randomFloat,
+    randomInt,
 } from '../../foundation/utils/random-seed';
+import { getPlayableCards } from './input-validator';
 
 export type AIActionCallback = (action: {
     action: 'play' | 'draw';
@@ -86,4 +86,3 @@ export class AIManager {
         this.cancelAIThink();
     }
 }
-

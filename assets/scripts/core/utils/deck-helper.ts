@@ -2,9 +2,16 @@
  * UNO卡组生成与洗牌逻辑
  */
 
-import { Card, CardColor, UnoCardType } from '../../foundation/types/game.types';
+import {
+    Card,
+    CardColor,
+    UnoCardType,
+} from '../../foundation/types/game.types';
+import {
+    randomFloat,
+    shuffle as shuffleWithSeed,
+} from '../../foundation/utils/random-seed';
 import { getSpriteName } from '../deck/deck-resources';
-import { shuffle as shuffleWithSeed, randomFloat } from '../../foundation/utils/random-seed';
 
 /** 生成唯一ID */
 function generateCardId(
@@ -111,4 +118,3 @@ export function createDeck(): Card[] {
 export function shuffle<T>(array: T[]): T[] {
     return shuffleWithSeed(array);
 }
-
