@@ -102,6 +102,25 @@ export const gameMachine = setup({
             context.topCard = topCard;
             context.winner = null;
             context.turn = 0;
+
+            eventBus.emit(GameEventType.START_GAME, {
+                playerCount: event.playerCount,
+                aiCount: event.aiCount,
+            });
+            for (const player of context.playManager.players) {
+                eventBus.emit(GameEventType.HAND_UPDATED, {
+                    playerId: player.id,
+                    hand: player.hand,
+                    cardCount: player.hand.length,
+                });
+            }
+            eventBus.emit(GameEventType.DECK_UPDATED, {
+                remainingCards: context.deckManager.deckCount,
+            });
+            eventBus.emit(GameEventType.DISCARD_UPDATED, {
+                topCard: context.topCard.card,
+                discardCount: context.deckManager.discardCount,
+            });
         },
         增加回合: assign(({ context }) => {
             return {
@@ -113,7 +132,12 @@ export const gameMachine = setup({
 
             let skip = topCard.card.type === UnoCardType.SKIP;
             if (topCard.card.type === UnoCardType.REVERSE) {
+                const previousDirection = context.playManager.direction;
                 context.playManager.reverseDirection();
+                eventBus.emit(GameEventType.DIRECTION_CHANGED, {
+                    previousDirection,
+                    newDirection: context.playManager.direction,
+                });
                 // 只剩两个人的时候等于禁用
                 if (playManager.players.length === 2) {
                     skip = true;
@@ -136,6 +160,9 @@ export const gameMachine = setup({
                 previousPlayerId: previousPlayer.id,
                 currentPlayer: context.playManager.getCurrentPlayer(),
                 direction: context.playManager.direction,
+            });
+            eventBus.emit(GameEventType.CURRENT_PLAYER_UPDATED, {
+                player: context.playManager.getCurrentPlayer(),
             });
         },
         出牌: ({ context, event }) => {
@@ -170,6 +197,20 @@ export const gameMachine = setup({
             eventBus.emit(GameEventType.CARD_PLAYED, {
                 player,
                 card,
+                newActiveColor: context.topCard.activeColor,
+                isSkipEffect: card.type === UnoCardType.SKIP,
+                isReverseEffect: card.type === UnoCardType.REVERSE,
+                isDraw2Effect: card.type === UnoCardType.DRAW_2,
+                isDraw4Effect: card.type === UnoCardType.WILD_DRAW_4,
+            });
+            eventBus.emit(GameEventType.HAND_UPDATED, {
+                playerId: player.id,
+                hand: player.hand,
+                cardCount: player.hand.length,
+            });
+            eventBus.emit(GameEventType.DISCARD_UPDATED, {
+                topCard: context.topCard.card,
+                discardCount: context.deckManager.discardCount,
             });
         },
         自动呼叫UNO: ({ context }) => {
@@ -186,6 +227,13 @@ export const gameMachine = setup({
                 null;
             if (winner) {
                 context.winner = winner;
+                eventBus.emit(GameEventType.GAME_OVER, {
+                    winner,
+                    finalHands: context.playManager.players.map((player) => ({
+                        playerId: player.id,
+                        cardCount: player.hand.length,
+                    })),
+                });
             }
         },
         摸牌: ({ context, event }) => {
@@ -224,6 +272,14 @@ export const gameMachine = setup({
             eventBus.emit(GameEventType.CARDS_DRAWN, {
                 player: drawPlayer,
                 cards: drawnCards,
+            });
+            eventBus.emit(GameEventType.HAND_UPDATED, {
+                playerId: drawPlayer.id,
+                hand: drawPlayer.hand,
+                cardCount: drawPlayer.hand.length,
+            });
+            eventBus.emit(GameEventType.DECK_UPDATED, {
+                remainingCards: context.deckManager.deckCount,
             });
         },
     },
@@ -279,11 +335,8 @@ export const gameMachine = setup({
         },
         摸牌: {
             entry: [{ type: '摸牌' }],
-            on: {
-                摸牌结束: {
-                    target: '回合开始',
-                    guard: { type: '合法事件' },
-                },
+            always: {
+                target: '回合开始',
             },
         },
         回合结束: {

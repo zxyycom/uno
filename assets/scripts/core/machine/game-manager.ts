@@ -21,6 +21,7 @@ const { ccclass, property } = _decorator;
 export class GameManager extends Component {
     private static instance: GameManager | null = null;
     private actor: Actor<typeof gameMachine> | null = null;
+    private pendingInitCallback: (() => void) | null = null;
     @property
     private config: GameConfig = DEFAULT_GAME_CONFIG; // CC序列化，无需读取
     /** 当前回合数 - 由状态机同步自动更新 */
@@ -30,6 +31,15 @@ export class GameManager extends Component {
         GameManager.instance = this;
     }
 
+    onDestroy() {
+        this.cancelTimeoutTimer();
+        this.cancelPendingInit();
+        this.actor?.stop();
+        if (GameManager.instance === this) {
+            GameManager.instance = null;
+        }
+    }
+
     /** 获取单例实例 */
     static getInstance(): GameManager | null {
         return GameManager.instance;
@@ -37,6 +47,9 @@ export class GameManager extends Component {
 
     /** 初始化状态机 */
     private initMachine(): void {
+        this.cancelTimeoutTimer();
+        this.cancelPendingInit();
+        this.actor?.stop();
         this.actor = createActor(gameMachine);
         // 订阅状态变化，自动同步 turn
         this.actor.subscribe((state) => {
@@ -71,6 +84,13 @@ export class GameManager extends Component {
         }
     }
 
+    private cancelPendingInit(): void {
+        if (this.pendingInitCallback) {
+            this.unschedule(this.pendingInitCallback);
+            this.pendingInitCallback = null;
+        }
+    }
+
     /** 开始新游戏 */
     startGame(playerCount: number = 1, aiCount: number = 1): void {
         this.initMachine();
@@ -79,9 +99,15 @@ export class GameManager extends Component {
             playerCount,
             aiCount,
         });
-        this.scheduleOnce(() => {
+        const dealSeconds = Math.max(
+            ((playerCount + aiCount) * 7 * this.config.dealInterval) / 1000,
+            0.1
+        );
+        this.pendingInitCallback = () => {
             this.actor?.send({ type: '初始化结束' });
-        }, this.config.timeoutSeconds);
+            this.pendingInitCallback = null;
+        };
+        this.scheduleOnce(this.pendingInitCallback, dealSeconds);
     }
 
     /** 获取当前玩家 */

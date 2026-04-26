@@ -3,8 +3,9 @@
  * 显示剩余牌数量
  */
 
-import { _decorator, Component, Label } from 'cc';
+import { _decorator, Component, Label, Node } from 'cc';
 
+import { GameManager } from '../../core/machine/game-manager';
 import { eventBus, GameEventType } from '../../foundation/events';
 
 const { ccclass, property } = _decorator;
@@ -14,9 +15,13 @@ export class DeckComponent extends Component {
     @property(Label)
     public countLabel: Label | null = null;
 
+    @property
+    public initialCount: number = -1;
+
     private currentCount: number = 0;
 
     start() {
+        this.node.on(Node.EventType.TOUCH_END, this.onDeckTapped, this);
         this.initEventSubscriptions();
     }
 
@@ -36,7 +41,23 @@ export class DeckComponent extends Component {
         eventBus.on(
             GameEventType.START_GAME,
             () => {
+                if (this.initialCount >= 0) {
+                    this.updateDeckCount(this.initialCount);
+                    return;
+                }
                 this.updateDeckCount(0);
+            },
+            this
+        );
+
+        eventBus.on(
+            GameEventType.CARDS_DRAWN,
+            (payload) => {
+                if (this.currentCount > 0) {
+                    this.updateDeckCount(
+                        Math.max(this.currentCount - payload.cards.length, 0)
+                    );
+                }
             },
             this
         );
@@ -55,7 +76,12 @@ export class DeckComponent extends Component {
         return this.currentCount;
     }
 
+    private onDeckTapped(): void {
+        GameManager.getInstance()?.drawCard('player_0');
+    }
+
     dispose(): void {
+        this.node.off(Node.EventType.TOUCH_END, this.onDeckTapped, this);
         eventBus.targetOff(this);
     }
 }

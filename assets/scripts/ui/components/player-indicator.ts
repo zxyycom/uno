@@ -6,9 +6,10 @@
 import { _decorator, Component, Label, Node, Sprite } from 'cc';
 
 import {
-    CurrentPlayerUpdatedPayload,
     eventBus,
     GameEventType,
+    HandUpdatedPayload,
+    TurnChangedPayload,
 } from '../../foundation/events';
 
 const { ccclass, property } = _decorator;
@@ -43,6 +44,8 @@ export class PlayerIndicator extends Component {
     }
 
     start() {
+        this.setActive(false);
+        this.hideUnoIndicator();
         this.initEventSubscriptions();
     }
 
@@ -53,9 +56,18 @@ export class PlayerIndicator extends Component {
     /** 初始化事件订阅 */
     private initEventSubscriptions(): void {
         eventBus.on(
-            GameEventType.CURRENT_PLAYER_UPDATED,
+            GameEventType.START_GAME,
+            () => {
+                this.hideUnoIndicator();
+                this.setActive(false);
+            },
+            this
+        );
+
+        eventBus.on(
+            GameEventType.TURN_CHANGED,
             (payload) => {
-                this.onCurrentPlayerUpdated(payload);
+                this.onTurnChanged(payload);
             },
             this
         );
@@ -63,8 +75,26 @@ export class PlayerIndicator extends Component {
         eventBus.on(
             GameEventType.HAND_UPDATED,
             (payload) => {
-                if (payload.playerId === this.playerId) {
-                    this.updateCardCount(payload.cardCount);
+                this.onHandUpdated(payload);
+            },
+            this
+        );
+
+        eventBus.on(
+            GameEventType.CARD_PLAYED,
+            (payload) => {
+                if (payload.player.id === this.playerId) {
+                    this.updateCardCount(payload.player.hand.length);
+                }
+            },
+            this
+        );
+
+        eventBus.on(
+            GameEventType.CARDS_DRAWN,
+            (payload) => {
+                if (payload.player.id === this.playerId) {
+                    this.updateCardCount(payload.player.hand.length);
                 }
             },
             this
@@ -81,10 +111,21 @@ export class PlayerIndicator extends Component {
         );
     }
 
-    /** 处理当前玩家更新 */
-    private onCurrentPlayerUpdated(payload: CurrentPlayerUpdatedPayload): void {
-        const isActive = payload.player.id === this.playerId;
+    /** 处理回合变化 */
+    private onTurnChanged(payload: TurnChangedPayload): void {
+        const isActive = payload.currentPlayer.id === this.playerId;
         this.setActive(isActive);
+    }
+
+    /** 处理手牌更新 */
+    private onHandUpdated(payload: HandUpdatedPayload): void {
+        if (payload.playerId !== this.playerId) {
+            return;
+        }
+        this.updateCardCount(payload.cardCount);
+        if (payload.cardCount !== 1) {
+            this.hideUnoIndicator();
+        }
     }
 
     /** 设置激活状态 */

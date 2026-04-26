@@ -26,8 +26,11 @@ export function validateCanPlayCard(card: Card, topCard: TopCard): boolean {
     const cardType = card.type;
 
     // 加牌只能接加牌
-    if (topType === (UnoCardType.WILD_DRAW_4 || UnoCardType.DRAW_2)) {
-        return cardType === (UnoCardType.WILD_DRAW_4 || UnoCardType.DRAW_2);
+    if (topType === UnoCardType.WILD_DRAW_4 || topType === UnoCardType.DRAW_2) {
+        return (
+            cardType === UnoCardType.WILD_DRAW_4 ||
+            cardType === UnoCardType.DRAW_2
+        );
     }
 
     // 颜色匹配
