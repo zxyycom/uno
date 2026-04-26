@@ -36,6 +36,7 @@
         "prettier-plugin-packagejson": "3.0.0",
         "rollup": "4.55.3",
         "rollup-plugin-dts": "6.3.0",
+        "sharp": "^0.34.5",
         "tsconfig-paths": "4.2.0"
     },
     "creator": {
@@ -43,3 +44,4 @@
     },
     "uuid": "ebc50fc8-d5d9-4f9e-8a0f-e010d32e32e8"
 }
+

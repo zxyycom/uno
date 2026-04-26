@@ -46,7 +46,7 @@ async function loadResBundle(): Promise<AssetManager.Bundle | null> {
 }
 
 // 资源路径前缀
-const SPRITE_PATH_PREFIX = 'image/';
+const SPRITE_PATH_PREFIX = 'image/h200/';
 // 图片资源后缀
 const SPRITE_PATH_SUFFIX = '/spriteFrame';
 
