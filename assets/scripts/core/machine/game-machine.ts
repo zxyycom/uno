@@ -119,6 +119,7 @@ export const gameMachine = setup({
             });
             eventBus.emit(GameEventType.DISCARD_UPDATED, {
                 topCard: context.topCard.card,
+                topCardInfo: context.topCard,
                 discardCount: context.deckManager.discardCount,
             });
         },
@@ -210,6 +211,7 @@ export const gameMachine = setup({
             });
             eventBus.emit(GameEventType.DISCARD_UPDATED, {
                 topCard: context.topCard.card,
+                topCardInfo: context.topCard,
                 discardCount: context.deckManager.discardCount,
             });
         },

@@ -1,4 +1,4 @@
-import { Card, CardColor, Player } from '../types/game.types';
+import { Card, CardColor, Player, TopCard } from '../types/game.types';
 
 export enum GameEventType {
     // === 游戏流程事件 ===
@@ -17,6 +17,7 @@ export enum GameEventType {
     // === 卡牌操作事件 ===
     PLAY_CARD = 'PLAY_CARD',
     DRAW_CARD = 'DRAW_CARD',
+    CARD_SELECTED = 'CARD_SELECTED',
     CARD_PLAYED = 'CARD_PLAYED',
     CARD_DRAWN = 'CARD_DRAWN',
     CARDS_DRAWN = 'CARDS_DRAWN',
@@ -83,6 +84,14 @@ export interface CardPlayedPayload {
     isDraw2Effect?: boolean;
     /** 是否触发+4效果 */
     isDraw4Effect?: boolean;
+}
+
+/** 卡牌选择参数 */
+export interface CardSelectedPayload {
+    /** 选择卡牌的玩家ID */
+    playerId: string;
+    /** 当前选中的卡牌，null 表示取消选择 */
+    card: Card | null;
 }
 
 /** 摸牌请求参数 */
@@ -177,6 +186,8 @@ export interface DeckUpdatedPayload {
 export interface DiscardUpdatedPayload {
     /** 顶牌 */
     topCard: Card;
+    /** 完整顶牌信息，包含当前生效颜色与叠加摸牌计数 */
+    topCardInfo: TopCard;
     /** 弃牌堆数量 */
     discardCount: number;
 }
@@ -206,6 +217,7 @@ export interface GameEvents {
     [GameEventType.TURN_CHANGED]: [payload: TurnChangedPayload];
     [GameEventType.PLAY_CARD]: [payload: PlayCardPayload];
     [GameEventType.DRAW_CARD]: [payload: DrawCardPayload];
+    [GameEventType.CARD_SELECTED]: [payload: CardSelectedPayload];
     [GameEventType.CARD_PLAYED]: [payload: CardPlayedPayload];
     [GameEventType.CARD_DRAWN]: [payload: CardDrawnPayload];
     [GameEventType.CARDS_DRAWN]: [payload: CardsDrawnPayload];

@@ -1,14 +1,16 @@
 /**
- * 玩家手牌UI组件
- * 自己回合扇形展开，可出牌自动抬升，选中卡牌二次抬升
+ * 当前玩家手牌 UI 组件
+ * 只负责人类玩家自己的手牌：扇形展开、可出牌高光、点击出牌、万能牌选色。
+ * 其他玩家手牌应由独立组件展示卡背，不在这里处理。
+ * - 纯计算函数：只根据输入计算手牌展示状态，不读写组件状态。
+ * - 业务逻辑函数：响应事件、维护选中/待选色状态、通过 UIManager 发起出牌。
+ * - 渲染函数：创建/销毁节点并把计算结果应用到 Cocos 节点。
  */
 
 import {
     _decorator,
     Component,
-    instantiate,
     Node,
-    Prefab,
     Sprite,
     tween,
     Tween,
@@ -17,10 +19,8 @@ import {
 } from 'cc';
 
 import { loadCardSprite } from '../../core/deck/deck-resources';
-import { GameManager } from '../../core/machine/game-manager';
 import { validateCanPlayCard } from '../../core/utils/input-validator';
 import {
-    CardPlayedPayload,
     eventBus,
     GameEventType,
     HandUpdatedPayload,
@@ -32,8 +32,14 @@ import {
     TopCard,
     UnoCardType,
 } from '../../foundation/types/game.types';
+import { CardNodePool } from './card-node-pool';
 
 const { ccclass, property } = _decorator;
+
+export type PlayerHandContext = {
+    getTopCard(): TopCard | null;
+    playCard(playerId: string, card: Card, chosenColor?: CardColor): void;
+};
 
 type HandCardView = {
     card: Card;
@@ -41,66 +47,181 @@ type HandCardView = {
     playable: boolean;
 };
 
+type FanLayoutConfig = {
+    /** 手牌扇形半径，数值越大卡牌横向跨度越大 */
+    fanRadius: number;
+    /** 当前玩家回合时的总展开角度 */
+    turnSpreadAngle: number;
+    /** 非当前玩家回合时的总展开角度 */
+    idleSpreadAngle: number;
+    /** 可出牌卡牌向上抬升距离 */
+    playableLift: number;
+    /** 已选中卡牌额外向上抬升距离 */
+    selectedLift: number;
+};
+
+type FanLayoutInput = {
+    card: Card;
+    index: number;
+    total: number;
+    isMyTurn: boolean;
+    selectedCardId: string | null;
+    topCard: TopCard | null;
+    config: FanLayoutConfig;
+};
+
+type FanLayoutResult = {
+    playable: boolean;
+    position: Vec3;
+    scale: Vec3;
+    angle: number;
+    opacity: number;
+};
+
+const CARD_ARC_Y_FACTOR = 0.24;
+const DISABLED_CARD_OPACITY = 150;
+const ENABLED_CARD_OPACITY = 255;
+const CARD_ROTATION_FACTOR = 0.42;
+
+/**
+ * 根据回合状态选择扇形展开角度。
+ * 纯计算函数：只返回数值，不依赖组件内部状态。
+ */
+function getSpreadAngle(
+    isMyTurn: boolean,
+    turnSpreadAngle: number,
+    idleSpreadAngle: number
+): number {
+    return isMyTurn ? turnSpreadAngle : idleSpreadAngle;
+}
+
+/**
+ * 计算卡牌是否是需要选择颜色的万能牌。
+ * 纯计算函数：只根据卡牌类型判断。
+ */
+function isWildCard(card: Card): boolean {
+    return (
+        card.type === UnoCardType.WILD || card.type === UnoCardType.WILD_DRAW_4
+    );
+}
+
+/**
+ * 判断当前卡牌在当前桌面顶牌下是否可出。
+ * 纯计算函数：屏蔽“非自己回合/无顶牌”这类 UI 前置条件。
+ */
+function canPlayInCurrentTurn(
+    card: Card,
+    isMyTurn: boolean,
+    topCard: TopCard | null
+): boolean {
+    return Boolean(isMyTurn && topCard && validateCanPlayCard(card, topCard));
+}
+
+/**
+ * 计算单张手牌的扇形位置、旋转、缩放、透明度和可出状态。
+ * 纯计算函数：不创建节点、不启动 tween，方便单独测试和复用。
+ */
+function calculateFanCardLayout(input: FanLayoutInput): FanLayoutResult {
+    const { card, config, index, isMyTurn, selectedCardId, topCard, total } =
+        input;
+    const spread = getSpreadAngle(
+        isMyTurn,
+        config.turnSpreadAngle,
+        config.idleSpreadAngle
+    );
+    const halfSpread = spread / 2;
+    const t = total === 1 ? 0.5 : index / (total - 1);
+    const angle = -halfSpread + spread * t;
+    const radian = (angle * Math.PI) / 180;
+    const playable = canPlayInCurrentTurn(card, isMyTurn, topCard);
+    const x = Math.sin(radian) * config.fanRadius;
+    const arcY = (Math.cos(radian) - 1) * config.fanRadius * CARD_ARC_Y_FACTOR;
+    const playableY = playable ? config.playableLift : 0;
+    const selectedY = selectedCardId === card.id ? config.selectedLift : 0;
+
+    return {
+        playable,
+        position: new Vec3(x, arcY + playableY + selectedY, 0),
+        scale: isMyTurn ? new Vec3(1, 1, 1) : new Vec3(0.92, 0.92, 1),
+        angle: angle * CARD_ROTATION_FACTOR,
+        opacity:
+            isMyTurn && !playable
+                ? DISABLED_CARD_OPACITY
+                : ENABLED_CARD_OPACITY,
+    };
+}
+
 @ccclass('PlayerHand')
 export class PlayerHand extends Component {
-    @property(Prefab)
-    public cardPrefab: Prefab | null = null;
+    /** 卡牌节点对象池，必须在编辑器中绑定；不提供默认对象池 */
+    @property({
+        type: CardNodePool,
+        tooltip: '卡牌节点对象池，必须在编辑器中绑定；不提供默认对象池',
+    })
+    public cardNodePool!: CardNodePool;
 
-    @property
-    public maxVisibleCards: number = 12;
-
-    @property
+    /** 手牌扇形半径，数值越大卡牌横向跨度越大 */
+    @property({ tooltip: '手牌扇形半径，数值越大卡牌横向跨度越大' })
     public fanRadius: number = 360;
 
-    @property
+    /** 当前玩家回合时的总展开角度，角度越大手牌越分散 */
+    @property({
+        tooltip: '当前玩家回合时的总展开角度，角度越大手牌越分散',
+    })
     public turnSpreadAngle: number = 72;
 
-    @property
+    /** 非当前玩家回合时的总展开角度，用于收拢手牌 */
+    @property({ tooltip: '非当前玩家回合时的总展开角度，用于收拢手牌' })
     public idleSpreadAngle: number = 16;
 
-    @property
+    /** 可出牌卡牌自动向上抬升的距离 */
+    @property({ tooltip: '可出牌卡牌自动向上抬升的距离' })
     public playableLift: number = 32;
 
-    @property
+    /** 玩家选中卡牌后额外向上抬升的距离 */
+    @property({ tooltip: '玩家选中卡牌后额外向上抬升的距离' })
     public selectedLift: number = 22;
 
-    @property
+    /** 手牌重新布局动画时长，单位为秒 */
+    @property({ tooltip: '手牌重新布局动画时长，单位为秒' })
     public layoutTweenDuration: number = 0.18;
 
-    @property(Node)
+    /** 万能牌颜色选择面板节点 */
+    @property({ type: Node, tooltip: '万能牌颜色选择面板节点' })
     public wildColorPanel: Node | null = null;
 
-    @property(Node)
+    /** 万能牌选择红色按钮节点 */
+    @property({ type: Node, tooltip: '万能牌选择红色按钮节点' })
     public wildRedButton: Node | null = null;
 
-    @property(Node)
+    /** 万能牌选择黄色按钮节点 */
+    @property({ type: Node, tooltip: '万能牌选择黄色按钮节点' })
     public wildYellowButton: Node | null = null;
 
-    @property(Node)
+    /** 万能牌选择绿色按钮节点 */
+    @property({ type: Node, tooltip: '万能牌选择绿色按钮节点' })
     public wildGreenButton: Node | null = null;
 
-    @property(Node)
+    /** 万能牌选择蓝色按钮节点 */
+    @property({ type: Node, tooltip: '万能牌选择蓝色按钮节点' })
     public wildBlueButton: Node | null = null;
 
-    private gameManager: GameManager | null = null;
     private cardViews: HandCardView[] = [];
     private playerId: string = '';
+    private uiContext?: PlayerHandContext;
     private isMyTurn: boolean = false;
     private selectedCardId: string | null = null;
     private pendingWildCard: Card | null = null;
-    private currentTopCard: TopCard | null = null;
-    private currentHand: Card[] = [];
+    private readonly cardIdsByNode = new WeakMap<Node, string>();
 
-    /**
-     * 初始化手牌（指定玩家ID）
-     */
-    public init(playerId: string): void {
+    /** 初始化手牌归属玩家，并清空旧手牌节点 */
+    public init(playerId: string, uiContext: PlayerHandContext): void {
         this.playerId = playerId;
+        this.uiContext = uiContext;
         this.clearCards();
     }
 
     start() {
-        this.gameManager = GameManager.getInstance();
         this.bindWildColorButtons();
         this.hideWildColorPanel();
         this.initEventSubscriptions();
@@ -110,7 +231,11 @@ export class PlayerHand extends Component {
         this.dispose();
     }
 
-    /** 初始化事件订阅 */
+    // ---------------------------------------------------------------------
+    // 事件订阅与事件响应
+    // ---------------------------------------------------------------------
+
+    /** 初始化游戏事件订阅，所有回调都绑定 this 方便统一释放 */
     private initEventSubscriptions(): void {
         eventBus.on(
             GameEventType.HAND_UPDATED,
@@ -125,9 +250,8 @@ export class PlayerHand extends Component {
         eventBus.on(
             GameEventType.START_GAME,
             () => {
-                this.selectedCardId = null;
+                this.selectCard(null, false);
                 this.pendingWildCard = null;
-                this.currentTopCard = null;
                 this.hideWildColorPanel();
             },
             this
@@ -137,14 +261,6 @@ export class PlayerHand extends Component {
             GameEventType.TURN_CHANGED,
             (payload) => {
                 this.onTurnChanged(payload);
-            },
-            this
-        );
-
-        eventBus.on(
-            GameEventType.CARD_PLAYED,
-            (payload) => {
-                this.onCardPlayed(payload);
             },
             this
         );
@@ -160,56 +276,39 @@ export class PlayerHand extends Component {
         );
     }
 
-    /** 手牌更新 */
+    /** 响应手牌更新事件：同步手牌数据并触发重渲染 */
     private onHandUpdated(payload: HandUpdatedPayload): void {
-        this.currentHand = payload.hand.slice(0, this.maxVisibleCards);
-        if (
-            this.selectedCardId &&
-            !this.currentHand.some((card) => card.id === this.selectedCardId)
-        ) {
-            this.selectedCardId = null;
-        }
-        this.renderHand();
+        this.selectCard(null, false);
+        this.renderHand(payload.hand);
     }
 
-    /** 回合变化 */
+    /** 响应回合变化事件：维护当前回合状态，并刷新可出牌提示 */
     private onTurnChanged(payload: TurnChangedPayload): void {
         this.isMyTurn = payload.currentPlayer.id === this.playerId;
-        this.currentTopCard =
-            this.gameManager?.getTopCard() ?? this.currentTopCard;
         if (!this.isMyTurn) {
-            this.selectedCardId = null;
+            this.selectCard(null, false);
             this.pendingWildCard = null;
             this.hideWildColorPanel();
         }
         this.refreshFanLayout(true);
     }
 
-    /** 任何出牌后都刷新可出牌状态 */
-    private onCardPlayed(payload: CardPlayedPayload): void {
-        this.currentTopCard =
-            this.gameManager?.getTopCard() ?? this.currentTopCard;
-        if (payload.player.id === this.playerId) {
-            return;
-        }
-        this.refreshFanLayout(true);
-    }
-
-    /** 处理UNO呼叫 */
+    /** 处理 UNO 呼叫，可在这里挂接后续提示动画 */
     private onUnoCalled(): void {
         console.log(`[PlayerHand] ${this.playerId} 呼叫 UNO!`);
     }
 
-    /** 重新渲染手牌节点 */
-    private renderHand(): void {
+    // ---------------------------------------------------------------------
+    // 渲染与节点操作
+    // ---------------------------------------------------------------------
+
+    /** 重新渲染手牌节点：清空旧节点，再按当前手牌数据创建新节点 */
+    private renderHand(hand: Card[]): void {
         this.clearCards();
 
-        for (let i = 0; i < this.currentHand.length; i++) {
-            const card = this.currentHand[i];
+        for (let i = 0; i < hand.length; i++) {
+            const card = hand[i];
             const cardNode = this.createCardNode(card);
-            if (!cardNode) {
-                continue;
-            }
             this.cardViews.push({
                 card,
                 node: cardNode,
@@ -220,15 +319,10 @@ export class PlayerHand extends Component {
         this.refreshFanLayout(false);
     }
 
-    /** 创建单张卡牌节点 */
-    private createCardNode(card: Card): Node | null {
-        if (!this.cardPrefab) {
-            return null;
-        }
-
-        const cardNode = instantiate(this.cardPrefab);
-        cardNode.setParent(this.node);
-        cardNode.setPosition(Vec3.ZERO);
+    /** 创建单张卡牌节点，并绑定点击事件和异步牌面资源 */
+    private createCardNode(card: Card): Node {
+        const cardNode = this.cardNodePool.acquire(this.node);
+        this.cardIdsByNode.set(cardNode, card.id);
         cardNode.on(
             Node.EventType.TOUCH_END,
             () => {
@@ -240,7 +334,12 @@ export class PlayerHand extends Component {
         const sprite = cardNode.getComponent(Sprite);
         if (sprite) {
             void loadCardSprite(card).then((spriteFrame) => {
-                if (spriteFrame && sprite && sprite.isValid) {
+                if (
+                    spriteFrame &&
+                    sprite &&
+                    sprite.isValid &&
+                    this.cardIdsByNode.get(cardNode) === card.id
+                ) {
                     sprite.spriteFrame = spriteFrame;
                 }
             });
@@ -249,63 +348,91 @@ export class PlayerHand extends Component {
         return cardNode;
     }
 
-    /** 刷新扇形布局与可出牌抬升 */
+    /** 刷新扇形布局与可出牌抬升，渲染层只负责应用纯计算结果 */
     private refreshFanLayout(animated: boolean): void {
         const count = this.cardViews.length;
         if (count === 0) {
             return;
         }
 
-        const spread = this.isMyTurn
-            ? this.turnSpreadAngle
-            : this.idleSpreadAngle;
-        const half = spread / 2;
-        const topCard = this.gameManager?.getTopCard() ?? this.currentTopCard;
+        const topCard = this.uiContext!.getTopCard();
+        const config = this.getFanLayoutConfig();
 
         for (let i = 0; i < count; i++) {
             const view = this.cardViews[i];
-            const t = count === 1 ? 0.5 : i / (count - 1);
-            const angle = -half + spread * t;
-            const rad = (angle * Math.PI) / 180;
+            const layout = calculateFanCardLayout({
+                card: view.card,
+                index: i,
+                total: count,
+                isMyTurn: this.isMyTurn,
+                selectedCardId: this.selectedCardId,
+                topCard,
+                config,
+            });
 
-            view.playable = Boolean(
-                this.isMyTurn &&
-                topCard &&
-                validateCanPlayCard(view.card, topCard)
-            );
-
-            const x = Math.sin(rad) * this.fanRadius;
-            const arcY = (Math.cos(rad) - 1) * this.fanRadius * 0.24;
-            const playableY = view.playable ? this.playableLift : 0;
-            const selectedY =
-                this.selectedCardId === view.card.id ? this.selectedLift : 0;
-            const y = arcY + playableY + selectedY;
-            const targetPosition = new Vec3(x, y, 0);
-            const targetScale = this.isMyTurn
-                ? Vec3.ONE
-                : new Vec3(0.92, 0.92, 1);
-            const targetAngle = angle * 0.42;
-
-            const opacity = this.ensureOpacity(view.node);
-            opacity.opacity = this.isMyTurn && !view.playable ? 150 : 255;
-
-            Tween.stopAllByTarget(view.node);
-            if (animated) {
-                tween(view.node)
-                    .to(this.layoutTweenDuration, {
-                        position: targetPosition,
-                        angle: targetAngle,
-                        scale: targetScale,
-                    })
-                    .start();
-            } else {
-                view.node.setPosition(targetPosition);
-                view.node.angle = targetAngle;
-                view.node.setScale(targetScale);
-            }
-            view.node.setSiblingIndex(i);
+            view.playable = layout.playable;
+            this.applyCardLayout(view.node, layout, i, animated);
         }
     }
+
+    /** 把布局结果应用到节点，集中处理 tween 与层级顺序 */
+    private applyCardLayout(
+        node: Node,
+        layout: FanLayoutResult,
+        siblingIndex: number,
+        animated: boolean
+    ): void {
+        const opacity = this.ensureOpacity(node);
+        opacity.opacity = layout.opacity;
+
+        Tween.stopAllByTarget(node);
+        if (animated) {
+            tween(node)
+                .to(this.layoutTweenDuration, {
+                    position: layout.position,
+                    angle: layout.angle,
+                    scale: layout.scale,
+                })
+                .start();
+        } else {
+            node.setPosition(layout.position);
+            node.angle = layout.angle;
+            node.setScale(layout.scale);
+        }
+        node.setSiblingIndex(siblingIndex);
+    }
+
+    /** 确保卡牌节点拥有透明度组件，用于不可出牌时置灰 */
+    private ensureOpacity(node: Node): UIOpacity {
+        const opacity = node.getComponent(UIOpacity);
+        if (opacity) {
+            return opacity;
+        }
+        return node.addComponent(UIOpacity);
+    }
+
+    /** 清除所有卡牌节点和点击事件绑定 */
+    private clearCards(): void {
+        if (this.cardViews.length === 0) {
+            return;
+        }
+
+        for (const view of this.cardViews) {
+            view.node.targetOff(this);
+            this.cardIdsByNode.delete(view.node);
+            this.cardNodePool.release(view.node);
+        }
+        this.cardViews = [];
+    }
+
+    /** 外部共享状态变化后刷新可出牌提示 */
+    public refreshPlayableCards(animated: boolean): void {
+        this.refreshFanLayout(animated);
+    }
+
+    // ---------------------------------------------------------------------
+    // 出牌业务逻辑
+    // ---------------------------------------------------------------------
 
     /** 点击卡牌：首次选中，二次点击出牌 */
     private onCardTapped(cardId: string): void {
@@ -319,28 +446,16 @@ export class PlayerHand extends Component {
         }
 
         if (this.selectedCardId !== cardId) {
-            this.selectedCardId = cardId;
-            this.refreshFanLayout(true);
+            this.selectCard(view.card, true);
             return;
         }
 
         this.tryPlayCard(view.card);
     }
 
-    /** 尝试出牌，万能牌会先弹颜色选择 */
+    /** 尝试出牌：普通牌直接发送，万能牌先进入待选色流程 */
     private tryPlayCard(card: Card, chosenColor?: CardColor): void {
-        if (!this.gameManager) {
-            this.gameManager = GameManager.getInstance();
-        }
-        if (!this.gameManager) {
-            return;
-        }
-
-        if (
-            (card.type === UnoCardType.WILD ||
-                card.type === UnoCardType.WILD_DRAW_4) &&
-            !chosenColor
-        ) {
+        if (isWildCard(card) && !chosenColor) {
             this.pendingWildCard = card;
             this.showWildColorPanel();
             return;
@@ -348,10 +463,10 @@ export class PlayerHand extends Component {
 
         this.pendingWildCard = null;
         this.hideWildColorPanel();
-        this.gameManager.playCard(this.playerId, card, chosenColor);
+        this.uiContext!.playCard(this.playerId, card, chosenColor);
     }
 
-    /** 绑定万能牌颜色按钮 */
+    /** 绑定万能牌颜色按钮，点击后会继续完成待处理的万能牌出牌 */
     private bindWildColorButtons(): void {
         this.bindColorButton(this.wildRedButton, CardColor.RED);
         this.bindColorButton(this.wildYellowButton, CardColor.YELLOW);
@@ -359,6 +474,7 @@ export class PlayerHand extends Component {
         this.bindColorButton(this.wildBlueButton, CardColor.BLUE);
     }
 
+    /** 绑定单个颜色按钮 */
     private bindColorButton(node: Node | null, color: CardColor): void {
         if (!node) {
             return;
@@ -372,7 +488,7 @@ export class PlayerHand extends Component {
         );
     }
 
-    /** 万能牌选色 */
+    /** 万能牌选色：把颜色带回 tryPlayCard，统一由出牌流程发事件 */
     private onWildColorSelected(color: CardColor): void {
         if (!this.pendingWildCard) {
             this.hideWildColorPanel();
@@ -380,40 +496,54 @@ export class PlayerHand extends Component {
         }
 
         const card = this.pendingWildCard;
-        this.selectedCardId = card.id;
+        this.selectCard(card, false);
         this.tryPlayCard(card, color);
     }
 
+    /** 显示万能牌颜色选择面板 */
     private showWildColorPanel(): void {
         if (this.wildColorPanel) {
             this.wildColorPanel.active = true;
         }
     }
 
+    /** 隐藏万能牌颜色选择面板 */
     private hideWildColorPanel(): void {
         if (this.wildColorPanel) {
             this.wildColorPanel.active = false;
         }
     }
 
-    private ensureOpacity(node: Node): UIOpacity {
-        const opacity = node.getComponent(UIOpacity);
-        if (opacity) {
-            return opacity;
-        }
-        return node.addComponent(UIOpacity);
+    /** 汇总布局配置，便于纯计算函数只接收必要数据 */
+    private getFanLayoutConfig(): FanLayoutConfig {
+        return {
+            fanRadius: this.fanRadius,
+            turnSpreadAngle: this.turnSpreadAngle,
+            idleSpreadAngle: this.idleSpreadAngle,
+            playableLift: this.playableLift,
+            selectedLift: this.selectedLift,
+        };
     }
 
-    /** 清除所有卡牌 */
-    private clearCards(): void {
-        for (const view of this.cardViews) {
-            view.node.targetOff(this);
-            view.node.destroy();
+    /** 更新当前选中卡牌并发送专门的卡牌选择事件 */
+    private selectCard(card: Card | null, refreshLayout: boolean): void {
+        const nextCardId = card?.id ?? null;
+        if (this.selectedCardId === nextCardId) {
+            return;
         }
-        this.cardViews = [];
+
+        this.selectedCardId = nextCardId;
+        eventBus.emit(GameEventType.CARD_SELECTED, {
+            playerId: this.playerId,
+            card,
+        });
+
+        if (refreshLayout) {
+            this.refreshFanLayout(true);
+        }
     }
 
-    /** 取消订阅 */
+    /** 取消订阅并清理运行时节点 */
     public dispose(): void {
         eventBus.targetOff(this);
         this.hideWildColorPanel();

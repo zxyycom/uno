@@ -6,6 +6,12 @@
 import { _decorator, Component, Node } from 'cc';
 
 import { GameManager } from '../../core/machine/game-manager';
+import {
+    DiscardUpdatedPayload,
+    eventBus,
+    GameEventType,
+} from '../../foundation/events';
+import { Card, CardColor, TopCard } from '../../foundation/types/game.types';
 import { DeckComponent } from './deck-component';
 import { GameBoard } from './game-board';
 import { GameMessage } from './game-message';
@@ -42,8 +48,10 @@ export class UIManager extends Component {
     public gameMessage: GameMessage | null = null;
 
     private gameManager: GameManager | null = null;
+    private currentTopCard: TopCard | null = null;
 
     start() {
+        this.initEventSubscriptions();
         this.initUIComponents();
         if (this.autoStartOnLoad) {
             // Delay one frame so all UI components finish start() and subscribe first.
@@ -57,6 +65,25 @@ export class UIManager extends Component {
         this.dispose();
     }
 
+    /** 初始化UI层共享状态事件订阅 */
+    private initEventSubscriptions(): void {
+        eventBus.on(
+            GameEventType.START_GAME,
+            () => {
+                this.currentTopCard = null;
+            },
+            this
+        );
+
+        eventBus.on(
+            GameEventType.DISCARD_UPDATED,
+            (payload) => {
+                this.onDiscardUpdated(payload);
+            },
+            this
+        );
+    }
+
     /** 初始化UI组件 */
     private initUIComponents(): void {
         // 获取游戏管理器
@@ -64,7 +91,7 @@ export class UIManager extends Component {
 
         // 初始化玩家手牌（人类玩家）
         if (this.playerHand) {
-            this.playerHand.init('player_0');
+            this.playerHand.init('player_0', this);
         }
 
         // 初始化玩家指示器
@@ -91,8 +118,28 @@ export class UIManager extends Component {
         }
     }
 
+    /** 提供给当前玩家手牌读取的顶牌信息，由 UIManager 通过事件维护 */
+    public getTopCard(): TopCard | null {
+        return this.currentTopCard;
+    }
+
+    /** 提供给当前玩家手牌触发出牌，统一由 UIManager 转发到游戏管理器 */
+    public playCard(
+        playerId: string,
+        card: Card,
+        chosenColor?: CardColor
+    ): void {
+        this.gameManager?.playCard(playerId, card, chosenColor);
+    }
+
+    /** 弃牌堆更新：同步 UI 层顶牌状态，并通知手牌刷新可出牌提示 */
+    private onDiscardUpdated(payload: DiscardUpdatedPayload): void {
+        this.currentTopCard = payload.topCardInfo;
+        this.playerHand?.refreshPlayableCards(true);
+    }
+
     /** 取消订阅 */
     public dispose(): void {
-        // 当前管理器仅负责初始化，不维护事件订阅
+        eventBus.targetOff(this);
     }
 }
