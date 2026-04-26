@@ -13,7 +13,6 @@ import {
     Sprite,
     Tween,
     UIOpacity,
-    Vec3,
 } from 'cc';
 
 const { ccclass, property } = _decorator;
@@ -66,6 +65,10 @@ export class CardNodePool extends Component {
         cardNode.active = false;
         this.resetNode(cardNode);
 
+        if(!this.isValid){
+            return
+        }
+
         if (this.pool.size() >= this.getMaxRetainedNodes()) {
             cardNode.destroy();
             return;
@@ -96,8 +99,12 @@ export class CardNodePool extends Component {
 
     /** 重置节点基础表现，避免上一张牌的动画状态污染下一张牌 */
     private resetNode(cardNode: Node): void {
-        cardNode.setPosition(Vec3.ZERO);
-        cardNode.setScale(Vec3.ONE);
+        if (!cardNode || !cardNode.isValid) {
+            return;
+        }
+
+        cardNode.setPosition(0, 0, 0);
+        cardNode.setScale(1, 1, 1);
         cardNode.angle = 0;
 
         const sprites = cardNode.getComponentsInChildren(Sprite);

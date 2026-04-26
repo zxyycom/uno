@@ -3,7 +3,7 @@
  * 负责卡牌Sprite资源的加载与key生成
  */
 
-import { resources, SpriteFrame } from 'cc';
+import { AssetManager, assetManager, SpriteFrame } from 'cc';
 
 import {
     Card,
@@ -11,15 +11,47 @@ import {
     UnoCardType,
 } from '../../foundation/types/game.types';
 
+const BUNDLE_NAME = 'res';
+
+let _bundleCache: AssetManager.Bundle | null = null;
+let _loadingPromise: Promise<AssetManager.Bundle | null> | null = null;
+
+async function loadResBundle(): Promise<AssetManager.Bundle | null> {
+    if (_bundleCache) {
+        return _bundleCache;
+    }
+
+    if (_loadingPromise) {
+        return _loadingPromise;
+    }
+
+    _loadingPromise = new Promise((resolve) => {
+        assetManager.loadBundle(BUNDLE_NAME, (err, bundle) => {
+            if (err) {
+                console.warn(
+                    `[DeckResources] Failed to load bundle: ${BUNDLE_NAME}`,
+                    err
+                );
+                _loadingPromise = null;
+                resolve(null);
+                return;
+            }
+            _bundleCache = bundle;
+            _loadingPromise = null;
+            resolve(bundle);
+        });
+    });
+
+    return _loadingPromise;
+}
+
 // 资源路径前缀
 const SPRITE_PATH_PREFIX = 'image/';
+// 图片资源后缀
+const SPRITE_PATH_SUFFIX = '/spriteFrame';
 
 /**
  * 根据卡牌参数获取精灵图路径
- * @param color 卡牌颜色
- * @param type 卡牌类型
- * @param value 数值（数字牌使用）
- * @returns 精灵图路径
  */
 export function getSpriteName(
     color: CardColor,
@@ -57,27 +89,29 @@ export function getSpriteName(
 
 /**
  * 根据卡牌获取Sprite资源路径key
- * @param card 卡牌
- * @returns 资源路径key (不含扩展名)，用于resources.load
  */
-export function getCardSpriteKey(card: Card): string {
-    return `${SPRITE_PATH_PREFIX}${getSpriteName(
-        card.color ?? CardColor.RED,
-        card.type,
-        card.value
-    )}`;
+function getCardSpriteKey(card: Card): string {
+    return (
+        SPRITE_PATH_PREFIX +
+        getSpriteName(card.color ?? CardColor.RED, card.type, card.value) +
+        SPRITE_PATH_SUFFIX
+    );
 }
 
 /**
  * 加载卡牌SpriteFrame（异步）
- * @param card 卡牌
- * @returns Promise<SpriteFrame | null>
  */
-export function loadCardSprite(card: Card): Promise<SpriteFrame | null> {
-    return new Promise((resolve) => {
-        const spriteKey = getCardSpriteKey(card);
+export async function loadCardSprite(card: Card): Promise<SpriteFrame | null> {
+    const spriteKey = getCardSpriteKey(card);
+    const bundle = await loadResBundle();
 
-        resources.load(spriteKey, SpriteFrame, (err, spriteFrame) => {
+    if (!bundle) {
+        console.warn(`[DeckResources] Bundle "${BUNDLE_NAME}" not found`);
+        return null;
+    }
+
+    return new Promise((resolve) => {
+        bundle.load(spriteKey, SpriteFrame, (err, spriteFrame) => {
             if (err) {
                 console.warn(
                     `[DeckResources] Failed to load sprite: ${spriteKey}`,
@@ -86,16 +120,21 @@ export function loadCardSprite(card: Card): Promise<SpriteFrame | null> {
                 resolve(null);
                 return;
             }
-            resolve(spriteFrame as SpriteFrame);
+            resolve(spriteFrame);
         });
     });
 }
 
 /**
  * 批量预加载卡牌资源
- * @param cards 卡牌数组
  */
-export function preloadCardSprites(cards: Card[]): void {
+export async function preloadCardSprites(cards: Card[]): Promise<void> {
+    const bundle = await loadResBundle();
+    if (!bundle) {
+        console.warn(`[DeckResources] Bundle "${BUNDLE_NAME}" not found`);
+        return;
+    }
+
     const uniqueKeys = new Set<string>();
 
     for (const card of cards) {
@@ -103,7 +142,7 @@ export function preloadCardSprites(cards: Card[]): void {
     }
 
     for (const key of uniqueKeys) {
-        resources.load(key, SpriteFrame, (err) => {
+        bundle.load(key, SpriteFrame, (err) => {
             if (err) {
                 console.warn(`[DeckResources] Preload failed: ${key}`, err);
             }

@@ -418,8 +418,10 @@ export class PlayerHand extends Component {
         }
 
         for (const view of this.cardViews) {
-            view.node.targetOff(this);
-            this.cardIdsByNode.delete(view.node);
+            if (view.node && view.node.isValid) {
+                view.node.targetOff(this);
+                this.cardIdsByNode.delete(view.node);
+            }
             this.cardNodePool.release(view.node);
         }
         this.cardViews = [];
