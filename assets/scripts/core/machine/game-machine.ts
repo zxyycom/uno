@@ -65,12 +65,13 @@ export const gameMachine = setup({
             if (event.type !== '出牌') return false;
             const { topCard, playManager } = context;
             const { playerId, card } = event;
-            const play = playManager.getPlayerById(playerId);
-            if (!play) return false;
+            const playerManager = playManager.getPlayerManagerById(playerId);
+            if (!playerManager) return false;
+            const player = playerManager.player;
             // 牌在手中且符合出牌限制
             return (
                 validateCanPlayCard(card, topCard) &&
-                validateCardInHand(card.id, play)
+                validateCardInHand(card.id, player)
             );
         },
         是否胜利: ({ context }) => {
@@ -170,8 +171,9 @@ export const gameMachine = setup({
             if (event.type !== '出牌') return;
             const { playerId, card, chosenColor } = event;
             const { playManager, deckManager, topCard } = context;
+            const playerManager = playManager.getPlayerManagerById(playerId)!;
 
-            playManager.removeCardFromHand(playerId, card.id);
+            playerManager.removeCard(card.id);
             deckManager.discardOne(card);
 
             const newColor =
@@ -193,8 +195,7 @@ export const gameMachine = setup({
                 draw4Count,
             };
 
-            const player = playManager.getPlayerById(playerId);
-            if (!player) return;
+            const player = playerManager.player;
             eventBus.emit(GameEventType.CARD_PLAYED, {
                 player,
                 card,
@@ -261,16 +262,17 @@ export const gameMachine = setup({
             }
 
             const drawnCards = result.cards;
+            const drawPlayerManager =
+                context.playManager.getPlayerManagerById(playerId)!;
             for (const drawnCard of drawnCards) {
-                context.playManager.addCardToHand(playerId, drawnCard);
+                drawPlayerManager.addCard(drawnCard);
             }
 
             // 惩罚牌被摸走后重置
             context.topCard.draw2Count = 0;
             context.topCard.draw4Count = 0;
 
-            const drawPlayer = context.playManager.getPlayerById(playerId);
-            if (!drawPlayer) return;
+            const drawPlayer = drawPlayerManager.player;
             eventBus.emit(GameEventType.CARDS_DRAWN, {
                 player: drawPlayer,
                 cards: drawnCards,

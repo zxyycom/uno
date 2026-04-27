@@ -386,7 +386,7 @@ export class PlayerHand extends Component {
     // ---------------------------------------------------------------------
 
     /** 重新渲染手牌节点：清空旧节点，再按当前手牌数据创建新节点 */
-    private renderHand(hand: Card[]): void {
+    private renderHand(hand: readonly Card[]): void {
         this.clearCards();
 
         for (let i = 0; i < hand.length; i++) {

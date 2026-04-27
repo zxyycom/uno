@@ -81,26 +81,6 @@ export class PlayerIndicator extends Component {
         );
 
         eventBus.on(
-            GameEventType.CARD_PLAYED,
-            (payload) => {
-                if (payload.player.id === this.playerId) {
-                    this.updateCardCount(payload.player.hand.length);
-                }
-            },
-            this
-        );
-
-        eventBus.on(
-            GameEventType.CARDS_DRAWN,
-            (payload) => {
-                if (payload.player.id === this.playerId) {
-                    this.updateCardCount(payload.player.hand.length);
-                }
-            },
-            this
-        );
-
-        eventBus.on(
             GameEventType.CALL_UNO,
             (payload) => {
                 if (payload.player.id === this.playerId) {

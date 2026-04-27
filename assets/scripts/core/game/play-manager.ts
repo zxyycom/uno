@@ -1,11 +1,84 @@
 import { Card, GameDirection, Player } from '../../foundation/types/game.types';
 
+type RemoveCardResult = {
+    card: Card;
+    hand: Card[];
+};
+
+function removeCardFromPlayerHand(hand: Card[], cardId: string): RemoveCardResult {
+    const card = hand.find((item) => item.id === cardId)!;
+    const nextHand = hand.filter((item) => item.id !== card.id);
+    return {
+        card,
+        hand: nextHand,
+    };
+}
+
+function addCardToPlayerHand(hand: Card[], card: Card): Card[] {
+    return [...hand, card];
+}
+
+/**
+ * 单玩家管理器 - 提供单个玩家的稳定引用和接口
+ */
+export class SinglePlayerManager {
+    readonly playerId: string;
+    private readonly playManager: PlayManager;
+
+    constructor(playManager: PlayManager, playerId: string) {
+        this.playManager = playManager;
+        this.playerId = playerId;
+    }
+
+    get player(): Player {
+        return this.playManager.getPlayerById(this.playerId)!;
+    }
+
+    get hand(): Card[] {
+        return this.player.hand;
+    }
+
+    get cardCount(): number {
+        return this.player.hand.length;
+    }
+
+    isCurrentPlayer(): boolean {
+        return this.playManager.isCurrentPlayer(this.playerId);
+    }
+
+    replace(player: Player): void {
+        this.playManager.updatePlayer(player);
+    }
+
+    removeCard(cardId: string): Card {
+        const currentPlayer = this.player;
+        const result = removeCardFromPlayerHand(currentPlayer.hand, cardId);
+        this.replace({
+            ...currentPlayer,
+            hand: result.hand,
+        });
+        return result.card;
+    }
+
+    addCard(card: Card): void {
+        const currentPlayer = this.player;
+        const nextHand = addCardToPlayerHand(currentPlayer.hand, card);
+        this.replace({
+            ...currentPlayer,
+            hand: nextHand,
+        });
+    }
+}
+
 /**
  * 玩家管理器 - 统一管理玩家数据和操作
  */
 export class PlayManager {
     readonly players: Player[];
     readonly playersById: Map<string, Player>;
+    readonly playerIndexById: Map<string, number>;
+    readonly singlePlayersById: Map<string, SinglePlayerManager>;
+    readonly singlePlayers: SinglePlayerManager[];
     private _currentPlayerIndex: number;
     private _direction: GameDirection;
 
@@ -19,8 +92,16 @@ export class PlayManager {
         this._direction = direction;
 
         this.playersById = new Map<string, Player>();
-        for (const player of players) {
+        this.playerIndexById = new Map<string, number>();
+        this.singlePlayersById = new Map<string, SinglePlayerManager>();
+        this.singlePlayers = [];
+        for (let i = 0; i < players.length; i++) {
+            const player = players[i];
             this.playersById.set(player.id, player);
+            this.playerIndexById.set(player.id, i);
+            const singlePlayer = new SinglePlayerManager(this, player.id);
+            this.singlePlayers.push(singlePlayer);
+            this.singlePlayersById.set(player.id, singlePlayer);
         }
     }
 
@@ -75,6 +156,21 @@ export class PlayManager {
         return this.playersById.get(id);
     }
 
+    /** 根据ID获取单玩家管理器 */
+    getPlayerManagerById(id: string): SinglePlayerManager | undefined {
+        return this.singlePlayersById.get(id);
+    }
+
+    /** 获取当前玩家的单玩家管理器 */
+    getCurrentPlayerManager(): SinglePlayerManager {
+        return this.singlePlayers[this._currentPlayerIndex];
+    }
+
+    /** 获取所有单玩家管理器 */
+    getAllPlayerManagers(): readonly SinglePlayerManager[] {
+        return this.singlePlayers;
+    }
+
     /** 获取当前玩家 */
     getCurrentPlayer(): Player {
         return this.players[this._currentPlayerIndex];
@@ -87,34 +183,21 @@ export class PlayManager {
 
     /** 更新玩家信息 */
     updatePlayer(player: Player): void {
-        const idx = this.players.findIndex((p) => p.id === player.id);
-        if (idx !== -1) {
-            this.players[idx] = player;
-        }
+        const idx = this.playerIndexById.get(player.id)!;
+        this.players[idx] = player;
         this.playersById.set(player.id, player);
     }
 
     /** 从玩家手牌中移除一张卡 */
-    removeCardFromHand(playerId: string, cardId: string): Card | null {
-        const player = this.getPlayerById(playerId);
-        if (!player) return null;
-
-        const cardIndex = player.hand.findIndex((c) => c.id === cardId);
-        if (cardIndex === -1) return null;
-
-        const card = player.hand[cardIndex];
-        const newHand = [...player.hand];
-        newHand.splice(cardIndex, 1);
-        this.updatePlayer({ ...player, hand: newHand });
-        return card;
+    removeCardFromHand(playerId: string, cardId: string): Card {
+        const playerManager = this.getPlayerManagerById(playerId)!;
+        return playerManager.removeCard(cardId);
     }
 
     /** 添加一张卡到玩家手牌 */
-    addCardToHand(playerId: string, card: Card): boolean {
-        const player = this.getPlayerById(playerId);
-        if (!player) return false;
-        this.updatePlayer({ ...player, hand: [...player.hand, card] });
-        return true;
+    addCardToHand(playerId: string, card: Card): void {
+        const playerManager = this.getPlayerManagerById(playerId)!;
+        playerManager.addCard(card);
     }
 
     /** 设置当前玩家索引 */

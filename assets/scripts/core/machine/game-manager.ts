@@ -11,8 +11,10 @@ import {
     CardColor,
     DEFAULT_GAME_CONFIG,
     GameConfig,
+    Player,
     TopCard,
 } from '../../foundation/types/game.types';
+import { SinglePlayerManager } from '../game/play-manager';
 import { gameMachine } from './game-machine';
 
 const { ccclass, property } = _decorator;
@@ -115,6 +117,17 @@ export class GameManager extends Component {
         const state = this.actor?.getSnapshot();
         if (!state) return null;
         return state.context.playManager.getCurrentPlayer();
+    }
+
+    /** 获取指定玩家的单玩家管理器 */
+    getPlayerManager(playerId: string): SinglePlayerManager {
+        const state = this.actor!.getSnapshot();
+        return state.context.playManager.getPlayerManagerById(playerId)!;
+    }
+
+    /** 获取指定玩家快照 */
+    getPlayer(playerId: string): Player {
+        return this.getPlayerManager(playerId).player;
     }
 
     /** 获取顶牌信息 */
