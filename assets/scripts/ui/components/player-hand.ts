@@ -48,8 +48,10 @@ type HandCardView = {
 };
 
 type FanLayoutConfig = {
-    /** 手牌扇形半径，数值越大卡牌横向跨度越大 */
+    /** 手牌扇形半径上限，数值越大卡牌横向跨度上限越大 */
     fanRadius: number;
+    /** 每张手牌带来的扇形半径增量 */
+    fanRadiusPerCard: number;
     /** 当前玩家回合时的总展开角度 */
     turnSpreadAngle: number;
     /** 非当前玩家回合时的总展开角度 */
@@ -58,6 +60,14 @@ type FanLayoutConfig = {
     playableLift: number;
     /** 已选中卡牌额外向上抬升距离 */
     selectedLift: number;
+    /** 扇形弧度系数 */
+    arcYFactor: number;
+    /** 卡牌旋转系数 */
+    rotationFactor: number;
+    /** 不可出牌透明度 */
+    disabledCardOpacity: number;
+    /** 可出牌透明度 */
+    enabledCardOpacity: number;
 };
 
 type FanLayoutInput = {
@@ -65,6 +75,7 @@ type FanLayoutInput = {
     index: number;
     total: number;
     isMyTurn: boolean;
+    hoveredCardId: string | null;
     selectedCardId: string | null;
     topCard: TopCard | null;
     config: FanLayoutConfig;
@@ -78,10 +89,16 @@ type FanLayoutResult = {
     opacity: number;
 };
 
-const CARD_ARC_Y_FACTOR = 0.24;
-const DISABLED_CARD_OPACITY = 150;
-const ENABLED_CARD_OPACITY = 255;
-const CARD_ROTATION_FACTOR = 0.42;
+const PLAYER_HAND_LAYOUT_GROUP = {
+    name: 'Layout',
+    id: 'player-hand-layout',
+    displayOrder: 10,
+};
+const PLAYER_HAND_BINDINGS_GROUP = {
+    name: 'Bindings',
+    id: 'player-hand-bindings',
+    displayOrder: 20,
+};
 
 /**
  * 根据回合状态选择扇形展开角度。
@@ -93,6 +110,19 @@ function getSpreadAngle(
     idleSpreadAngle: number
 ): number {
     return isMyTurn ? turnSpreadAngle : idleSpreadAngle;
+}
+
+/**
+ * 根据手牌数量计算扇形半径，避免固定半径导致展开过于直接。
+ * 纯计算函数：按 n * perCard 线性增长，并受 maxRadius 上限约束。
+ */
+function getFanRadius(
+    totalCards: number,
+    fanRadiusPerCard: number,
+    maxRadius: number
+): number {
+    const calculatedRadius = totalCards * fanRadiusPerCard;
+    return Math.min(calculatedRadius, maxRadius);
 }
 
 /**
@@ -122,32 +152,50 @@ function canPlayInCurrentTurn(
  * 纯计算函数：不创建节点、不启动 tween，方便单独测试和复用。
  */
 function calculateFanCardLayout(input: FanLayoutInput): FanLayoutResult {
-    const { card, config, index, isMyTurn, selectedCardId, topCard, total } =
-        input;
+    const {
+        card,
+        config,
+        hoveredCardId,
+        index,
+        isMyTurn,
+        selectedCardId,
+        topCard,
+        total,
+    } = input;
     const spread = getSpreadAngle(
         isMyTurn,
         config.turnSpreadAngle,
-        config.idleSpreadAngle
+        config.idleSpreadAngle,
     );
+    const fanRadius = getFanRadius(total, config.fanRadiusPerCard, config.fanRadius);
     const halfSpread = spread / 2;
     const t = total === 1 ? 0.5 : index / (total - 1);
     const angle = -halfSpread + spread * t;
     const radian = (angle * Math.PI) / 180;
     const playable = canPlayInCurrentTurn(card, isMyTurn, topCard);
-    const x = Math.sin(radian) * config.fanRadius;
-    const arcY = (Math.cos(radian) - 1) * config.fanRadius * CARD_ARC_Y_FACTOR;
-    const playableY = playable ? config.playableLift : 0;
-    const selectedY = selectedCardId === card.id ? config.selectedLift : 0;
+    const x = Math.sin(radian) * fanRadius;
+    const arcY = (Math.cos(radian) - 1) * fanRadius * config.arcYFactor;
+    const isSelected = selectedCardId === card.id;
+    const isHovered = hoveredCardId === card.id;
+    const isPlayableInTurn = isMyTurn && playable;
+    const isPrimaryLiftActive = isHovered || isPlayableInTurn;
+    const isSecondaryLiftActive =
+        isPlayableInTurn && (isHovered || isSelected);
+    const primaryLiftY = isPrimaryLiftActive ? config.playableLift : 0;
+    const secondaryLiftY = isSecondaryLiftActive ? config.selectedLift : 0;
+    const totalLift = primaryLiftY + secondaryLiftY;
+    const liftX = Math.sin(radian) * totalLift;
+    const liftY = Math.cos(radian) * totalLift;
 
     return {
         playable,
-        position: new Vec3(x, arcY + playableY + selectedY, 0),
+        position: new Vec3(x + liftX, arcY + liftY, 0),
         scale: isMyTurn ? new Vec3(1, 1, 1) : new Vec3(0.92, 0.92, 1),
-        angle: angle * CARD_ROTATION_FACTOR,
+        angle: -angle * config.rotationFactor,
         opacity:
             isMyTurn && !playable
-                ? DISABLED_CARD_OPACITY
-                : ENABLED_CARD_OPACITY,
+                ? config.disabledCardOpacity
+                : config.enabledCardOpacity,
     };
 }
 
@@ -157,59 +205,91 @@ export class PlayerHand extends Component {
     @property({
         type: CardNodePool,
         tooltip: '卡牌节点对象池，必须在编辑器中绑定；不提供默认对象池',
+        group: PLAYER_HAND_BINDINGS_GROUP,
     })
     public cardNodePool!: CardNodePool;
 
-    /** 手牌扇形半径，数值越大卡牌横向跨度越大 */
-    @property({ tooltip: '手牌扇形半径，数值越大卡牌横向跨度越大' })
+    /** 手牌扇形半径上限，数值越大卡牌横向跨度上限越大 */
+    @property({
+        tooltip: '手牌扇形半径上限，数值越大卡牌横向跨度上限越大',
+        group: PLAYER_HAND_LAYOUT_GROUP,
+    })
     public fanRadius: number = 360;
+
+    /** 每张手牌带来的扇形半径增量，最终会受扇形半径上限限制 */
+    @property({
+        tooltip: '每张手牌带来的扇形半径增量，最终会受扇形半径上限限制',
+        group: PLAYER_HAND_LAYOUT_GROUP,
+    })
+    public fanRadiusPerCard: number = 48;
 
     /** 当前玩家回合时的总展开角度，角度越大手牌越分散 */
     @property({
         tooltip: '当前玩家回合时的总展开角度，角度越大手牌越分散',
+        group: PLAYER_HAND_LAYOUT_GROUP,
     })
     public turnSpreadAngle: number = 72;
 
     /** 非当前玩家回合时的总展开角度，用于收拢手牌 */
-    @property({ tooltip: '非当前玩家回合时的总展开角度，用于收拢手牌' })
+    @property({
+        tooltip: '非当前玩家回合时的总展开角度，用于收拢手牌',
+        group: PLAYER_HAND_LAYOUT_GROUP,
+    })
     public idleSpreadAngle: number = 16;
 
-    /** 可出牌卡牌自动向上抬升的距离 */
-    @property({ tooltip: '可出牌卡牌自动向上抬升的距离' })
+    /** 可交互卡牌悬停时向上抬升距离，也是选中卡牌的基础抬升距离 */
+    @property({ tooltip: '可交互卡牌悬停时向上抬升距离，也是选中卡牌的基础抬升距离', group: PLAYER_HAND_LAYOUT_GROUP })
     public playableLift: number = 32;
 
-    /** 玩家选中卡牌后额外向上抬升的距离 */
-    @property({ tooltip: '玩家选中卡牌后额外向上抬升的距离' })
+    /** 玩家选中卡牌后在基础抬升之上再增加的距离 */
+    @property({ tooltip: '玩家选中卡牌后在基础抬升之上再增加的距离', group: PLAYER_HAND_LAYOUT_GROUP })
     public selectedLift: number = 22;
 
+    /** 扇形弧度系数，数值越大两侧下沉越明显 */
+    @property({ tooltip: '扇形弧度系数，数值越大两侧下沉越明显', group: PLAYER_HAND_LAYOUT_GROUP })
+    public arcYFactor: number = 0.8;
+
+    /** 卡牌旋转系数，1 表示中轴直接朝向圆心方向 */
+    @property({ tooltip: '卡牌旋转系数，1 表示中轴直接朝向圆心方向', group: PLAYER_HAND_LAYOUT_GROUP })
+    public rotationFactor: number = 1;
+
+    /** 非可出牌透明度，用于弱化不可出牌项 */
+    @property({ tooltip: '非可出牌透明度，用于弱化不可出牌项', group: PLAYER_HAND_LAYOUT_GROUP })
+    public disabledCardOpacity: number = 150;
+
+    /** 可出牌透明度 */
+    @property({ tooltip: '可出牌透明度', group: PLAYER_HAND_LAYOUT_GROUP })
+    public enabledCardOpacity: number = 255;
+
     /** 手牌重新布局动画时长，单位为秒 */
-    @property({ tooltip: '手牌重新布局动画时长，单位为秒' })
+    @property({ tooltip: '手牌重新布局动画时长，单位为秒', group: PLAYER_HAND_LAYOUT_GROUP })
     public layoutTweenDuration: number = 0.18;
 
     /** 万能牌颜色选择面板节点 */
-    @property({ type: Node, tooltip: '万能牌颜色选择面板节点' })
+    @property({ type: Node, tooltip: '万能牌颜色选择面板节点', group: PLAYER_HAND_BINDINGS_GROUP })
     public wildColorPanel: Node | null = null;
 
     /** 万能牌选择红色按钮节点 */
-    @property({ type: Node, tooltip: '万能牌选择红色按钮节点' })
+    @property({ type: Node, tooltip: '万能牌选择红色按钮节点', group: PLAYER_HAND_BINDINGS_GROUP })
     public wildRedButton: Node | null = null;
 
     /** 万能牌选择黄色按钮节点 */
-    @property({ type: Node, tooltip: '万能牌选择黄色按钮节点' })
+    @property({ type: Node, tooltip: '万能牌选择黄色按钮节点', group: PLAYER_HAND_BINDINGS_GROUP })
     public wildYellowButton: Node | null = null;
 
     /** 万能牌选择绿色按钮节点 */
-    @property({ type: Node, tooltip: '万能牌选择绿色按钮节点' })
+    @property({ type: Node, tooltip: '万能牌选择绿色按钮节点', group: PLAYER_HAND_BINDINGS_GROUP })
     public wildGreenButton: Node | null = null;
 
     /** 万能牌选择蓝色按钮节点 */
-    @property({ type: Node, tooltip: '万能牌选择蓝色按钮节点' })
+    @property({ type: Node, tooltip: '万能牌选择蓝色按钮节点', group: PLAYER_HAND_BINDINGS_GROUP })
     public wildBlueButton: Node | null = null;
 
     private cardViews: HandCardView[] = [];
     private playerId: string = '';
     private uiContext?: PlayerHandContext;
     private isMyTurn: boolean = false;
+    private hoveredCardId: string | null = null;
     private selectedCardId: string | null = null;
     private pendingWildCard: Card | null = null;
     private readonly cardIdsByNode = new WeakMap<Node, string>();
@@ -250,6 +330,7 @@ export class PlayerHand extends Component {
         eventBus.on(
             GameEventType.START_GAME,
             () => {
+                this.hoveredCardId = null;
                 this.selectCard(null, false);
                 this.pendingWildCard = null;
                 this.hideWildColorPanel();
@@ -278,6 +359,7 @@ export class PlayerHand extends Component {
 
     /** 响应手牌更新事件：同步手牌数据并触发重渲染 */
     private onHandUpdated(payload: HandUpdatedPayload): void {
+        this.hoveredCardId = null;
         this.selectCard(null, false);
         this.renderHand(payload.hand);
     }
@@ -286,6 +368,7 @@ export class PlayerHand extends Component {
     private onTurnChanged(payload: TurnChangedPayload): void {
         this.isMyTurn = payload.currentPlayer.id === this.playerId;
         if (!this.isMyTurn) {
+            this.hoveredCardId = null;
             this.selectCard(null, false);
             this.pendingWildCard = null;
             this.hideWildColorPanel();
@@ -327,6 +410,35 @@ export class PlayerHand extends Component {
             Node.EventType.TOUCH_END,
             () => {
                 this.onCardTapped(card.id);
+                this.onCardHoverChanged(card.id, false);
+            },
+            this
+        );
+        cardNode.on(
+            Node.EventType.MOUSE_ENTER,
+            () => {
+                this.onCardHoverChanged(card.id, true);
+            },
+            this
+        );
+        cardNode.on(
+            Node.EventType.MOUSE_LEAVE,
+            () => {
+                this.onCardHoverChanged(card.id, false);
+            },
+            this
+        );
+        cardNode.on(
+            Node.EventType.TOUCH_START,
+            () => {
+                this.onCardHoverChanged(card.id, true);
+            },
+            this
+        );
+        cardNode.on(
+            Node.EventType.TOUCH_CANCEL,
+            () => {
+                this.onCardHoverChanged(card.id, false);
             },
             this
         );
@@ -365,6 +477,7 @@ export class PlayerHand extends Component {
                 index: i,
                 total: count,
                 isMyTurn: this.isMyTurn,
+                hoveredCardId: this.hoveredCardId,
                 selectedCardId: this.selectedCardId,
                 topCard,
                 config,
@@ -448,11 +561,36 @@ export class PlayerHand extends Component {
         }
 
         if (this.selectedCardId !== cardId) {
+            this.hoveredCardId = null;
             this.selectCard(view.card, true);
             return;
         }
 
         this.tryPlayCard(view.card);
+    }
+
+    /** 鼠标悬停或触摸开始时预抬升卡牌，结束时恢复；已选中的卡牌保持抬升 */
+    private onCardHoverChanged(cardId: string, hovering: boolean): void {
+        const view = this.cardViews.find((item) => item.card.id === cardId);
+        if (!view) {
+            return;
+        }
+
+        if (hovering) {
+            if (this.hoveredCardId === cardId) {
+                return;
+            }
+            this.hoveredCardId = cardId;
+            this.refreshFanLayout(true);
+            return;
+        }
+
+        if (this.hoveredCardId !== cardId) {
+            return;
+        }
+
+        this.hoveredCardId = null;
+        this.refreshFanLayout(true);
     }
 
     /** 尝试出牌：普通牌直接发送，万能牌先进入待选色流程 */
@@ -520,21 +658,32 @@ export class PlayerHand extends Component {
     private getFanLayoutConfig(): FanLayoutConfig {
         return {
             fanRadius: this.fanRadius,
+            fanRadiusPerCard: this.fanRadiusPerCard,
             turnSpreadAngle: this.turnSpreadAngle,
             idleSpreadAngle: this.idleSpreadAngle,
             playableLift: this.playableLift,
             selectedLift: this.selectedLift,
+            arcYFactor: this.arcYFactor,
+            rotationFactor: this.rotationFactor,
+            disabledCardOpacity: this.disabledCardOpacity,
+            enabledCardOpacity: this.enabledCardOpacity,
         };
     }
 
     /** 更新当前选中卡牌并发送专门的卡牌选择事件 */
     private selectCard(card: Card | null, refreshLayout: boolean): void {
-        const nextCardId = card?.id ?? null;
+        let nextCardId: string | null = null;
+        if (card) {
+            nextCardId = card.id;
+        }
         if (this.selectedCardId === nextCardId) {
             return;
         }
 
         this.selectedCardId = nextCardId;
+        if (this.selectedCardId) {
+            this.hoveredCardId = null;
+        }
         eventBus.emit(GameEventType.CARD_SELECTED, {
             playerId: this.playerId,
             card,

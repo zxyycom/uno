@@ -371,11 +371,16 @@
     "cardNodePool": {
       "__id__": 27
     },
-    "fanRadius": 360,
-    "turnSpreadAngle": 72,
-    "idleSpreadAngle": 16,
+    "fanRadius": 700,
+    "fanRadiusPerCard": 100,
+    "turnSpreadAngle": 60,
+    "idleSpreadAngle": 30,
     "playableLift": 32,
     "selectedLift": 22,
+    "arcYFactor": 0.4,
+    "rotationFactor": 1,
+    "disabledCardOpacity": 150,
+    "enabledCardOpacity": 255,
     "layoutTweenDuration": 0.18,
     "wildColorPanel": {
       "__id__": 11
@@ -420,7 +425,7 @@
     "_lpos": {
       "__type__": "cc.Vec3",
       "x": 0,
-      "y": -390,
+      "y": -300.507,
       "z": 0
     },
     "_lrot": {
