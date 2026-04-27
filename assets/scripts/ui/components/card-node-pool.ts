@@ -65,8 +65,8 @@ export class CardNodePool extends Component {
         cardNode.active = false;
         this.resetNode(cardNode);
 
-        if(!this.isValid){
-            return
+        if (!this.isValid) {
+            return;
         }
 
         if (this.pool.size() >= this.getMaxRetainedNodes()) {

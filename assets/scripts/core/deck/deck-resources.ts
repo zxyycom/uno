@@ -8,6 +8,7 @@ import { AssetManager, assetManager, SpriteFrame } from 'cc';
 import {
     Card,
     CardColor,
+    CardNumber,
     UnoCardType,
 } from '../../foundation/types/game.types';
 
@@ -56,7 +57,7 @@ const SPRITE_PATH_SUFFIX = '/spriteFrame';
 export function getSpriteName(
     color: CardColor,
     type: UnoCardType,
-    value: number | null
+    value: CardNumber | null
 ): string {
     if (type === UnoCardType.WILD || type === UnoCardType.WILD_DRAW_4) {
         return type === UnoCardType.WILD_DRAW_4 ? 'Wild_Draw' : 'Wild';

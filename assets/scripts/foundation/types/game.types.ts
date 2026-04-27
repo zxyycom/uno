@@ -55,7 +55,7 @@ export interface Card {
     /** 颜色(万能牌可为null) */
     color: CardColor | null;
     /** 数值(数字牌使用) */
-    value: number | null;
+    value: CardNumber | null;
     /** 对应图片资源名 */
     spriteName: string;
 }
