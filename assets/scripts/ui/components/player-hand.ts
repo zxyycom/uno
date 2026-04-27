@@ -165,9 +165,13 @@ function calculateFanCardLayout(input: FanLayoutInput): FanLayoutResult {
     const spread = getSpreadAngle(
         isMyTurn,
         config.turnSpreadAngle,
-        config.idleSpreadAngle,
+        config.idleSpreadAngle
     );
-    const fanRadius = getFanRadius(total, config.fanRadiusPerCard, config.fanRadius);
+    const fanRadius = getFanRadius(
+        total,
+        config.fanRadiusPerCard,
+        config.fanRadius
+    );
     const halfSpread = spread / 2;
     const t = total === 1 ? 0.5 : index / (total - 1);
     const angle = -halfSpread + spread * t;
@@ -179,8 +183,7 @@ function calculateFanCardLayout(input: FanLayoutInput): FanLayoutResult {
     const isHovered = hoveredCardId === card.id;
     const isPlayableInTurn = isMyTurn && playable;
     const isPrimaryLiftActive = isHovered || isPlayableInTurn;
-    const isSecondaryLiftActive =
-        isPlayableInTurn && (isHovered || isSelected);
+    const isSecondaryLiftActive = isPlayableInTurn && (isHovered || isSelected);
     const primaryLiftY = isPrimaryLiftActive ? config.playableLift : 0;
     const secondaryLiftY = isSecondaryLiftActive ? config.selectedLift : 0;
     const totalLift = primaryLiftY + secondaryLiftY;
@@ -238,23 +241,38 @@ export class PlayerHand extends Component {
     public idleSpreadAngle: number = 16;
 
     /** 可交互卡牌悬停时向上抬升距离，也是选中卡牌的基础抬升距离 */
-    @property({ tooltip: '可交互卡牌悬停时向上抬升距离，也是选中卡牌的基础抬升距离', group: PLAYER_HAND_LAYOUT_GROUP })
+    @property({
+        tooltip: '可交互卡牌悬停时向上抬升距离，也是选中卡牌的基础抬升距离',
+        group: PLAYER_HAND_LAYOUT_GROUP,
+    })
     public playableLift: number = 32;
 
     /** 玩家选中卡牌后在基础抬升之上再增加的距离 */
-    @property({ tooltip: '玩家选中卡牌后在基础抬升之上再增加的距离', group: PLAYER_HAND_LAYOUT_GROUP })
+    @property({
+        tooltip: '玩家选中卡牌后在基础抬升之上再增加的距离',
+        group: PLAYER_HAND_LAYOUT_GROUP,
+    })
     public selectedLift: number = 22;
 
     /** 扇形弧度系数，数值越大两侧下沉越明显 */
-    @property({ tooltip: '扇形弧度系数，数值越大两侧下沉越明显', group: PLAYER_HAND_LAYOUT_GROUP })
+    @property({
+        tooltip: '扇形弧度系数，数值越大两侧下沉越明显',
+        group: PLAYER_HAND_LAYOUT_GROUP,
+    })
     public arcYFactor: number = 0.8;
 
     /** 卡牌旋转系数，1 表示中轴直接朝向圆心方向 */
-    @property({ tooltip: '卡牌旋转系数，1 表示中轴直接朝向圆心方向', group: PLAYER_HAND_LAYOUT_GROUP })
+    @property({
+        tooltip: '卡牌旋转系数，1 表示中轴直接朝向圆心方向',
+        group: PLAYER_HAND_LAYOUT_GROUP,
+    })
     public rotationFactor: number = 1;
 
     /** 非可出牌透明度，用于弱化不可出牌项 */
-    @property({ tooltip: '非可出牌透明度，用于弱化不可出牌项', group: PLAYER_HAND_LAYOUT_GROUP })
+    @property({
+        tooltip: '非可出牌透明度，用于弱化不可出牌项',
+        group: PLAYER_HAND_LAYOUT_GROUP,
+    })
     public disabledCardOpacity: number = 150;
 
     /** 可出牌透明度 */
@@ -262,30 +280,54 @@ export class PlayerHand extends Component {
     public enabledCardOpacity: number = 255;
 
     /** 手牌重新布局动画时长，单位为秒 */
-    @property({ tooltip: '手牌重新布局动画时长，单位为秒', group: PLAYER_HAND_LAYOUT_GROUP })
+    @property({
+        tooltip: '手牌重新布局动画时长，单位为秒',
+        group: PLAYER_HAND_LAYOUT_GROUP,
+    })
     public layoutTweenDuration: number = 0.18;
 
     /** 万能牌颜色选择面板节点 */
-    @property({ type: Node, tooltip: '万能牌颜色选择面板节点', group: PLAYER_HAND_BINDINGS_GROUP })
+    @property({
+        type: Node,
+        tooltip: '万能牌颜色选择面板节点',
+        group: PLAYER_HAND_BINDINGS_GROUP,
+    })
     public wildColorPanel: Node | null = null;
 
     /** 万能牌选择红色按钮节点 */
-    @property({ type: Node, tooltip: '万能牌选择红色按钮节点', group: PLAYER_HAND_BINDINGS_GROUP })
+    @property({
+        type: Node,
+        tooltip: '万能牌选择红色按钮节点',
+        group: PLAYER_HAND_BINDINGS_GROUP,
+    })
     public wildRedButton: Node | null = null;
 
     /** 万能牌选择黄色按钮节点 */
-    @property({ type: Node, tooltip: '万能牌选择黄色按钮节点', group: PLAYER_HAND_BINDINGS_GROUP })
+    @property({
+        type: Node,
+        tooltip: '万能牌选择黄色按钮节点',
+        group: PLAYER_HAND_BINDINGS_GROUP,
+    })
     public wildYellowButton: Node | null = null;
 
     /** 万能牌选择绿色按钮节点 */
-    @property({ type: Node, tooltip: '万能牌选择绿色按钮节点', group: PLAYER_HAND_BINDINGS_GROUP })
+    @property({
+        type: Node,
+        tooltip: '万能牌选择绿色按钮节点',
+        group: PLAYER_HAND_BINDINGS_GROUP,
+    })
     public wildGreenButton: Node | null = null;
 
     /** 万能牌选择蓝色按钮节点 */
-    @property({ type: Node, tooltip: '万能牌选择蓝色按钮节点', group: PLAYER_HAND_BINDINGS_GROUP })
+    @property({
+        type: Node,
+        tooltip: '万能牌选择蓝色按钮节点',
+        group: PLAYER_HAND_BINDINGS_GROUP,
+    })
     public wildBlueButton: Node | null = null;
 
     private cardViews: HandCardView[] = [];
+    private readonly cardViewsById = new Map<string, HandCardView>();
     private playerId: string = '';
     private uiContext?: PlayerHandContext;
     private isMyTurn: boolean = false;
@@ -392,11 +434,13 @@ export class PlayerHand extends Component {
         for (let i = 0; i < hand.length; i++) {
             const card = hand[i];
             const cardNode = this.createCardNode(card);
-            this.cardViews.push({
+            const view: HandCardView = {
                 card,
                 node: cardNode,
                 playable: false,
-            });
+            };
+            this.cardViews.push(view);
+            this.cardViewsById.set(card.id, view);
         }
 
         this.refreshFanLayout(false);
@@ -538,6 +582,7 @@ export class PlayerHand extends Component {
             this.cardNodePool.release(view.node);
         }
         this.cardViews = [];
+        this.cardViewsById.clear();
     }
 
     /** 外部共享状态变化后刷新可出牌提示 */
@@ -555,7 +600,7 @@ export class PlayerHand extends Component {
             return;
         }
 
-        const view = this.cardViews.find((item) => item.card.id === cardId);
+        const view = this.cardViewsById.get(cardId);
         if (!view || !view.playable) {
             return;
         }
@@ -571,7 +616,7 @@ export class PlayerHand extends Component {
 
     /** 鼠标悬停或触摸开始时预抬升卡牌，结束时恢复；已选中的卡牌保持抬升 */
     private onCardHoverChanged(cardId: string, hovering: boolean): void {
-        const view = this.cardViews.find((item) => item.card.id === cardId);
+        const view = this.cardViewsById.get(cardId);
         if (!view) {
             return;
         }

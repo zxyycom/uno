@@ -14,6 +14,7 @@ import {
 import { initRandom } from '../../foundation/utils/random-seed';
 import { DeckManager } from '../deck/deck-manager';
 import { createDeck, shuffle } from '../utils/deck-helper';
+import { CardCollection } from './card-collection';
 import { PlayManager } from './play-manager';
 
 export interface InitResult {
@@ -30,7 +31,7 @@ function createHumanPlayer(): Player {
         id: 'player_0',
         name: '你',
         type: PlayerType.HUMAN,
-        hand: [],
+        hand: new CardCollection([]),
         calledUno: false,
     };
 }
@@ -43,7 +44,7 @@ function createAiPlayer(index: number): Player {
         id: 'ai_' + index,
         name: 'AI玩家' + index,
         type: PlayerType.AI,
-        hand: [],
+        hand: new CardCollection([]),
         calledUno: false,
     };
 }
@@ -83,7 +84,7 @@ export function dealInitialHands(
     // 发牌给每个玩家
     const updatedPlayers = playManager.players.map((player) => ({
         ...player,
-        hand: deck.slice(0, cardsPerPlayer),
+        hand: new CardCollection(deck.slice(0, cardsPerPlayer)),
     }));
 
     // 复制牌堆并抽取第一张牌

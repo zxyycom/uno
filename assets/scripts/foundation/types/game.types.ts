@@ -60,6 +60,23 @@ export interface Card {
     spriteName: string;
 }
 
+/** 卡牌集合接口：实现必须同时维护顺序与按 id 索引能力 */
+export interface CardCollection {
+    readonly size: number;
+    replaceAll(cards: readonly Card[]): void;
+    has(cardId: string): boolean;
+    get(cardId: string): Card;
+    remove(cardId: string): Card;
+    add(card: Card): void;
+    some(
+        predicate: (card: Card, index: number, cards: readonly Card[]) => boolean
+    ): boolean;
+    filter(
+        predicate: (card: Card, index: number, cards: readonly Card[]) => boolean
+    ): Card[];
+    toArray(): Card[];
+}
+
 /** 玩家数据结构 */
 export interface Player {
     /** 玩家ID */
@@ -69,7 +86,7 @@ export interface Player {
     /** 玩家类型 */
     type: PlayerType;
     /** 手牌 */
-    hand: Card[];
+    hand: CardCollection;
     /** 是否已宣告UNO */
     calledUno: boolean;
 }

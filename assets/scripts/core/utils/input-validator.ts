@@ -12,7 +12,7 @@ import {
 
 /** 校验卡牌是否在玩家手牌中 */
 export function validateCardInHand(cardId: string, player: Player): boolean {
-    return player.hand.some((c) => c.id === cardId);
+    return player.hand.has(cardId);
 }
 
 /** 获取玩家可出的牌 */

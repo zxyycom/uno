@@ -1,22 +1,9 @@
-import { Card, GameDirection, Player } from '../../foundation/types/game.types';
-
-type RemoveCardResult = {
-    card: Card;
-    hand: Card[];
-};
-
-function removeCardFromPlayerHand(hand: Card[], cardId: string): RemoveCardResult {
-    const card = hand.find((item) => item.id === cardId)!;
-    const nextHand = hand.filter((item) => item.id !== card.id);
-    return {
-        card,
-        hand: nextHand,
-    };
-}
-
-function addCardToPlayerHand(hand: Card[], card: Card): Card[] {
-    return [...hand, card];
-}
+import {
+    Card,
+    CardCollection,
+    GameDirection,
+    Player,
+} from '../../foundation/types/game.types';
 
 /**
  * 单玩家管理器 - 提供单个玩家的稳定引用和接口
@@ -34,12 +21,12 @@ export class SinglePlayerManager {
         return this.playManager.getPlayerById(this.playerId)!;
     }
 
-    get hand(): Card[] {
+    get hand(): CardCollection {
         return this.player.hand;
     }
 
     get cardCount(): number {
-        return this.player.hand.length;
+        return this.player.hand.size;
     }
 
     isCurrentPlayer(): boolean {
@@ -50,22 +37,30 @@ export class SinglePlayerManager {
         this.playManager.updatePlayer(player);
     }
 
+    hasCard(cardId: string): boolean {
+        return this.player.hand.has(cardId);
+    }
+
+    getCard(cardId: string): Card {
+        return this.player.hand.get(cardId);
+    }
+
     removeCard(cardId: string): Card {
         const currentPlayer = this.player;
-        const result = removeCardFromPlayerHand(currentPlayer.hand, cardId);
+        const card = currentPlayer.hand.remove(cardId);
         this.replace({
             ...currentPlayer,
-            hand: result.hand,
+            hand: currentPlayer.hand,
         });
-        return result.card;
+        return card;
     }
 
     addCard(card: Card): void {
         const currentPlayer = this.player;
-        const nextHand = addCardToPlayerHand(currentPlayer.hand, card);
+        currentPlayer.hand.add(card);
         this.replace({
             ...currentPlayer,
-            hand: nextHand,
+            hand: currentPlayer.hand,
         });
     }
 }

@@ -16,10 +16,7 @@ import {
 import { DeckManager } from '../deck/deck-manager';
 import { initializeGame } from '../game/game-initializer';
 import { PlayManager } from '../game/play-manager';
-import {
-    validateCanPlayCard,
-    validateCardInHand,
-} from '../utils/input-validator';
+import { validateCanPlayCard } from '../utils/input-validator';
 
 // ==================== 类型定义 ====================
 
@@ -67,11 +64,10 @@ export const gameMachine = setup({
             const { playerId, card } = event;
             const playerManager = playManager.getPlayerManagerById(playerId);
             if (!playerManager) return false;
-            const player = playerManager.player;
             // 牌在手中且符合出牌限制
             return (
                 validateCanPlayCard(card, topCard) &&
-                validateCardInHand(card.id, player)
+                playerManager.hasCard(card.id)
             );
         },
         是否胜利: ({ context }) => {
@@ -111,8 +107,8 @@ export const gameMachine = setup({
             for (const player of context.playManager.players) {
                 eventBus.emit(GameEventType.HAND_UPDATED, {
                     playerId: player.id,
-                    hand: player.hand,
-                    cardCount: player.hand.length,
+                    hand: player.hand.toArray(),
+                    cardCount: player.hand.size,
                 });
             }
             eventBus.emit(GameEventType.DECK_UPDATED, {
@@ -173,23 +169,24 @@ export const gameMachine = setup({
             const { playManager, deckManager, topCard } = context;
             const playerManager = playManager.getPlayerManagerById(playerId)!;
 
-            playerManager.removeCard(card.id);
-            deckManager.discardOne(card);
+            const removedCard = playerManager.removeCard(card.id);
+            deckManager.discardOne(removedCard);
 
             const newColor =
-                card.type === UnoCardType.WILD ||
-                card.type === UnoCardType.WILD_DRAW_4
+                removedCard.type === UnoCardType.WILD ||
+                removedCard.type === UnoCardType.WILD_DRAW_4
                     ? chosenColor || context.topCard.activeColor
-                    : card.color;
+                    : removedCard.color;
 
             const draw2Count =
-                topCard.draw2Count + (card.type === UnoCardType.DRAW_2 ? 1 : 0);
+                topCard.draw2Count +
+                (removedCard.type === UnoCardType.DRAW_2 ? 1 : 0);
             const draw4Count =
                 topCard.draw4Count +
-                (card.type === UnoCardType.WILD_DRAW_4 ? 1 : 0);
+                (removedCard.type === UnoCardType.WILD_DRAW_4 ? 1 : 0);
 
             context.topCard = {
-                card,
+                card: removedCard,
                 activeColor: newColor || topCard.activeColor,
                 draw2Count,
                 draw4Count,
@@ -198,17 +195,17 @@ export const gameMachine = setup({
             const player = playerManager.player;
             eventBus.emit(GameEventType.CARD_PLAYED, {
                 player,
-                card,
+                card: removedCard,
                 newActiveColor: context.topCard.activeColor,
-                isSkipEffect: card.type === UnoCardType.SKIP,
-                isReverseEffect: card.type === UnoCardType.REVERSE,
-                isDraw2Effect: card.type === UnoCardType.DRAW_2,
-                isDraw4Effect: card.type === UnoCardType.WILD_DRAW_4,
+                isSkipEffect: removedCard.type === UnoCardType.SKIP,
+                isReverseEffect: removedCard.type === UnoCardType.REVERSE,
+                isDraw2Effect: removedCard.type === UnoCardType.DRAW_2,
+                isDraw4Effect: removedCard.type === UnoCardType.WILD_DRAW_4,
             });
             eventBus.emit(GameEventType.HAND_UPDATED, {
                 playerId: player.id,
-                hand: player.hand,
-                cardCount: player.hand.length,
+                hand: player.hand.toArray(),
+                cardCount: player.hand.size,
             });
             eventBus.emit(GameEventType.DISCARD_UPDATED, {
                 topCard: context.topCard.card,
@@ -218,7 +215,7 @@ export const gameMachine = setup({
         },
         自动呼叫UNO: ({ context }) => {
             const currentPlayer = context.playManager.getCurrentPlayer();
-            if (currentPlayer.hand.length === 1) {
+            if (currentPlayer.hand.size === 1) {
                 eventBus.emit(GameEventType.CALL_UNO, {
                     player: currentPlayer,
                 });
@@ -226,7 +223,7 @@ export const gameMachine = setup({
         },
         更新赢家: ({ context }) => {
             const winner =
-                context.playManager.players.find((p) => p.hand.length === 0) ||
+                context.playManager.players.find((p) => p.hand.size === 0) ||
                 null;
             if (winner) {
                 context.winner = winner;
@@ -234,7 +231,7 @@ export const gameMachine = setup({
                     winner,
                     finalHands: context.playManager.players.map((player) => ({
                         playerId: player.id,
-                        cardCount: player.hand.length,
+                        cardCount: player.hand.size,
                     })),
                 });
             }
@@ -279,8 +276,8 @@ export const gameMachine = setup({
             });
             eventBus.emit(GameEventType.HAND_UPDATED, {
                 playerId: drawPlayer.id,
-                hand: drawPlayer.hand,
-                cardCount: drawPlayer.hand.length,
+                hand: drawPlayer.hand.toArray(),
+                cardCount: drawPlayer.hand.size,
             });
             eventBus.emit(GameEventType.DECK_UPDATED, {
                 remainingCards: context.deckManager.deckCount,
