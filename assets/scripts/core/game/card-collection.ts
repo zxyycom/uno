@@ -9,7 +9,7 @@ export class CardCollection implements CardCollectionContract {
 
     constructor(cards: readonly Card[]) {
         this.cards = [...cards];
-        this.cardsById = new Map(this.cards.map(card => [card.id, card]));
+        this.cardsById = new Map(this.cards.map((card) => [card.id, card]));
     }
 
     get size(): number {
@@ -18,7 +18,7 @@ export class CardCollection implements CardCollectionContract {
 
     replaceAll(cards: readonly Card[]): void {
         this.cards = [...cards];
-        this.cardsById = new Map(this.cards.map(card => [card.id, card]));
+        this.cardsById = new Map(this.cards.map((card) => [card.id, card]));
     }
 
     has(cardId: string): boolean {
@@ -31,7 +31,7 @@ export class CardCollection implements CardCollectionContract {
 
     remove(cardId: string): Card {
         const card = this.cardsById.get(cardId)!;
-        const cardIndex = this.cards.findIndex(c => c.id === cardId);
+        const cardIndex = this.cards.findIndex((c) => c.id === cardId);
 
         this.cards.splice(cardIndex, 1);
         this.cardsById.delete(cardId);

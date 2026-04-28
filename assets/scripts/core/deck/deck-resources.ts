@@ -102,7 +102,9 @@ function getSpriteKeyByName(spriteName: string): string {
     return SPRITE_PATH_PREFIX + spriteName + SPRITE_PATH_SUFFIX;
 }
 
-async function loadSpriteFrameByKey(spriteKey: string): Promise<SpriteFrame | null> {
+async function loadSpriteFrameByKey(
+    spriteKey: string
+): Promise<SpriteFrame | null> {
     const bundle = await loadResBundle();
 
     if (!bundle) {
