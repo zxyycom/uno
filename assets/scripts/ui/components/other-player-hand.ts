@@ -14,9 +14,6 @@ import {
     Node,
     Sprite,
     SpriteFrame,
-    tween,
-    Tween,
-    Vec3,
 } from 'cc';
 
 import { loadCardBackSprite } from '../../core/deck/deck-resources';
@@ -25,6 +22,12 @@ import {
     GameEventType,
     HandUpdatedPayload,
 } from '../../foundation/events';
+import {
+    applyCardLayoutTransform,
+    calculateFlatLineCardLayouts,
+    CardLayoutTransform,
+    FlatLineLayoutConfig,
+} from '../utils/hand-card-layout';
 import { CardNodePool } from './card-node-pool';
 
 const { ccclass, property } = _decorator;
@@ -40,94 +43,6 @@ const OTHER_PLAYER_HAND_BINDINGS_GROUP = {
     id: 'other-player-hand-bindings',
     displayOrder: 20,
 };
-
-type FlatLayoutConfig = {
-    cardWidth: number;
-    preferredGap: number;
-    minGap: number;
-    maxLineWidth: number;
-    lineAngle: number;
-};
-
-type FlatCardLayout = {
-    position: Vec3;
-    siblingIndex: number;
-};
-
-function calculateFlatCardLayouts(
-    totalCards: number,
-    config: FlatLayoutConfig
-): FlatCardLayout[] {
-    if (totalCards === 0) {
-        return [];
-    }
-
-    const centers = calculateFlatCenters(totalCards, config);
-    const direction = calculateLineDirection(config.lineAngle);
-    const layouts: FlatCardLayout[] = [];
-
-    for (let i = 0; i < totalCards; i++) {
-        layouts.push({
-            position: new Vec3(
-                direction.x * centers[i],
-                direction.y * centers[i],
-                0
-            ),
-            siblingIndex: i,
-        });
-    }
-
-    return layouts;
-}
-
-function calculateFlatCenters(
-    totalCards: number,
-    config: FlatLayoutConfig
-): number[] {
-    const gapCount = totalCards - 1;
-    const cardsWidth = totalCards * config.cardWidth;
-    let gap = config.preferredGap;
-
-    if (gapCount > 0 && config.maxLineWidth > 0) {
-        const maxGap = (config.maxLineWidth - cardsWidth) / gapCount;
-        gap = Math.min(gap, maxGap);
-    }
-    gap = Math.max(gap, config.minGap);
-
-    const lineWidth = cardsWidth + gap * gapCount;
-    const firstCenter = -lineWidth / 2 + config.cardWidth / 2;
-    const step = config.cardWidth + gap;
-    const centers: number[] = [];
-
-    for (let i = 0; i < totalCards; i++) {
-        centers.push(firstCenter + step * i);
-    }
-
-    return centers;
-}
-
-function calculateLineDirection(lineAngle: number): Vec3 {
-    const radian = (lineAngle * Math.PI) / 180;
-    const x = Math.cos(radian);
-    const y = Math.sin(radian);
-    const length = Math.hypot(x, y);
-
-    return new Vec3(x / length, y / length, 0);
-}
-
-function createLayoutSignature(
-    totalCards: number,
-    config: FlatLayoutConfig
-): string {
-    return [
-        totalCards,
-        config.cardWidth,
-        config.preferredGap,
-        config.minGap,
-        config.maxLineWidth,
-        config.lineAngle,
-    ].join('|');
-}
 
 @ccclass('OtherPlayerHand')
 export class OtherPlayerHand extends Component {
@@ -295,7 +210,7 @@ export class OtherPlayerHand extends Component {
     }
 
     private refreshFlatLayout(animated: boolean): void {
-        const layouts = calculateFlatCardLayouts(
+        const layouts = calculateFlatLineCardLayouts(
             this.cardNodes.length,
             this.getFlatLayoutConfig()
         );
@@ -311,25 +226,18 @@ export class OtherPlayerHand extends Component {
 
     private applyCardLayout(
         node: Node,
-        layout: FlatCardLayout,
+        layout: CardLayoutTransform,
         animated: boolean
     ): void {
-        Tween.stopAllByTarget(node);
-        node.angle = 0;
-        node.setScale(1, 1, 1);
-
-        if (animated) {
-            tween(node)
-                .to(this.layoutTweenDuration, { position: layout.position })
-                .start();
-        } else {
-            node.setPosition(layout.position);
-        }
-
-        node.setSiblingIndex(layout.siblingIndex);
+        applyCardLayoutTransform(
+            node,
+            layout,
+            animated,
+            this.layoutTweenDuration
+        );
     }
 
-    private getFlatLayoutConfig(): FlatLayoutConfig {
+    private getFlatLayoutConfig(): FlatLineLayoutConfig {
         return {
             cardWidth: this.expectedCardWidth,
             preferredGap: this.preferredGap,
@@ -340,10 +248,8 @@ export class OtherPlayerHand extends Component {
     }
 
     private getLayoutSignature(): string {
-        return createLayoutSignature(
-            this.cardNodes.length,
-            this.getFlatLayoutConfig()
-        );
+        const config = this.getFlatLayoutConfig();
+        return `${this.cardNodes.length}|${config.cardWidth}|${config.preferredGap}|${config.minGap}|${config.maxLineWidth}|${config.lineAngle}`;
     }
 
     private clearCards(): void {

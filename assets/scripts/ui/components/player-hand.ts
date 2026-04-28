@@ -12,9 +12,6 @@ import {
     Component,
     Node,
     Sprite,
-    tween,
-    Tween,
-    UIOpacity,
     Vec3,
 } from 'cc';
 
@@ -32,6 +29,10 @@ import {
     TopCard,
     UnoCardType,
 } from '../../foundation/types/game.types';
+import {
+    applyCardLayoutTransform,
+    CardLayoutTransform,
+} from '../utils/hand-card-layout';
 import { CardNodePool } from './card-node-pool';
 
 const { ccclass, property } = _decorator;
@@ -81,12 +82,8 @@ type FanLayoutInput = {
     config: FanLayoutConfig;
 };
 
-type FanLayoutResult = {
+type FanLayoutResult = CardLayoutTransform & {
     playable: boolean;
-    position: Vec3;
-    scale: Vec3;
-    angle: number;
-    opacity: number;
 };
 
 const PLAYER_HAND_LAYOUT_GROUP = {
@@ -195,6 +192,7 @@ function calculateFanCardLayout(input: FanLayoutInput): FanLayoutResult {
         position: new Vec3(x + liftX, arcY + liftY, 0),
         scale: isMyTurn ? new Vec3(1, 1, 1) : new Vec3(0.92, 0.92, 1),
         angle: -angle * config.rotationFactor,
+        siblingIndex: index,
         opacity:
             isMyTurn && !playable
                 ? config.disabledCardOpacity
@@ -528,44 +526,13 @@ export class PlayerHand extends Component {
             });
 
             view.playable = layout.playable;
-            this.applyCardLayout(view.node, layout, i, animated);
+            applyCardLayoutTransform(
+                view.node,
+                layout,
+                animated,
+                this.layoutTweenDuration
+            );
         }
-    }
-
-    /** 把布局结果应用到节点，集中处理 tween 与层级顺序 */
-    private applyCardLayout(
-        node: Node,
-        layout: FanLayoutResult,
-        siblingIndex: number,
-        animated: boolean
-    ): void {
-        const opacity = this.ensureOpacity(node);
-        opacity.opacity = layout.opacity;
-
-        Tween.stopAllByTarget(node);
-        if (animated) {
-            tween(node)
-                .to(this.layoutTweenDuration, {
-                    position: layout.position,
-                    angle: layout.angle,
-                    scale: layout.scale,
-                })
-                .start();
-        } else {
-            node.setPosition(layout.position);
-            node.angle = layout.angle;
-            node.setScale(layout.scale);
-        }
-        node.setSiblingIndex(siblingIndex);
-    }
-
-    /** 确保卡牌节点拥有透明度组件，用于不可出牌时置灰 */
-    private ensureOpacity(node: Node): UIOpacity {
-        const opacity = node.getComponent(UIOpacity);
-        if (opacity) {
-            return opacity;
-        }
-        return node.addComponent(UIOpacity);
     }
 
     /** 清除所有卡牌节点和点击事件绑定 */
