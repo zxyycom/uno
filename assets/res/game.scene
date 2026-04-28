@@ -52,7 +52,7 @@
     },
     "autoReleaseAssets": false,
     "_globals": {
-      "__id__": 48
+      "__id__": 52
     },
     "_id": "aff68536-a607-4db2-a27f-e71130fe0933"
   },
@@ -75,13 +75,13 @@
     "_active": true,
     "_components": [
       {
-        "__id__": 45
+        "__id__": 49
       },
       {
-        "__id__": 46
+        "__id__": 50
       },
       {
-        "__id__": 47
+        "__id__": 51
       }
     ],
     "_prefab": null,
@@ -224,22 +224,22 @@
         "__id__": 10
       },
       {
+        "__id__": 44
+      },
+      {
+        "__id__": 32
+      },
+      {
         "__id__": 40
       },
       {
-        "__id__": 31
-      },
-      {
-        "__id__": 37
-      },
-      {
-        "__id__": 34
+        "__id__": 36
       }
     ],
     "_active": true,
     "_components": [
       {
-        "__id__": 44
+        "__id__": 48
       }
     ],
     "_prefab": null,
@@ -290,7 +290,7 @@
         "__id__": 8
       },
       {
-        "__id__": 39
+        "__id__": 43
       }
     ],
     "_prefab": null,
@@ -367,13 +367,13 @@
     "gameMessage": null,
     "otherPlayerHands": [
       {
-        "__id__": 30
+        "__id__": 31
       },
       {
-        "__id__": 33
+        "__id__": 35
       },
       {
-        "__id__": 36
+        "__id__": 39
       }
     ],
     "_id": "5d93SRGKZOQLK+PNcSYqmb"
@@ -391,14 +391,15 @@
     "cardNodePool": {
       "__id__": 27
     },
-    "fanRadius": 700,
-    "fanRadiusPerCard": 100,
-    "turnSpreadAngle": 60,
-    "idleSpreadAngle": 30,
+    "expectedCardSpacing": 96,
+    "maxStackWidth": 720,
+    "placementCurve": {
+      "__id__": 30
+    },
+    "placementCurveScale": 80,
+    "fanAngle": 15,
     "playableLift": 32,
     "selectedLift": 22,
-    "arcYFactor": 0.4,
-    "rotationFactor": 1,
     "disabledCardOpacity": 150,
     "enabledCardOpacity": 255,
     "layoutTweenDuration": 0.18,
@@ -1140,23 +1141,60 @@
     "_id": "e7YVaGvKFEB5/Lx+iut2Sk"
   },
   {
+    "__type__": "cc.RealCurve",
+    "_times": [
+      0,
+      1
+    ],
+    "_values": [
+      {
+        "__type__": "cc.RealKeyframeValue",
+        "interpolationMode": 2,
+        "tangentWeightMode": 0,
+        "value": 0,
+        "rightTangent": 1.5142045454545454,
+        "rightTangentWeight": 0.6048705468000024,
+        "leftTangent": 1.5142045454545454,
+        "leftTangentWeight": 1,
+        "easingMethod": 0,
+        "__editorExtras__": null
+      },
+      {
+        "__type__": "cc.RealKeyframeValue",
+        "interpolationMode": 2,
+        "tangentWeightMode": 0,
+        "value": 0,
+        "rightTangent": -1.2572150072150075,
+        "rightTangentWeight": 1,
+        "leftTangent": -1.2572150072150075,
+        "leftTangentWeight": 0.5354737854737855,
+        "easingMethod": 0,
+        "__editorExtras__": null
+      }
+    ],
+    "preExtrapolation": 0,
+    "postExtrapolation": 1
+  },
+  {
     "__type__": "1b29bzpGNVFpqP/59ICKDLX",
     "_name": "",
     "_objFlags": 0,
     "__editorExtras__": {},
     "node": {
-      "__id__": 31
+      "__id__": 32
     },
     "_enabled": true,
     "__prefab": null,
     "cardNodePool": {
       "__id__": 27
     },
-    "expectedCardWidth": 72,
-    "preferredGap": 24,
-    "minGap": 10,
-    "maxLineWidth": 420,
-    "lineAngle": 0,
+    "expectedCardSpacing": 96,
+    "maxStackWidth": 420,
+    "placementCurve": {
+      "__id__": 34
+    },
+    "placementCurveScale": 80,
+    "fanAngle": 0,
     "layoutTweenDuration": 0.12,
     "_id": "77bRAfue5OLoGGMUCGQK07"
   },
@@ -1172,10 +1210,10 @@
     "_active": true,
     "_components": [
       {
-        "__id__": 32
+        "__id__": 33
       },
       {
-        "__id__": 30
+        "__id__": 31
       }
     ],
     "_prefab": null,
@@ -1214,7 +1252,7 @@
     "_objFlags": 0,
     "__editorExtras__": {},
     "node": {
-      "__id__": 31
+      "__id__": 32
     },
     "_enabled": true,
     "__prefab": null,
@@ -1231,23 +1269,60 @@
     "_id": "6fDm0YVSlFapRcPxXd7TSg"
   },
   {
+    "__type__": "cc.RealCurve",
+    "_times": [
+      0,
+      1
+    ],
+    "_values": [
+      {
+        "__type__": "cc.RealKeyframeValue",
+        "interpolationMode": 0,
+        "tangentWeightMode": 0,
+        "value": 0,
+        "rightTangent": 0,
+        "rightTangentWeight": 0,
+        "leftTangent": 0,
+        "leftTangentWeight": 0,
+        "easingMethod": 0,
+        "__editorExtras__": null
+      },
+      {
+        "__type__": "cc.RealKeyframeValue",
+        "interpolationMode": 0,
+        "tangentWeightMode": 0,
+        "value": 0,
+        "rightTangent": 0,
+        "rightTangentWeight": 0,
+        "leftTangent": 0,
+        "leftTangentWeight": 0,
+        "easingMethod": 0,
+        "__editorExtras__": null
+      }
+    ],
+    "preExtrapolation": 1,
+    "postExtrapolation": 1
+  },
+  {
     "__type__": "1b29bzpGNVFpqP/59ICKDLX",
     "_name": "",
     "_objFlags": 0,
     "__editorExtras__": {},
     "node": {
-      "__id__": 34
+      "__id__": 36
     },
     "_enabled": true,
     "__prefab": null,
     "cardNodePool": {
       "__id__": 27
     },
-    "expectedCardWidth": 72,
-    "preferredGap": 24,
-    "minGap": 10,
-    "maxLineWidth": 420,
-    "lineAngle": 180,
+    "expectedCardSpacing": 96,
+    "maxStackWidth": 420,
+    "placementCurve": {
+      "__id__": 38
+    },
+    "placementCurveScale": 80,
+    "fanAngle": 0,
     "layoutTweenDuration": 0.12,
     "_id": "50CdIwFFBN/akozrzxxY5Q"
   },
@@ -1263,10 +1338,10 @@
     "_active": true,
     "_components": [
       {
-        "__id__": 35
+        "__id__": 37
       },
       {
-        "__id__": 33
+        "__id__": 35
       }
     ],
     "_prefab": null,
@@ -1305,7 +1380,7 @@
     "_objFlags": 0,
     "__editorExtras__": {},
     "node": {
-      "__id__": 34
+      "__id__": 36
     },
     "_enabled": true,
     "__prefab": null,
@@ -1322,23 +1397,60 @@
     "_id": "3dgU6NcCdJKKObW1oX5jDd"
   },
   {
+    "__type__": "cc.RealCurve",
+    "_times": [
+      0,
+      1
+    ],
+    "_values": [
+      {
+        "__type__": "cc.RealKeyframeValue",
+        "interpolationMode": 0,
+        "tangentWeightMode": 0,
+        "value": 0,
+        "rightTangent": 0,
+        "rightTangentWeight": 0,
+        "leftTangent": 0,
+        "leftTangentWeight": 0,
+        "easingMethod": 0,
+        "__editorExtras__": null
+      },
+      {
+        "__type__": "cc.RealKeyframeValue",
+        "interpolationMode": 0,
+        "tangentWeightMode": 0,
+        "value": 0,
+        "rightTangent": 0,
+        "rightTangentWeight": 0,
+        "leftTangent": 0,
+        "leftTangentWeight": 0,
+        "easingMethod": 0,
+        "__editorExtras__": null
+      }
+    ],
+    "preExtrapolation": 1,
+    "postExtrapolation": 1
+  },
+  {
     "__type__": "1b29bzpGNVFpqP/59ICKDLX",
     "_name": "",
     "_objFlags": 0,
     "__editorExtras__": {},
     "node": {
-      "__id__": 37
+      "__id__": 40
     },
     "_enabled": true,
     "__prefab": null,
     "cardNodePool": {
       "__id__": 27
     },
-    "expectedCardWidth": 72,
-    "preferredGap": 24,
-    "minGap": 10,
-    "maxLineWidth": 420,
-    "lineAngle": 0,
+    "expectedCardSpacing": 96,
+    "maxStackWidth": 420,
+    "placementCurve": {
+      "__id__": 42
+    },
+    "placementCurveScale": 80,
+    "fanAngle": 0,
     "layoutTweenDuration": 0.12,
     "_id": "21eelUMCNDA7wQ1WvrAi1F"
   },
@@ -1354,10 +1466,10 @@
     "_active": true,
     "_components": [
       {
-        "__id__": 38
+        "__id__": 41
       },
       {
-        "__id__": 36
+        "__id__": 39
       }
     ],
     "_prefab": null,
@@ -1396,7 +1508,7 @@
     "_objFlags": 0,
     "__editorExtras__": {},
     "node": {
-      "__id__": 37
+      "__id__": 40
     },
     "_enabled": true,
     "__prefab": null,
@@ -1411,6 +1523,41 @@
       "y": 0.5
     },
     "_id": "d2pN3Hs8FB94RcyDCj/an0"
+  },
+  {
+    "__type__": "cc.RealCurve",
+    "_times": [
+      0,
+      1
+    ],
+    "_values": [
+      {
+        "__type__": "cc.RealKeyframeValue",
+        "interpolationMode": 0,
+        "tangentWeightMode": 0,
+        "value": 0,
+        "rightTangent": 0,
+        "rightTangentWeight": 0,
+        "leftTangent": 0,
+        "leftTangentWeight": 0,
+        "easingMethod": 0,
+        "__editorExtras__": null
+      },
+      {
+        "__type__": "cc.RealKeyframeValue",
+        "interpolationMode": 0,
+        "tangentWeightMode": 0,
+        "value": 0,
+        "rightTangent": 0,
+        "rightTangentWeight": 0,
+        "leftTangent": 0,
+        "leftTangentWeight": 0,
+        "easingMethod": 0,
+        "__editorExtras__": null
+      }
+    ],
+    "preExtrapolation": 1,
+    "postExtrapolation": 1
   },
   {
     "__type__": "8577beK4CVC85TccQx0ih9b",
@@ -1443,13 +1590,13 @@
     "_active": false,
     "_components": [
       {
-        "__id__": 41
+        "__id__": 45
       },
       {
-        "__id__": 42
+        "__id__": 46
       },
       {
-        "__id__": 43
+        "__id__": 47
       }
     ],
     "_prefab": null,
@@ -1488,7 +1635,7 @@
     "_objFlags": 0,
     "__editorExtras__": {},
     "node": {
-      "__id__": 40
+      "__id__": 44
     },
     "_enabled": true,
     "__prefab": null,
@@ -1510,7 +1657,7 @@
     "_objFlags": 0,
     "__editorExtras__": {},
     "node": {
-      "__id__": 40
+      "__id__": 44
     },
     "_enabled": true,
     "__prefab": null,
@@ -1549,7 +1696,7 @@
     "_objFlags": 0,
     "__editorExtras__": {},
     "node": {
-      "__id__": 40
+      "__id__": 44
     },
     "_enabled": true,
     "__prefab": null,
@@ -1649,28 +1796,28 @@
   {
     "__type__": "cc.SceneGlobals",
     "ambient": {
-      "__id__": 49
-    },
-    "shadows": {
-      "__id__": 50
-    },
-    "_skybox": {
-      "__id__": 51
-    },
-    "fog": {
-      "__id__": 52
-    },
-    "octree": {
       "__id__": 53
     },
-    "skin": {
+    "shadows": {
       "__id__": 54
     },
-    "lightProbeInfo": {
+    "_skybox": {
       "__id__": 55
     },
-    "postSettings": {
+    "fog": {
       "__id__": 56
+    },
+    "octree": {
+      "__id__": 57
+    },
+    "skin": {
+      "__id__": 58
+    },
+    "lightProbeInfo": {
+      "__id__": 59
+    },
+    "postSettings": {
+      "__id__": 60
     },
     "bakedWithStationaryMainLight": false,
     "bakedWithHighpLightmap": false

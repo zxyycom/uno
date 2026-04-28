@@ -3,15 +3,16 @@
  * 只展示卡背和数量，不展示真实牌面，不提供交互。
  *
  * 布局算法：
- * - 基于预期单卡宽度与最大总宽度计算平铺中心点
- * - 当卡牌总宽度超过 maxLineWidth 时，自动压缩间距
- * - 使用 lineAngle 控制本地排列方向，场景节点自身负责摆放到左/上/右侧
+ * - 基于单卡中心预期间距与最大牌堆宽度计算 X 轴展开
+ * - 当预期总宽度超过最大牌堆宽度时，自动压缩中心间距
+ * - 使用实数曲线控制 Y 轴偏移，并按总扇形夹角均匀旋转
  */
 
 import {
     _decorator,
     Component,
     Node,
+    RealCurve,
     Sprite,
     SpriteFrame,
 } from 'cc';
@@ -24,9 +25,11 @@ import {
 } from '../../foundation/events';
 import {
     applyCardLayoutTransform,
-    calculateFlatLineCardLayouts,
+    calculateCurvedFanCardLayouts,
     CardLayoutTransform,
-    FlatLineLayoutConfig,
+    createCurvedFanLayoutSignature,
+    createDefaultPlacementCurve,
+    CurvedFanLayoutConfig,
 } from '../utils/hand-card-layout';
 import { CardNodePool } from './card-node-pool';
 
@@ -54,34 +57,35 @@ export class OtherPlayerHand extends Component {
     public cardNodePool!: CardNodePool;
 
     @property({
-        tooltip: '单张卡牌预期宽度（用于布局计算）',
+        tooltip: '单张卡牌中心点预期间距；未超过最大宽度时直接使用该间距',
         group: OTHER_PLAYER_HAND_LAYOUT_GROUP,
     })
-    public expectedCardWidth: number = 72;
+    public expectedCardSpacing: number = 96;
 
     @property({
-        tooltip: '卡牌期望间距',
+        tooltip: '牌堆最大展开宽度；超过时按该宽度压缩中心间距',
         group: OTHER_PLAYER_HAND_LAYOUT_GROUP,
     })
-    public preferredGap: number = 24;
+    public maxStackWidth: number = 420;
 
     @property({
-        tooltip: '卡牌最小间距',
+        type: RealCurve,
+        tooltip: '卡牌沿 X 轴展开时的 Y 轴偏移曲线；输入范围为 0 到 1，输出为本地坐标像素',
         group: OTHER_PLAYER_HAND_LAYOUT_GROUP,
     })
-    public minGap: number = 10;
+    public placementCurve: RealCurve = createDefaultPlacementCurve();
 
     @property({
-        tooltip: '手牌平铺最大宽度，超过时自动压缩间距',
+        tooltip: '实数曲线输出倍率；曲线为 -1 到 1 时，最终 Y 偏移为该倍率范围',
         group: OTHER_PLAYER_HAND_LAYOUT_GROUP,
     })
-    public maxLineWidth: number = 420;
+    public placementCurveScale: number = 80;
 
     @property({
-        tooltip: '本地排列方向（度），0 为沿 X 轴正向，180 为反向',
+        tooltip: '总扇形夹角（度）；首张和最后一张卡牌的角度差等于该值',
         group: OTHER_PLAYER_HAND_LAYOUT_GROUP,
     })
-    public lineAngle: number = 0;
+    public fanAngle: number = 0;
 
     @property({
         tooltip: '布局动画时长（秒）',
@@ -96,7 +100,7 @@ export class OtherPlayerHand extends Component {
     private layoutSignature: string = '';
 
     update(_dt: number): void {
-        this.refreshFlatLayoutIfChanged(false);
+        this.refreshCurvedFanLayoutIfChanged(false);
     }
 
     public init(playerId: string): void {
@@ -141,7 +145,7 @@ export class OtherPlayerHand extends Component {
 
     private renderCardBacks(count: number, animated: boolean): void {
         this.syncCardNodes(count);
-        this.refreshFlatLayout(animated);
+        this.refreshCurvedFanLayout(animated);
     }
 
     private syncCardNodes(targetCount: number): void {
@@ -201,18 +205,18 @@ export class OtherPlayerHand extends Component {
         sprite.spriteFrame = this.cardBackSprite;
     }
 
-    private refreshFlatLayoutIfChanged(animated: boolean): void {
+    private refreshCurvedFanLayoutIfChanged(animated: boolean): void {
         const nextSignature = this.getLayoutSignature();
         if (nextSignature === this.layoutSignature) {
             return;
         }
-        this.refreshFlatLayout(animated);
+        this.refreshCurvedFanLayout(animated);
     }
 
-    private refreshFlatLayout(animated: boolean): void {
-        const layouts = calculateFlatLineCardLayouts(
+    private refreshCurvedFanLayout(animated: boolean): void {
+        const layouts = calculateCurvedFanCardLayouts(
             this.cardNodes.length,
-            this.getFlatLayoutConfig()
+            this.getCurvedFanLayoutConfig()
         );
 
         for (let i = 0; i < layouts.length; i++) {
@@ -237,19 +241,21 @@ export class OtherPlayerHand extends Component {
         );
     }
 
-    private getFlatLayoutConfig(): FlatLineLayoutConfig {
+    private getCurvedFanLayoutConfig(): CurvedFanLayoutConfig {
         return {
-            cardWidth: this.expectedCardWidth,
-            preferredGap: this.preferredGap,
-            minGap: this.minGap,
-            maxLineWidth: this.maxLineWidth,
-            lineAngle: this.lineAngle,
+            expectedCardSpacing: this.expectedCardSpacing,
+            maxStackWidth: this.maxStackWidth,
+            placementCurve: this.placementCurve,
+            placementCurveScale: this.placementCurveScale,
+            fanAngle: this.fanAngle,
         };
     }
 
     private getLayoutSignature(): string {
-        const config = this.getFlatLayoutConfig();
-        return `${this.cardNodes.length}|${config.cardWidth}|${config.preferredGap}|${config.minGap}|${config.maxLineWidth}|${config.lineAngle}`;
+        return createCurvedFanLayoutSignature(
+            this.cardNodes.length,
+            this.getCurvedFanLayoutConfig()
+        );
     }
 
     private clearCards(): void {

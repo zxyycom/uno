@@ -11,6 +11,7 @@ import {
     _decorator,
     Component,
     Node,
+    RealCurve,
     Sprite,
     Vec3,
 } from 'cc';
@@ -31,7 +32,10 @@ import {
 } from '../../foundation/types/game.types';
 import {
     applyCardLayoutTransform,
+    calculateCurvedFanCardLayouts,
     CardLayoutTransform,
+    createDefaultPlacementCurve,
+    CurvedFanLayoutConfig,
 } from '../utils/hand-card-layout';
 import { CardNodePool } from './card-node-pool';
 
@@ -49,22 +53,10 @@ type HandCardView = {
 };
 
 type FanLayoutConfig = {
-    /** 手牌扇形半径上限，数值越大卡牌横向跨度上限越大 */
-    fanRadius: number;
-    /** 每张手牌带来的扇形半径增量 */
-    fanRadiusPerCard: number;
-    /** 当前玩家回合时的总展开角度 */
-    turnSpreadAngle: number;
-    /** 非当前玩家回合时的总展开角度 */
-    idleSpreadAngle: number;
     /** 可出牌卡牌向上抬升距离 */
     playableLift: number;
     /** 已选中卡牌额外向上抬升距离 */
     selectedLift: number;
-    /** 扇形弧度系数 */
-    arcYFactor: number;
-    /** 卡牌旋转系数 */
-    rotationFactor: number;
     /** 不可出牌透明度 */
     disabledCardOpacity: number;
     /** 可出牌透明度 */
@@ -73,8 +65,7 @@ type FanLayoutConfig = {
 
 type FanLayoutInput = {
     card: Card;
-    index: number;
-    total: number;
+    baseLayout: CardLayoutTransform;
     isMyTurn: boolean;
     hoveredCardId: string | null;
     selectedCardId: string | null;
@@ -96,31 +87,6 @@ const PLAYER_HAND_BINDINGS_GROUP = {
     id: 'player-hand-bindings',
     displayOrder: 20,
 };
-
-/**
- * 根据回合状态选择扇形展开角度。
- * 纯计算函数：只返回数值，不依赖组件内部状态。
- */
-function getSpreadAngle(
-    isMyTurn: boolean,
-    turnSpreadAngle: number,
-    idleSpreadAngle: number
-): number {
-    return isMyTurn ? turnSpreadAngle : idleSpreadAngle;
-}
-
-/**
- * 根据手牌数量计算扇形半径，避免固定半径导致展开过于直接。
- * 纯计算函数：按 n * perCard 线性增长，并受 maxRadius 上限约束。
- */
-function getFanRadius(
-    totalCards: number,
-    fanRadiusPerCard: number,
-    maxRadius: number
-): number {
-    const calculatedRadius = totalCards * fanRadiusPerCard;
-    return Math.min(calculatedRadius, maxRadius);
-}
 
 /**
  * 计算卡牌是否是需要选择颜色的万能牌。
@@ -150,32 +116,15 @@ function canPlayInCurrentTurn(
  */
 function calculateFanCardLayout(input: FanLayoutInput): FanLayoutResult {
     const {
+        baseLayout,
         card,
         config,
         hoveredCardId,
-        index,
         isMyTurn,
         selectedCardId,
         topCard,
-        total,
     } = input;
-    const spread = getSpreadAngle(
-        isMyTurn,
-        config.turnSpreadAngle,
-        config.idleSpreadAngle
-    );
-    const fanRadius = getFanRadius(
-        total,
-        config.fanRadiusPerCard,
-        config.fanRadius
-    );
-    const halfSpread = spread / 2;
-    const t = total === 1 ? 0.5 : index / (total - 1);
-    const angle = -halfSpread + spread * t;
-    const radian = (angle * Math.PI) / 180;
     const playable = canPlayInCurrentTurn(card, isMyTurn, topCard);
-    const x = Math.sin(radian) * fanRadius;
-    const arcY = (Math.cos(radian) - 1) * fanRadius * config.arcYFactor;
     const isSelected = selectedCardId === card.id;
     const isHovered = hoveredCardId === card.id;
     const isPlayableInTurn = isMyTurn && playable;
@@ -184,15 +133,17 @@ function calculateFanCardLayout(input: FanLayoutInput): FanLayoutResult {
     const primaryLiftY = isPrimaryLiftActive ? config.playableLift : 0;
     const secondaryLiftY = isSecondaryLiftActive ? config.selectedLift : 0;
     const totalLift = primaryLiftY + secondaryLiftY;
-    const liftX = Math.sin(radian) * totalLift;
-    const liftY = Math.cos(radian) * totalLift;
 
     return {
         playable,
-        position: new Vec3(x + liftX, arcY + liftY, 0),
+        position: new Vec3(
+            baseLayout.position.x,
+            baseLayout.position.y + totalLift,
+            0
+        ),
         scale: isMyTurn ? new Vec3(1, 1, 1) : new Vec3(0.92, 0.92, 1),
-        angle: -angle * config.rotationFactor,
-        siblingIndex: index,
+        angle: baseLayout.angle,
+        siblingIndex: baseLayout.siblingIndex,
         opacity:
             isMyTurn && !playable
                 ? config.disabledCardOpacity
@@ -210,33 +161,36 @@ export class PlayerHand extends Component {
     })
     public cardNodePool!: CardNodePool;
 
-    /** 手牌扇形半径上限，数值越大卡牌横向跨度上限越大 */
     @property({
-        tooltip: '手牌扇形半径上限，数值越大卡牌横向跨度上限越大',
+        tooltip: '单张卡牌中心点预期间距；未超过最大宽度时直接使用该间距',
         group: PLAYER_HAND_LAYOUT_GROUP,
     })
-    public fanRadius: number = 360;
+    public expectedCardSpacing: number = 96;
 
-    /** 每张手牌带来的扇形半径增量，最终会受扇形半径上限限制 */
     @property({
-        tooltip: '每张手牌带来的扇形半径增量，最终会受扇形半径上限限制',
+        tooltip: '牌堆最大展开宽度；超过时按该宽度压缩中心间距',
         group: PLAYER_HAND_LAYOUT_GROUP,
     })
-    public fanRadiusPerCard: number = 48;
+    public maxStackWidth: number = 720;
 
-    /** 当前玩家回合时的总展开角度，角度越大手牌越分散 */
     @property({
-        tooltip: '当前玩家回合时的总展开角度，角度越大手牌越分散',
+        type: RealCurve,
+        tooltip: '卡牌沿 X 轴展开时的 Y 轴偏移曲线；输入范围为 0 到 1，输出为本地坐标像素',
         group: PLAYER_HAND_LAYOUT_GROUP,
     })
-    public turnSpreadAngle: number = 72;
+    public placementCurve: RealCurve = createDefaultPlacementCurve();
 
-    /** 非当前玩家回合时的总展开角度，用于收拢手牌 */
     @property({
-        tooltip: '非当前玩家回合时的总展开角度，用于收拢手牌',
+        tooltip: '实数曲线输出倍率；曲线为 -1 到 1 时，最终 Y 偏移为该倍率范围',
         group: PLAYER_HAND_LAYOUT_GROUP,
     })
-    public idleSpreadAngle: number = 16;
+    public placementCurveScale: number = 80;
+
+    @property({
+        tooltip: '总扇形夹角（度）；首张和最后一张卡牌的角度差等于该值',
+        group: PLAYER_HAND_LAYOUT_GROUP,
+    })
+    public fanAngle: number = 72;
 
     /** 可交互卡牌悬停时向上抬升距离，也是选中卡牌的基础抬升距离 */
     @property({
@@ -251,20 +205,6 @@ export class PlayerHand extends Component {
         group: PLAYER_HAND_LAYOUT_GROUP,
     })
     public selectedLift: number = 22;
-
-    /** 扇形弧度系数，数值越大两侧下沉越明显 */
-    @property({
-        tooltip: '扇形弧度系数，数值越大两侧下沉越明显',
-        group: PLAYER_HAND_LAYOUT_GROUP,
-    })
-    public arcYFactor: number = 0.8;
-
-    /** 卡牌旋转系数，1 表示中轴直接朝向圆心方向 */
-    @property({
-        tooltip: '卡牌旋转系数，1 表示中轴直接朝向圆心方向',
-        group: PLAYER_HAND_LAYOUT_GROUP,
-    })
-    public rotationFactor: number = 1;
 
     /** 非可出牌透明度，用于弱化不可出牌项 */
     @property({
@@ -511,13 +451,16 @@ export class PlayerHand extends Component {
 
         const topCard = this.uiContext!.getTopCard();
         const config = this.getFanLayoutConfig();
+        const baseLayouts = calculateCurvedFanCardLayouts(
+            count,
+            this.getCurvedFanLayoutConfig()
+        );
 
         for (let i = 0; i < count; i++) {
             const view = this.cardViews[i];
             const layout = calculateFanCardLayout({
                 card: view.card,
-                index: i,
-                total: count,
+                baseLayout: baseLayouts[i],
                 isMyTurn: this.isMyTurn,
                 hoveredCardId: this.hoveredCardId,
                 selectedCardId: this.selectedCardId,
@@ -669,16 +612,20 @@ export class PlayerHand extends Component {
     /** 汇总布局配置，便于纯计算函数只接收必要数据 */
     private getFanLayoutConfig(): FanLayoutConfig {
         return {
-            fanRadius: this.fanRadius,
-            fanRadiusPerCard: this.fanRadiusPerCard,
-            turnSpreadAngle: this.turnSpreadAngle,
-            idleSpreadAngle: this.idleSpreadAngle,
             playableLift: this.playableLift,
             selectedLift: this.selectedLift,
-            arcYFactor: this.arcYFactor,
-            rotationFactor: this.rotationFactor,
             disabledCardOpacity: this.disabledCardOpacity,
             enabledCardOpacity: this.enabledCardOpacity,
+        };
+    }
+
+    private getCurvedFanLayoutConfig(): CurvedFanLayoutConfig {
+        return {
+            expectedCardSpacing: this.expectedCardSpacing,
+            maxStackWidth: this.maxStackWidth,
+            placementCurve: this.placementCurve,
+            placementCurveScale: this.placementCurveScale,
+            fanAngle: this.fanAngle,
         };
     }
 
