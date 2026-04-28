@@ -78,4 +78,11 @@ pmpm run format       # 格式化代码
 3. **逻辑分离**: 纯计算（独立工具函数）与业务流（状态变更）分离
 4. **No Safety Wrappers**: 不用 try/catch 隐藏错误，不用 `as` 断言
 
+## 6. Cocos Creator 资源文件
+
+⚠️ **禁止手动创建或修改 `.meta` 文件**。`.meta` 文件由 Cocos Creator 自动生成和管理，手动编辑会导致"资源导入失败"错误。如遇此问题，请通过 Cocos Creator MCP 工具修复。
+
+涉及以下文件类型时，**必须使用 Cocos Creator MCP 工具**进行操作，严禁直接编辑：
+- `.scene`、`.prefab`
+
 ---
