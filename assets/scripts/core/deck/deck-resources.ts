@@ -13,6 +13,7 @@ import {
 } from '../../foundation/types/game.types';
 
 const BUNDLE_NAME = 'res';
+const CARD_BACK_SPRITE_NAME = 'Deck';
 
 let _bundleCache: AssetManager.Bundle | null = null;
 let _loadingPromise: Promise<AssetManager.Bundle | null> | null = null;
@@ -92,18 +93,16 @@ export function getSpriteName(
  * 根据卡牌获取Sprite资源路径key
  */
 function getCardSpriteKey(card: Card): string {
-    return (
-        SPRITE_PATH_PREFIX +
-        getSpriteName(card.color ?? CardColor.RED, card.type, card.value) +
-        SPRITE_PATH_SUFFIX
+    return getSpriteKeyByName(
+        getSpriteName(card.color ?? CardColor.RED, card.type, card.value)
     );
 }
 
-/**
- * 加载卡牌SpriteFrame（异步）
- */
-export async function loadCardSprite(card: Card): Promise<SpriteFrame | null> {
-    const spriteKey = getCardSpriteKey(card);
+function getSpriteKeyByName(spriteName: string): string {
+    return SPRITE_PATH_PREFIX + spriteName + SPRITE_PATH_SUFFIX;
+}
+
+async function loadSpriteFrameByKey(spriteKey: string): Promise<SpriteFrame | null> {
     const bundle = await loadResBundle();
 
     if (!bundle) {
@@ -124,6 +123,22 @@ export async function loadCardSprite(card: Card): Promise<SpriteFrame | null> {
             resolve(spriteFrame);
         });
     });
+}
+
+/**
+ * 加载卡牌SpriteFrame（异步）
+ */
+export async function loadCardSprite(card: Card): Promise<SpriteFrame | null> {
+    const spriteKey = getCardSpriteKey(card);
+    return loadSpriteFrameByKey(spriteKey);
+}
+
+/**
+ * 加载卡背 SpriteFrame（异步）
+ */
+export async function loadCardBackSprite(): Promise<SpriteFrame | null> {
+    const spriteKey = getSpriteKeyByName(CARD_BACK_SPRITE_NAME);
+    return loadSpriteFrameByKey(spriteKey);
 }
 
 /**

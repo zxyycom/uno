@@ -52,7 +52,7 @@
     },
     "autoReleaseAssets": false,
     "_globals": {
-      "__id__": 39
+      "__id__": 48
     },
     "_id": "aff68536-a607-4db2-a27f-e71130fe0933"
   },
@@ -75,13 +75,13 @@
     "_active": true,
     "_components": [
       {
-        "__id__": 36
+        "__id__": 45
       },
       {
-        "__id__": 37
+        "__id__": 46
       },
       {
-        "__id__": 38
+        "__id__": 47
       }
     ],
     "_prefab": null,
@@ -224,13 +224,22 @@
         "__id__": 10
       },
       {
+        "__id__": 40
+      },
+      {
         "__id__": 31
+      },
+      {
+        "__id__": 37
+      },
+      {
+        "__id__": 34
       }
     ],
     "_active": true,
     "_components": [
       {
-        "__id__": 35
+        "__id__": 44
       }
     ],
     "_prefab": null,
@@ -281,7 +290,7 @@
         "__id__": 8
       },
       {
-        "__id__": 30
+        "__id__": 39
       }
     ],
     "_prefab": null,
@@ -356,6 +365,17 @@
     "deckComponent": null,
     "playerIndicators": null,
     "gameMessage": null,
+    "otherPlayerHands": [
+      {
+        "__id__": 30
+      },
+      {
+        "__id__": 33
+      },
+      {
+        "__id__": 36
+      }
+    ],
     "_id": "5d93SRGKZOQLK+PNcSYqmb"
   },
   {
@@ -1120,6 +1140,279 @@
     "_id": "e7YVaGvKFEB5/Lx+iut2Sk"
   },
   {
+    "__type__": "1b29bzpGNVFpqP/59ICKDLX",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 31
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "cardNodePool": {
+      "__id__": 27
+    },
+    "expectedCardWidth": 72,
+    "preferredGap": 24,
+    "minGap": 10,
+    "maxLineWidth": 420,
+    "lineAngle": 0,
+    "layoutTweenDuration": 0.12,
+    "_id": "77bRAfue5OLoGGMUCGQK07"
+  },
+  {
+    "__type__": "cc.Node",
+    "_name": "OtherPlayerHandLeft",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "_parent": {
+      "__id__": 5
+    },
+    "_children": [],
+    "_active": true,
+    "_components": [
+      {
+        "__id__": 32
+      },
+      {
+        "__id__": 30
+      }
+    ],
+    "_prefab": null,
+    "_lpos": {
+      "__type__": "cc.Vec3",
+      "x": -760,
+      "y": 0,
+      "z": 0
+    },
+    "_lrot": {
+      "__type__": "cc.Quat",
+      "x": 0,
+      "y": 0,
+      "z": -0.7071067811865475,
+      "w": 0.7071067811865476
+    },
+    "_lscale": {
+      "__type__": "cc.Vec3",
+      "x": 1,
+      "y": 1,
+      "z": 1
+    },
+    "_mobility": 0,
+    "_layer": 33554432,
+    "_euler": {
+      "__type__": "cc.Vec3",
+      "x": 0,
+      "y": 0,
+      "z": -90
+    },
+    "_id": "936pKWs6ZHTZ7vXw0tf+aE"
+  },
+  {
+    "__type__": "cc.UITransform",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 31
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "_contentSize": {
+      "__type__": "cc.Size",
+      "width": 520,
+      "height": 220
+    },
+    "_anchorPoint": {
+      "__type__": "cc.Vec2",
+      "x": 0.5,
+      "y": 0.5
+    },
+    "_id": "6fDm0YVSlFapRcPxXd7TSg"
+  },
+  {
+    "__type__": "1b29bzpGNVFpqP/59ICKDLX",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 34
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "cardNodePool": {
+      "__id__": 27
+    },
+    "expectedCardWidth": 72,
+    "preferredGap": 24,
+    "minGap": 10,
+    "maxLineWidth": 420,
+    "lineAngle": 180,
+    "layoutTweenDuration": 0.12,
+    "_id": "50CdIwFFBN/akozrzxxY5Q"
+  },
+  {
+    "__type__": "cc.Node",
+    "_name": "OtherPlayerHandTop",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "_parent": {
+      "__id__": 5
+    },
+    "_children": [],
+    "_active": true,
+    "_components": [
+      {
+        "__id__": 35
+      },
+      {
+        "__id__": 33
+      }
+    ],
+    "_prefab": null,
+    "_lpos": {
+      "__type__": "cc.Vec3",
+      "x": 0,
+      "y": 320,
+      "z": 0
+    },
+    "_lrot": {
+      "__type__": "cc.Quat",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "_lscale": {
+      "__type__": "cc.Vec3",
+      "x": 1,
+      "y": 1,
+      "z": 1
+    },
+    "_mobility": 0,
+    "_layer": 33554432,
+    "_euler": {
+      "__type__": "cc.Vec3",
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "_id": "d6uXj9KGRCtKAMlrZOQ5fa"
+  },
+  {
+    "__type__": "cc.UITransform",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 34
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "_contentSize": {
+      "__type__": "cc.Size",
+      "width": 520,
+      "height": 220
+    },
+    "_anchorPoint": {
+      "__type__": "cc.Vec2",
+      "x": 0.5,
+      "y": 0.5
+    },
+    "_id": "3dgU6NcCdJKKObW1oX5jDd"
+  },
+  {
+    "__type__": "1b29bzpGNVFpqP/59ICKDLX",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 37
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "cardNodePool": {
+      "__id__": 27
+    },
+    "expectedCardWidth": 72,
+    "preferredGap": 24,
+    "minGap": 10,
+    "maxLineWidth": 420,
+    "lineAngle": 0,
+    "layoutTweenDuration": 0.12,
+    "_id": "21eelUMCNDA7wQ1WvrAi1F"
+  },
+  {
+    "__type__": "cc.Node",
+    "_name": "OtherPlayerHandRight",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "_parent": {
+      "__id__": 5
+    },
+    "_children": [],
+    "_active": true,
+    "_components": [
+      {
+        "__id__": 38
+      },
+      {
+        "__id__": 36
+      }
+    ],
+    "_prefab": null,
+    "_lpos": {
+      "__type__": "cc.Vec3",
+      "x": 760,
+      "y": 0,
+      "z": 0
+    },
+    "_lrot": {
+      "__type__": "cc.Quat",
+      "x": 0,
+      "y": 0,
+      "z": 0.7071067811865475,
+      "w": 0.7071067811865476
+    },
+    "_lscale": {
+      "__type__": "cc.Vec3",
+      "x": 1,
+      "y": 1,
+      "z": 1
+    },
+    "_mobility": 0,
+    "_layer": 33554432,
+    "_euler": {
+      "__type__": "cc.Vec3",
+      "x": 0,
+      "y": 0,
+      "z": 90
+    },
+    "_id": "b6DpngaZVAZ6YaiaFJ/Tja"
+  },
+  {
+    "__type__": "cc.UITransform",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 37
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "_contentSize": {
+      "__type__": "cc.Size",
+      "width": 520,
+      "height": 220
+    },
+    "_anchorPoint": {
+      "__type__": "cc.Vec2",
+      "x": 0.5,
+      "y": 0.5
+    },
+    "_id": "d2pN3Hs8FB94RcyDCj/an0"
+  },
+  {
     "__type__": "8577beK4CVC85TccQx0ih9b",
     "_name": "",
     "_objFlags": 0,
@@ -1150,13 +1443,13 @@
     "_active": false,
     "_components": [
       {
-        "__id__": 32
+        "__id__": 41
       },
       {
-        "__id__": 33
+        "__id__": 42
       },
       {
-        "__id__": 34
+        "__id__": 43
       }
     ],
     "_prefab": null,
@@ -1195,7 +1488,7 @@
     "_objFlags": 0,
     "__editorExtras__": {},
     "node": {
-      "__id__": 31
+      "__id__": 40
     },
     "_enabled": true,
     "__prefab": null,
@@ -1217,7 +1510,7 @@
     "_objFlags": 0,
     "__editorExtras__": {},
     "node": {
-      "__id__": 31
+      "__id__": 40
     },
     "_enabled": true,
     "__prefab": null,
@@ -1256,7 +1549,7 @@
     "_objFlags": 0,
     "__editorExtras__": {},
     "node": {
-      "__id__": 31
+      "__id__": 40
     },
     "_enabled": true,
     "__prefab": null,
@@ -1356,28 +1649,28 @@
   {
     "__type__": "cc.SceneGlobals",
     "ambient": {
-      "__id__": 40
+      "__id__": 49
     },
     "shadows": {
-      "__id__": 41
+      "__id__": 50
     },
     "_skybox": {
-      "__id__": 42
+      "__id__": 51
     },
     "fog": {
-      "__id__": 43
+      "__id__": 52
     },
     "octree": {
-      "__id__": 44
+      "__id__": 53
     },
     "skin": {
-      "__id__": 45
+      "__id__": 54
     },
     "lightProbeInfo": {
-      "__id__": 46
+      "__id__": 55
     },
     "postSettings": {
-      "__id__": 47
+      "__id__": 56
     },
     "bakedWithStationaryMainLight": false,
     "bakedWithHighpLightmap": false

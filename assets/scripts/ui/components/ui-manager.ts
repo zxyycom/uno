@@ -15,6 +15,7 @@ import { Card, CardColor, TopCard } from '../../foundation/types/game.types';
 import { DeckComponent } from './deck-component';
 import { GameBoard } from './game-board';
 import { GameMessage } from './game-message';
+import { OtherPlayerHand } from './other-player-hand';
 import { PlayerHand } from './player-hand';
 import { PlayerIndicator } from './player-indicator';
 
@@ -46,6 +47,9 @@ export class UIManager extends Component {
 
     @property(GameMessage)
     public gameMessage: GameMessage | null = null;
+
+    @property([OtherPlayerHand])
+    public otherPlayerHands: OtherPlayerHand[] = [];
 
     private gameManager: GameManager | null = null;
     private currentTopCard: TopCard | null = null;
@@ -92,6 +96,11 @@ export class UIManager extends Component {
         // 初始化玩家手牌（人类玩家）
         if (this.playerHand) {
             this.playerHand.init('player_0', this);
+        }
+
+        for (let i = 0; i < this.otherPlayerHands.length; i++) {
+            const hand = this.otherPlayerHands[i];
+            hand.init(`ai_${i + 1}`);
         }
 
         // 初始化玩家指示器
