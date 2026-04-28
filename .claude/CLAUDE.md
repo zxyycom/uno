@@ -25,7 +25,7 @@ pnpm install          # 安装依赖
 pnpm run lint         # 运行 ESLint
 pnpm run type-check   # 运行 TypeScript 类型检查 (tsc --noEmit)
 pnpm run bundle:libraries  # 通过 Rollup 打包第三方库
-pmpm run format       # 格式化代码
+pmpm run format       # 格式化代码，格式化唯一方式
 ```
 
 ---
