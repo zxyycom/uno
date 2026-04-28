@@ -17,8 +17,8 @@
 - **Business Layer (编排层)**: 处理 I/O、状态变更、副作用。调用计算函数但不包含数学公式
 - **Computation Layer (计算层)**: 作为独立工具函数存在于类外部，必须是纯函数（无副作用、无 this）
 - **类内方法分离**: 如果逻辑必须在类中，必须严格分为：
-  - `#region Computation` (纯数学/数据转换)
-  - `#region Business` (流程控制)
+    - `#region Computation` (纯数学/数据转换)
+    - `#region Business` (流程控制)
 
 ---
 
@@ -29,6 +29,7 @@
 - **No "Safety" Wrappers**: 不用 try/catch 隐藏错误，不用包装对象判断成功/失败
 - **Non-null Assertion (慎用!)**: 如果接口类型可能为 null，但业务逻辑上在该场景下不可能为空，可以使用 `!` 断言。仅在**逻辑确实保证不可能为空**时使用
 - **No `as` Assertions**: 尽量减少 `as` 类型断言，最好不用。优先通过类型设计让类型自然推导
+- **No Bracket Notation for Property Access**: 禁止通过 `obj["prop"]` 或 `obj['prop']` 访问属性，优先使用点号 `obj.prop`。Bracket notation 属于隐式类型操作，绕过了类型检查且降低代码可读性
 
 ---
 
@@ -40,7 +41,7 @@
 // 错误：防御性代码 + 混合逻辑
 function processUser(user?: User) {
     if (!user || !user.address) {
-        return { error: "Missing data" };
+        return { error: 'Missing data' };
     }
     const tax = user.salary ? user.salary * 0.2 : 0;
     return { name: user.name, tax };
