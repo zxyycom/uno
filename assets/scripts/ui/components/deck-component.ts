@@ -5,6 +5,7 @@
 
 import { _decorator, Component, Label, Node } from 'cc';
 
+import { LocalPlayerProfile } from '../../client/local-player-profile';
 import { GameManager } from '../../core/machine/game-manager';
 import { eventBus, GameEventType } from '../../foundation/events';
 
@@ -77,7 +78,8 @@ export class DeckComponent extends Component {
     }
 
     private onDeckTapped(): void {
-        GameManager.getInstance()?.drawCard('player_0');
+        const localPlayerId = LocalPlayerProfile.getInstance().getLocalPlayerId();
+        GameManager.getInstance()?.drawCard(localPlayerId);
     }
 
     dispose(): void {

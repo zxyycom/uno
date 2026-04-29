@@ -72,10 +72,14 @@ export class AIAutoResponder extends Component {
             return;
         }
 
+        // 从玩家列表中统计 AI 数量
+        const aiCount = payload.players.filter(
+            (p) => p.type === PlayerType.AI
+        ).length;
         const config = this.createConfig({
             ...DEFAULT_GAME_CONFIG,
-            playerCount: payload.playerCount,
-            aiCount: payload.aiCount,
+            playerCount: payload.players.length,
+            aiCount,
         });
         aiManager.updateConfig(config);
     }

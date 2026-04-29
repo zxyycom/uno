@@ -1,4 +1,4 @@
-import { Card, CardColor, Player, TopCard } from '../types/game.types';
+import { Card, CardColor, GamePlayerSetup, Player, TopCard } from '../types/game.types';
 
 export enum GameEventType {
     // === 游戏流程事件 ===
@@ -43,10 +43,10 @@ export enum GameEventType {
 
 /** 游戏开始参数 */
 export interface StartGamePayload {
-    /** 玩家数量 */
-    playerCount: number;
-    /** AI数量 */
-    aiCount: number;
+    /** 玩家启动结构列表（已按 seatIndex 排序） */
+    players: readonly GamePlayerSetup[];
+    /** 本地玩家 ID */
+    localPlayerId: string;
 }
 
 /** 回合变更参数 */

@@ -91,6 +91,18 @@ export interface Player {
     calledUno: boolean;
 }
 
+/** 玩家启动结构 - 用于初始化游戏 */
+export interface GamePlayerSetup {
+    /** 玩家ID */
+    id: string;
+    /** 玩家名称 */
+    name: string;
+    /** 玩家类型 */
+    type: PlayerType;
+    /** 座位索引，只用于排序，绝对值不重要，4个玩家必须唯一且有序 */
+    seatIndex: number;
+}
+
 /** 游戏配置 */
 export interface GameConfig {
     /** 玩家数量 */

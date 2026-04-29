@@ -11,6 +11,7 @@ import {
     CardColor,
     DEFAULT_GAME_CONFIG,
     GameConfig,
+    GamePlayerSetup,
     Player,
     TopCard,
 } from '../../foundation/types/game.types';
@@ -94,15 +95,18 @@ export class GameManager extends Component {
     }
 
     /** 开始新游戏 */
-    startGame(playerCount: number = 1, aiCount: number = 1): void {
+    startGame(
+        players: readonly GamePlayerSetup[],
+        localPlayerId: string
+    ): void {
         this.initMachine();
         this.actor?.send({
             type: '开始游戏',
-            playerCount,
-            aiCount,
+            players,
+            localPlayerId,
         });
         const dealSeconds = Math.max(
-            ((playerCount + aiCount) * 7 * this.config.dealInterval) / 1000,
+            (players.length * 7 * this.config.dealInterval) / 1000,
             0.1
         );
         this.pendingInitCallback = () => {

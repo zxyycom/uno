@@ -6,6 +6,7 @@
 import {
     CardColor,
     GameDirection,
+    GamePlayerSetup,
     Player,
     PlayerType,
     TopCard,
@@ -24,26 +25,13 @@ export interface InitResult {
 }
 
 /**
- * 创建人类玩家
+ * 根据 GamePlayerSetup 创建 Player
  */
-function createHumanPlayer(): Player {
+function createPlayer(setup: GamePlayerSetup): Player {
     return {
-        id: 'player_0',
-        name: '你',
-        type: PlayerType.HUMAN,
-        hand: new CardCollection([]),
-        calledUno: false,
-    };
-}
-
-/**
- * 创建AI玩家
- */
-function createAiPlayer(index: number): Player {
-    return {
-        id: 'ai_' + index,
-        name: 'AI玩家' + index,
-        type: PlayerType.AI,
+        id: setup.id,
+        name: setup.name,
+        type: setup.type,
         hand: new CardCollection([]),
         calledUno: false,
     };
@@ -51,13 +39,10 @@ function createAiPlayer(index: number): Player {
 
 /**
  * 初始化玩家列表
+ * @param setups 玩家启动结构数组，按 seatIndex 排序
  */
-export function createPlayers(aiCount: number): Player[] {
-    const players: Player[] = [createHumanPlayer()];
-    for (let i = 1; i <= aiCount; i++) {
-        players.push(createAiPlayer(i));
-    }
-    return players;
+export function createPlayers(setups: readonly GamePlayerSetup[]): Player[] {
+    return setups.map((setup) => createPlayer(setup));
 }
 
 /**
@@ -115,15 +100,18 @@ export function dealInitialHands(
 
 /**
  * 一键初始化游戏
- * @param aiCount AI玩家数量
+ * @param setups 玩家启动结构数组
  * @returns 初始化结果
  */
-export function initializeGame(aiCount: number): InitResult {
+export function initializeGame(
+    setups: readonly GamePlayerSetup[]
+): InitResult {
     // 初始化全局随机种子
     initRandom();
 
-    // 1. 创建玩家
-    const players = createPlayers(aiCount);
+    // 1. 按 seatIndex 排序后创建玩家
+    const sortedSetups = [...setups].sort((a, b) => a.seatIndex - b.seatIndex);
+    const players = createPlayers(sortedSetups);
     const playManager = new PlayManager(players, 0, GameDirection.CLOCKWISE);
 
     // 2. 创建并洗牌

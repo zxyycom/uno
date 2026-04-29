@@ -9,6 +9,7 @@ import { eventBus, GameEventType } from '../../foundation/events';
 import {
     Card,
     CardColor,
+    GamePlayerSetup,
     Player,
     TopCard,
     UnoCardType,
@@ -35,8 +36,8 @@ export type GameMachineContext = {
 type GameMachineEvent =
     | {
           type: '开始游戏';
-          playerCount: number;
-          aiCount: number;
+          players: readonly GamePlayerSetup[];
+          localPlayerId: string;
       }
     | { type: '初始化结束' }
     | { type: '放弃出牌'; playerId: string; turn: number }
@@ -92,7 +93,7 @@ export const gameMachine = setup({
         初始化游戏: ({ context, event }) => {
             if (event.type !== '开始游戏') return;
             const { playManager, deckManager, topCard } = initializeGame(
-                event.aiCount
+                event.players
             );
             context.playManager = playManager;
             context.deckManager = deckManager;
@@ -101,8 +102,8 @@ export const gameMachine = setup({
             context.turn = 0;
 
             eventBus.emit(GameEventType.START_GAME, {
-                playerCount: event.playerCount,
-                aiCount: event.aiCount,
+                players: event.players,
+                localPlayerId: event.localPlayerId,
             });
             for (const player of context.playManager.players) {
                 eventBus.emit(GameEventType.HAND_UPDATED, {

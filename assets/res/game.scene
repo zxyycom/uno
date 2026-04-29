@@ -52,7 +52,7 @@
     },
     "autoReleaseAssets": false,
     "_globals": {
-      "__id__": 74
+      "__id__": 86
     },
     "_id": "aff68536-a607-4db2-a27f-e71130fe0933"
   },
@@ -75,13 +75,13 @@
     "_active": true,
     "_components": [
       {
-        "__id__": 71
+        "__id__": 83
       },
       {
-        "__id__": 72
+        "__id__": 84
       },
       {
-        "__id__": 73
+        "__id__": 85
       }
     ],
     "_prefab": null,
@@ -221,25 +221,37 @@
         "__id__": 10
       },
       {
-        "__id__": 57
+        "__id__": 77
       },
       {
-        "__id__": 65
+        "__id__": 69
       },
       {
-        "__id__": 61
+        "__id__": 73
       },
       {
         "__id__": 33
       },
       {
         "__id__": 28
+      },
+      {
+        "__id__": 57
+      },
+      {
+        "__id__": 60
+      },
+      {
+        "__id__": 63
+      },
+      {
+        "__id__": 66
       }
     ],
     "_active": true,
     "_components": [
       {
-        "__id__": 70
+        "__id__": 82
       }
     ],
     "_prefab": null,
@@ -290,10 +302,10 @@
         "__id__": 8
       },
       {
-        "__id__": 68
+        "__id__": 80
       },
       {
-        "__id__": 69
+        "__id__": 81
       }
     ],
     "_prefab": null,
@@ -359,27 +371,34 @@
     "_enabled": true,
     "__prefab": null,
     "autoStartOnLoad": true,
-    "playerCount": 1,
-    "aiCount": 3,
     "playerHand": {
       "__id__": 9
     },
     "deckComponent": {
       "__id__": 31
     },
-    "playerIndicators": null,
     "gameMessage": null,
-    "otherPlayerHands": [
-      {
-        "__id__": 56
-      },
-      {
-        "__id__": 60
-      },
-      {
-        "__id__": 64
-      }
-    ],
+    "playerIndicatorBottom": {
+      "__id__": 56
+    },
+    "playerIndicatorRight": {
+      "__id__": 59
+    },
+    "playerIndicatorTop": {
+      "__id__": 62
+    },
+    "playerIndicatorLeft": {
+      "__id__": 65
+    },
+    "otherPlayerHandRight": {
+      "__id__": 68
+    },
+    "otherPlayerHandTop": {
+      "__id__": 72
+    },
+    "otherPlayerHandLeft": {
+      "__id__": 76
+    },
     "_id": "5d93SRGKZOQLK+PNcSYqmb"
   },
   {
@@ -2154,7 +2173,7 @@
     "_id": "172zS0dEdNZrdMVNqmooV/"
   },
   {
-    "__type__": "1b29bzpGNVFpqP/59ICKDLX",
+    "__type__": "a6d03X0H1NK/5WTid42FB1N",
     "_name": "",
     "_objFlags": 0,
     "__editorExtras__": {},
@@ -2163,22 +2182,16 @@
     },
     "_enabled": true,
     "__prefab": null,
-    "cardManager": {
-      "__id__": 27
-    },
-    "expectedCardSpacing": 96,
-    "maxStackWidth": 420,
-    "placementCurve": {
-      "__id__": 59
-    },
-    "placementCurveScale": 80,
-    "fanAngle": 0,
-    "layoutTweenDuration": 0.12,
-    "_id": "77bRAfue5OLoGGMUCGQK07"
+    "nameLabel": null,
+    "avatarSprite": null,
+    "activeIndicator": null,
+    "unoIndicator": null,
+    "cardCountLabel": null,
+    "_id": "19B07Lp2tPJrs5tylfOXP+"
   },
   {
     "__type__": "cc.Node",
-    "_name": "OtherPlayerHandLeft",
+    "_name": "PlayerIndicatorBottom",
     "_objFlags": 0,
     "__editorExtras__": {},
     "_parent": {
@@ -2197,7 +2210,7 @@
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
-      "x": -760,
+      "x": 0,
       "y": 0,
       "z": 0
     },
@@ -2205,7 +2218,361 @@
       "__type__": "cc.Quat",
       "x": 0,
       "y": 0,
-      "z": -0.7071067811865475,
+      "z": 0,
+      "w": 1
+    },
+    "_lscale": {
+      "__type__": "cc.Vec3",
+      "x": 1,
+      "y": 1,
+      "z": 1
+    },
+    "_mobility": 0,
+    "_layer": 33554432,
+    "_euler": {
+      "__type__": "cc.Vec3",
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "_id": "06OJM9T1NE+aSNbcrNHMyz"
+  },
+  {
+    "__type__": "cc.UITransform",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 57
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "_contentSize": {
+      "__type__": "cc.Size",
+      "width": 100,
+      "height": 100
+    },
+    "_anchorPoint": {
+      "__type__": "cc.Vec2",
+      "x": 0.5,
+      "y": 0.5
+    },
+    "_id": "40G8E3J+dOLLhefwQyzBSD"
+  },
+  {
+    "__type__": "a6d03X0H1NK/5WTid42FB1N",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 60
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "nameLabel": null,
+    "avatarSprite": null,
+    "activeIndicator": null,
+    "unoIndicator": null,
+    "cardCountLabel": null,
+    "_id": "a0lNQUofpDToCSvj/Mw+BB"
+  },
+  {
+    "__type__": "cc.Node",
+    "_name": "PlayerIndicatorRight",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "_parent": {
+      "__id__": 5
+    },
+    "_children": [],
+    "_active": true,
+    "_components": [
+      {
+        "__id__": 61
+      },
+      {
+        "__id__": 59
+      }
+    ],
+    "_prefab": null,
+    "_lpos": {
+      "__type__": "cc.Vec3",
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "_lrot": {
+      "__type__": "cc.Quat",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "_lscale": {
+      "__type__": "cc.Vec3",
+      "x": 1,
+      "y": 1,
+      "z": 1
+    },
+    "_mobility": 0,
+    "_layer": 33554432,
+    "_euler": {
+      "__type__": "cc.Vec3",
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "_id": "d58rUEQwZBiIY2VuOr5yfZ"
+  },
+  {
+    "__type__": "cc.UITransform",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 60
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "_contentSize": {
+      "__type__": "cc.Size",
+      "width": 100,
+      "height": 100
+    },
+    "_anchorPoint": {
+      "__type__": "cc.Vec2",
+      "x": 0.5,
+      "y": 0.5
+    },
+    "_id": "43kkf6PY9CQbF3iNRrTmCd"
+  },
+  {
+    "__type__": "a6d03X0H1NK/5WTid42FB1N",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 63
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "nameLabel": null,
+    "avatarSprite": null,
+    "activeIndicator": null,
+    "unoIndicator": null,
+    "cardCountLabel": null,
+    "_id": "13Ud/x3bpEBKfdrVoUyA21"
+  },
+  {
+    "__type__": "cc.Node",
+    "_name": "PlayerIndicatorTop",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "_parent": {
+      "__id__": 5
+    },
+    "_children": [],
+    "_active": true,
+    "_components": [
+      {
+        "__id__": 64
+      },
+      {
+        "__id__": 62
+      }
+    ],
+    "_prefab": null,
+    "_lpos": {
+      "__type__": "cc.Vec3",
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "_lrot": {
+      "__type__": "cc.Quat",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "_lscale": {
+      "__type__": "cc.Vec3",
+      "x": 1,
+      "y": 1,
+      "z": 1
+    },
+    "_mobility": 0,
+    "_layer": 33554432,
+    "_euler": {
+      "__type__": "cc.Vec3",
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "_id": "75XfWZ0apB1LBVUVNOODYD"
+  },
+  {
+    "__type__": "cc.UITransform",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 63
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "_contentSize": {
+      "__type__": "cc.Size",
+      "width": 100,
+      "height": 100
+    },
+    "_anchorPoint": {
+      "__type__": "cc.Vec2",
+      "x": 0.5,
+      "y": 0.5
+    },
+    "_id": "b4Bl/q7v1GB4BIR0CQABST"
+  },
+  {
+    "__type__": "a6d03X0H1NK/5WTid42FB1N",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 66
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "nameLabel": null,
+    "avatarSprite": null,
+    "activeIndicator": null,
+    "unoIndicator": null,
+    "cardCountLabel": null,
+    "_id": "27lu2DAFhDpKm4QGuxoE/T"
+  },
+  {
+    "__type__": "cc.Node",
+    "_name": "PlayerIndicatorLeft",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "_parent": {
+      "__id__": 5
+    },
+    "_children": [],
+    "_active": true,
+    "_components": [
+      {
+        "__id__": 67
+      },
+      {
+        "__id__": 65
+      }
+    ],
+    "_prefab": null,
+    "_lpos": {
+      "__type__": "cc.Vec3",
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "_lrot": {
+      "__type__": "cc.Quat",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "_lscale": {
+      "__type__": "cc.Vec3",
+      "x": 1,
+      "y": 1,
+      "z": 1
+    },
+    "_mobility": 0,
+    "_layer": 33554432,
+    "_euler": {
+      "__type__": "cc.Vec3",
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "_id": "1byekJzchDapWuOQZIgi17"
+  },
+  {
+    "__type__": "cc.UITransform",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 66
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "_contentSize": {
+      "__type__": "cc.Size",
+      "width": 100,
+      "height": 100
+    },
+    "_anchorPoint": {
+      "__type__": "cc.Vec2",
+      "x": 0.5,
+      "y": 0.5
+    },
+    "_id": "1bMEsNMZBGALkXVkGIuE5A"
+  },
+  {
+    "__type__": "1b29bzpGNVFpqP/59ICKDLX",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 69
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "cardManager": {
+      "__id__": 27
+    },
+    "expectedCardSpacing": 96,
+    "maxStackWidth": 420,
+    "placementCurve": {
+      "__id__": 71
+    },
+    "placementCurveScale": 80,
+    "fanAngle": 0,
+    "layoutTweenDuration": 0.12,
+    "_id": "21eelUMCNDA7wQ1WvrAi1F"
+  },
+  {
+    "__type__": "cc.Node",
+    "_name": "OtherPlayerHandRight",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "_parent": {
+      "__id__": 5
+    },
+    "_children": [],
+    "_active": true,
+    "_components": [
+      {
+        "__id__": 70
+      },
+      {
+        "__id__": 68
+      }
+    ],
+    "_prefab": null,
+    "_lpos": {
+      "__type__": "cc.Vec3",
+      "x": 760,
+      "y": 0,
+      "z": 0
+    },
+    "_lrot": {
+      "__type__": "cc.Quat",
+      "x": 0,
+      "y": 0,
+      "z": 0.7071067811865475,
       "w": 0.7071067811865476
     },
     "_lscale": {
@@ -2220,9 +2587,9 @@
       "__type__": "cc.Vec3",
       "x": 0,
       "y": 0,
-      "z": -90
+      "z": 90
     },
-    "_id": "936pKWs6ZHTZ7vXw0tf+aE"
+    "_id": "b6DpngaZVAZ6YaiaFJ/Tja"
   },
   {
     "__type__": "cc.UITransform",
@@ -2230,7 +2597,7 @@
     "_objFlags": 0,
     "__editorExtras__": {},
     "node": {
-      "__id__": 57
+      "__id__": 69
     },
     "_enabled": true,
     "__prefab": null,
@@ -2244,7 +2611,7 @@
       "x": 0.5,
       "y": 0.5
     },
-    "_id": "6fDm0YVSlFapRcPxXd7TSg"
+    "_id": "d2pN3Hs8FB94RcyDCj/an0"
   },
   {
     "__type__": "cc.RealCurve",
@@ -2287,7 +2654,7 @@
     "_objFlags": 0,
     "__editorExtras__": {},
     "node": {
-      "__id__": 61
+      "__id__": 73
     },
     "_enabled": true,
     "__prefab": null,
@@ -2297,7 +2664,7 @@
     "expectedCardSpacing": 96,
     "maxStackWidth": 420,
     "placementCurve": {
-      "__id__": 63
+      "__id__": 75
     },
     "placementCurveScale": 80,
     "fanAngle": 0,
@@ -2316,10 +2683,10 @@
     "_active": true,
     "_components": [
       {
-        "__id__": 62
+        "__id__": 74
       },
       {
-        "__id__": 60
+        "__id__": 72
       }
     ],
     "_prefab": null,
@@ -2358,7 +2725,7 @@
     "_objFlags": 0,
     "__editorExtras__": {},
     "node": {
-      "__id__": 61
+      "__id__": 73
     },
     "_enabled": true,
     "__prefab": null,
@@ -2415,7 +2782,7 @@
     "_objFlags": 0,
     "__editorExtras__": {},
     "node": {
-      "__id__": 65
+      "__id__": 77
     },
     "_enabled": true,
     "__prefab": null,
@@ -2425,16 +2792,16 @@
     "expectedCardSpacing": 96,
     "maxStackWidth": 420,
     "placementCurve": {
-      "__id__": 67
+      "__id__": 79
     },
     "placementCurveScale": 80,
     "fanAngle": 0,
     "layoutTweenDuration": 0.12,
-    "_id": "21eelUMCNDA7wQ1WvrAi1F"
+    "_id": "77bRAfue5OLoGGMUCGQK07"
   },
   {
     "__type__": "cc.Node",
-    "_name": "OtherPlayerHandRight",
+    "_name": "OtherPlayerHandLeft",
     "_objFlags": 0,
     "__editorExtras__": {},
     "_parent": {
@@ -2444,16 +2811,16 @@
     "_active": true,
     "_components": [
       {
-        "__id__": 66
+        "__id__": 78
       },
       {
-        "__id__": 64
+        "__id__": 76
       }
     ],
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
-      "x": 760,
+      "x": -760,
       "y": 0,
       "z": 0
     },
@@ -2461,7 +2828,7 @@
       "__type__": "cc.Quat",
       "x": 0,
       "y": 0,
-      "z": 0.7071067811865475,
+      "z": -0.7071067811865475,
       "w": 0.7071067811865476
     },
     "_lscale": {
@@ -2476,9 +2843,9 @@
       "__type__": "cc.Vec3",
       "x": 0,
       "y": 0,
-      "z": 90
+      "z": -90
     },
-    "_id": "b6DpngaZVAZ6YaiaFJ/Tja"
+    "_id": "936pKWs6ZHTZ7vXw0tf+aE"
   },
   {
     "__type__": "cc.UITransform",
@@ -2486,7 +2853,7 @@
     "_objFlags": 0,
     "__editorExtras__": {},
     "node": {
-      "__id__": 65
+      "__id__": 77
     },
     "_enabled": true,
     "__prefab": null,
@@ -2500,7 +2867,7 @@
       "x": 0.5,
       "y": 0.5
     },
-    "_id": "d2pN3Hs8FB94RcyDCj/an0"
+    "_id": "6fDm0YVSlFapRcPxXd7TSg"
   },
   {
     "__type__": "cc.RealCurve",
@@ -2662,28 +3029,28 @@
   {
     "__type__": "cc.SceneGlobals",
     "ambient": {
-      "__id__": 75
+      "__id__": 87
     },
     "shadows": {
-      "__id__": 76
+      "__id__": 88
     },
     "_skybox": {
-      "__id__": 77
+      "__id__": 89
     },
     "fog": {
-      "__id__": 78
+      "__id__": 90
     },
     "octree": {
-      "__id__": 79
+      "__id__": 91
     },
     "skin": {
-      "__id__": 80
+      "__id__": 92
     },
     "lightProbeInfo": {
-      "__id__": 81
+      "__id__": 93
     },
     "postSettings": {
-      "__id__": 82
+      "__id__": 94
     },
     "bakedWithStationaryMainLight": false,
     "bakedWithHighpLightmap": false
