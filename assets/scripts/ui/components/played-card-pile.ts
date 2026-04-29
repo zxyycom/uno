@@ -118,7 +118,8 @@ export class PlayedCardPile extends Component {
         if (this.discardAnimating) {
             return;
         }
-        if (this.discardCardNodes.length > 0) {
+        if (this.discardTopCardNode) {
+            void this.applyCardSprite(this.discardTopCardNode, payload.topCard);
             return;
         }
         void this.placeDiscardTopInstant(payload.topCard);
@@ -145,6 +146,7 @@ export class PlayedCardPile extends Component {
 
         const cardNode = instantiate(this.discardCardPrefab);
         cardNode.setParent(discardParent);
+        cardNode.active = true;
 
         const deckLocal = parentTransform.convertToNodeSpaceAR(
             this.deckNode.worldPosition
@@ -156,13 +158,7 @@ export class PlayedCardPile extends Component {
         cardNode.setScale(0.9, 0.9, 1);
         cardNode.angle = 0;
 
-        const sprite = cardNode.getComponent(Sprite);
-        if (sprite) {
-            const spriteFrame = await loadCardSprite(card);
-            if (sprite && sprite.isValid && spriteFrame) {
-                sprite.spriteFrame = spriteFrame;
-            }
-        }
+        await this.applyCardSprite(cardNode, card);
 
         if (visualVersion !== this.discardVisualVersion || !cardNode.isValid) {
             this.destroyDiscardCardNode(cardNode);
@@ -205,6 +201,7 @@ export class PlayedCardPile extends Component {
         const visualVersion = this.discardVisualVersion;
         const cardNode = instantiate(this.discardCardPrefab);
         cardNode.setParent(discardParent);
+        cardNode.active = true;
 
         const discardLocal = parentTransform.convertToNodeSpaceAR(
             this.discardPileNode.worldPosition
@@ -213,13 +210,7 @@ export class PlayedCardPile extends Component {
         cardNode.setScale(Vec3.ONE);
         cardNode.angle = 0;
 
-        const sprite = cardNode.getComponent(Sprite);
-        if (sprite) {
-            const spriteFrame = await loadCardSprite(card);
-            if (sprite && sprite.isValid && spriteFrame) {
-                sprite.spriteFrame = spriteFrame;
-            }
-        }
+        await this.applyCardSprite(cardNode, card);
 
         if (visualVersion !== this.discardVisualVersion || !cardNode.isValid) {
             this.destroyDiscardCardNode(cardNode);
@@ -238,6 +229,32 @@ export class PlayedCardPile extends Component {
         }
         this.discardTopCardNode = cardNode;
         this.layoutDiscardStack();
+    }
+
+    private async applyCardSprite(cardNode: Node, card: Card): Promise<void> {
+        const sprite = this.getCardSprite(cardNode);
+        if (!sprite) {
+            return;
+        }
+
+        const spriteFrame = await loadCardSprite(card);
+        if (sprite && sprite.isValid && spriteFrame) {
+            sprite.spriteFrame = spriteFrame;
+        }
+    }
+
+    private getCardSprite(cardNode: Node): Sprite | null {
+        const rootSprite = cardNode.getComponent(Sprite);
+        if (rootSprite) {
+            return rootSprite;
+        }
+
+        const sprites = cardNode.getComponentsInChildren(Sprite);
+        if (sprites.length > 0) {
+            return sprites[0];
+        }
+
+        return null;
     }
 
     private layoutDiscardStack(): void {
