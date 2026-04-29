@@ -17,11 +17,17 @@ import {
 } from '../../foundation/utils/random-seed';
 import { getPlayableCards } from './input-validator';
 
-export type AIActionCallback = (action: {
-    action: 'play' | 'draw';
-    card?: Card;
-    chosenColor?: CardColor;
-}) => void;
+export type AIAction =
+    | {
+          action: 'play';
+          card: Card;
+          chosenColor?: CardColor;
+      }
+    | {
+          action: 'draw';
+      };
+
+export type AIActionCallback = (action: AIAction) => void;
 
 export class AIManager {
     private config: GameConfig;
@@ -44,10 +50,7 @@ export class AIManager {
         }, thinkTime);
     }
 
-    decideAIAction(
-        player: Player,
-        topCard: TopCard
-    ): { action: 'play' | 'draw'; card?: Card; chosenColor?: CardColor } {
+    decideAIAction(player: Player, topCard: TopCard): AIAction {
         const playableCards = getPlayableCards(player, topCard);
 
         if (playableCards.length === 0) {
@@ -58,17 +61,23 @@ export class AIManager {
         const actionCards = playableCards.filter(
             (c) => c.type !== UnoCardType.NUMBER
         );
-        // 20% 概率出道具牌
-        if (actionCards.length > 0 && randomInt(0, 99) < 20) {
-            const card = randomChoice(actionCards);
-            return { action: 'play', card };
-        }
-        // 随机出牌
-        const cardToPlay = randomChoice(
-            playableCards.filter((c) => c.type === UnoCardType.NUMBER)
+        const numberCards = playableCards.filter(
+            (c) => c.type === UnoCardType.NUMBER
         );
 
-        return { action: 'play', card: cardToPlay };
+        // 20% 概率出道具牌；如果没有数字牌，则必须从可出的道具牌中选择。
+        if (
+            actionCards.length > 0 &&
+            (numberCards.length === 0 || randomInt(0, 99) < 20)
+        ) {
+            const card = randomChoice(actionCards);
+            return this.createPlayAction(player, card);
+        }
+
+        // 随机出牌
+        const cardToPlay = randomChoice(numberCards);
+
+        return this.createPlayAction(player, cardToPlay);
     }
 
     cancelAIThink(): void {
@@ -84,5 +93,43 @@ export class AIManager {
 
     destroy(): void {
         this.cancelAIThink();
+    }
+
+    private createPlayAction(player: Player, card: Card): AIAction {
+        if (
+            card.type !== UnoCardType.WILD &&
+            card.type !== UnoCardType.WILD_DRAW_4
+        ) {
+            return { action: 'play', card };
+        }
+
+        return {
+            action: 'play',
+            card,
+            chosenColor: this.chooseWildColor(player),
+        };
+    }
+
+    private chooseWildColor(player: Player): CardColor {
+        const colors = [
+            CardColor.RED,
+            CardColor.YELLOW,
+            CardColor.GREEN,
+            CardColor.BLUE,
+        ];
+        let selectedColor = colors[0];
+        let selectedCount = -1;
+
+        for (const color of colors) {
+            const colorCount = player.hand.filter(
+                (card) => card.color === color
+            ).length;
+            if (colorCount > selectedCount) {
+                selectedColor = color;
+                selectedCount = colorCount;
+            }
+        }
+
+        return selectedColor;
     }
 }
