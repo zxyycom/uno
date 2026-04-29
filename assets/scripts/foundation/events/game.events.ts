@@ -35,6 +35,7 @@ export enum GameEventType {
     HAND_UPDATED = 'HAND_UPDATED',
     DECK_UPDATED = 'DECK_UPDATED',
     DISCARD_UPDATED = 'DISCARD_UPDATED',
+    DISCARD_CLEARED = 'DISCARD_CLEARED',
     CURRENT_PLAYER_UPDATED = 'CURRENT_PLAYER_UPDATED',
 }
 
@@ -229,6 +230,7 @@ export interface GameEvents {
     [GameEventType.HAND_UPDATED]: [payload: HandUpdatedPayload];
     [GameEventType.DECK_UPDATED]: [payload: DeckUpdatedPayload];
     [GameEventType.DISCARD_UPDATED]: [payload: DiscardUpdatedPayload];
+    [GameEventType.DISCARD_CLEARED]: [];
     [GameEventType.CURRENT_PLAYER_UPDATED]: [
         payload: CurrentPlayerUpdatedPayload,
     ];

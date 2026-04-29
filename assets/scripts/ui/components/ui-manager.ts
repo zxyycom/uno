@@ -13,7 +13,6 @@ import {
 } from '../../foundation/events';
 import { Card, CardColor, TopCard } from '../../foundation/types/game.types';
 import { DeckComponent } from './deck-component';
-import { GameBoard } from './game-board';
 import { GameMessage } from './game-message';
 import { OtherPlayerHand } from './other-player-hand';
 import { PlayerHand } from './player-hand';
@@ -32,9 +31,6 @@ export class UIManager extends Component {
 
     @property
     public aiCount: number = 3;
-
-    @property(GameBoard)
-    public gameBoard: GameBoard | null = null;
 
     @property(PlayerHand)
     public playerHand: PlayerHand | null = null;

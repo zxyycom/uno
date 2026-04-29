@@ -282,6 +282,9 @@ export const gameMachine = setup({
             eventBus.emit(GameEventType.DECK_UPDATED, {
                 remainingCards: context.deckManager.deckCount,
             });
+            if (result.reshuffled) {
+                eventBus.emit(GameEventType.DISCARD_CLEARED);
+            }
         },
     },
 }).createMachine({
