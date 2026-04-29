@@ -7,14 +7,7 @@
  * - 渲染函数：创建/销毁节点并把计算结果应用到 Cocos 节点。
  */
 
-import {
-    _decorator,
-    Component,
-    Node,
-    RealCurve,
-    Sprite,
-    Vec3,
-} from 'cc';
+import { _decorator, Component, Node, RealCurve, Sprite, Vec3 } from 'cc';
 
 import { loadCardSprite } from '../../core/deck/deck-resources';
 import { validateCanPlayCard } from '../../core/utils/input-validator';
@@ -175,7 +168,8 @@ export class PlayerHand extends Component {
 
     @property({
         type: RealCurve,
-        tooltip: '卡牌沿 X 轴展开时的 Y 轴偏移曲线；输入范围为 0 到 1，输出为本地坐标像素',
+        tooltip:
+            '卡牌沿 X 轴展开时的 Y 轴偏移曲线；输入范围为 0 到 1，输出为本地坐标像素',
         group: PLAYER_HAND_LAYOUT_GROUP,
     })
     public placementCurve: RealCurve = createDefaultPlacementCurve();
