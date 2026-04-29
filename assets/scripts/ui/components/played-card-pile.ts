@@ -6,18 +6,14 @@
 import {
     _decorator,
     Component,
-    instantiate,
     isValid,
     Node,
-    Prefab,
-    Sprite,
     tween,
     Tween,
     UITransform,
     Vec3,
 } from 'cc';
 
-import { loadCardSprite } from '../../core/deck/deck-resources';
 import {
     CardPlayedPayload,
     DiscardUpdatedPayload,
@@ -25,6 +21,7 @@ import {
     GameEventType,
 } from '../../foundation/events';
 import { Card } from '../../foundation/types/game.types';
+import { CardManager } from './card-manager';
 
 const { ccclass, property } = _decorator;
 
@@ -39,8 +36,11 @@ export class PlayedCardPile extends Component {
     @property(Node)
     public deckNode: Node | null = null;
 
-    @property(Prefab)
-    public discardCardPrefab: Prefab | null = null;
+    @property({
+        type: CardManager,
+        tooltip: '卡牌管理器，必须在编辑器中绑定',
+    })
+    public cardManager: CardManager | null = null;
 
     @property
     public discardFlyDuration: number = 0.28;
@@ -119,7 +119,6 @@ export class PlayedCardPile extends Component {
             return;
         }
         if (this.discardTopCardNode) {
-            void this.applyCardSprite(this.discardTopCardNode, payload.topCard);
             return;
         }
         void this.placeDiscardTopInstant(payload.topCard);
@@ -127,11 +126,7 @@ export class PlayedCardPile extends Component {
 
     /** 从牌堆飞到弃牌堆并保留牌面朝上 */
     private async animateCardToDiscard(card: Card): Promise<void> {
-        if (
-            !this.discardCardPrefab ||
-            !this.deckNode ||
-            !this.discardPileNode
-        ) {
+        if (!this.cardManager || !this.deckNode || !this.discardPileNode) {
             return;
         }
 
@@ -144,8 +139,10 @@ export class PlayedCardPile extends Component {
         this.discardAnimating = true;
         const visualVersion = this.discardVisualVersion;
 
-        const cardNode = instantiate(this.discardCardPrefab);
-        cardNode.setParent(discardParent);
+        const cardNode = await this.cardManager.acquireCard(
+            card,
+            discardParent
+        );
         cardNode.active = true;
 
         const deckLocal = parentTransform.convertToNodeSpaceAR(
@@ -157,8 +154,6 @@ export class PlayedCardPile extends Component {
         cardNode.setPosition(deckLocal);
         cardNode.setScale(0.9, 0.9, 1);
         cardNode.angle = 0;
-
-        await this.applyCardSprite(cardNode, card);
 
         if (visualVersion !== this.discardVisualVersion || !cardNode.isValid) {
             this.destroyDiscardCardNode(cardNode);
@@ -188,7 +183,7 @@ export class PlayedCardPile extends Component {
 
     /** 初始顶牌直接放置到弃牌堆 */
     private async placeDiscardTopInstant(card: Card): Promise<void> {
-        if (!this.discardCardPrefab || !this.discardPileNode) {
+        if (!this.cardManager || !this.discardPileNode) {
             return;
         }
 
@@ -199,8 +194,10 @@ export class PlayedCardPile extends Component {
         }
 
         const visualVersion = this.discardVisualVersion;
-        const cardNode = instantiate(this.discardCardPrefab);
-        cardNode.setParent(discardParent);
+        const cardNode = await this.cardManager.acquireCard(
+            card,
+            discardParent
+        );
         cardNode.active = true;
 
         const discardLocal = parentTransform.convertToNodeSpaceAR(
@@ -209,8 +206,6 @@ export class PlayedCardPile extends Component {
         cardNode.setPosition(discardLocal);
         cardNode.setScale(Vec3.ONE);
         cardNode.angle = 0;
-
-        await this.applyCardSprite(cardNode, card);
 
         if (visualVersion !== this.discardVisualVersion || !cardNode.isValid) {
             this.destroyDiscardCardNode(cardNode);
@@ -229,32 +224,6 @@ export class PlayedCardPile extends Component {
         }
         this.discardTopCardNode = cardNode;
         this.layoutDiscardStack();
-    }
-
-    private async applyCardSprite(cardNode: Node, card: Card): Promise<void> {
-        const sprite = this.getCardSprite(cardNode);
-        if (!sprite) {
-            return;
-        }
-
-        const spriteFrame = await loadCardSprite(card);
-        if (sprite && sprite.isValid && spriteFrame) {
-            sprite.spriteFrame = spriteFrame;
-        }
-    }
-
-    private getCardSprite(cardNode: Node): Sprite | null {
-        const rootSprite = cardNode.getComponent(Sprite);
-        if (rootSprite) {
-            return rootSprite;
-        }
-
-        const sprites = cardNode.getComponentsInChildren(Sprite);
-        if (sprites.length > 0) {
-            return sprites[0];
-        }
-
-        return null;
     }
 
     private layoutDiscardStack(): void {

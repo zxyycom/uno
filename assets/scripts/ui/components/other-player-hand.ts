@@ -8,16 +8,8 @@
  * - 使用实数曲线控制 Y 轴偏移，并按总扇形夹角均匀旋转
  */
 
-import {
-    _decorator,
-    Component,
-    Node,
-    RealCurve,
-    Sprite,
-    SpriteFrame,
-} from 'cc';
+import { _decorator, Component, Node, RealCurve } from 'cc';
 
-import { loadCardBackSprite } from '../../core/deck/deck-resources';
 import {
     eventBus,
     GameEventType,
@@ -31,7 +23,7 @@ import {
     createDefaultPlacementCurve,
     CurvedFanLayoutConfig,
 } from '../utils/hand-card-layout';
-import { CardNodePool } from './card-node-pool';
+import { CardManager } from './card-manager';
 
 const { ccclass, property } = _decorator;
 
@@ -50,11 +42,11 @@ const OTHER_PLAYER_HAND_BINDINGS_GROUP = {
 @ccclass('OtherPlayerHand')
 export class OtherPlayerHand extends Component {
     @property({
-        type: CardNodePool,
-        tooltip: '卡牌节点对象池，必须在编辑器中绑定',
+        type: CardManager,
+        tooltip: '卡牌管理器，必须在编辑器中绑定',
         group: OTHER_PLAYER_HAND_BINDINGS_GROUP,
     })
-    public cardNodePool!: CardNodePool;
+    public cardManager!: CardManager;
 
     @property({
         tooltip: '单张卡牌中心点预期间距；未超过最大宽度时直接使用该间距',
@@ -96,8 +88,6 @@ export class OtherPlayerHand extends Component {
 
     private playerId: string = '';
     private readonly cardNodes: Node[] = [];
-    private cardBackSprite: SpriteFrame = null!;
-    private cardBackLoadingPromise: Promise<void> | null = null;
     private layoutSignature: string = '';
 
     update(_dt: number): void {
@@ -111,7 +101,6 @@ export class OtherPlayerHand extends Component {
 
     start() {
         this.initEventSubscriptions();
-        void this.ensureCardBackLoaded();
     }
 
     onDestroy() {
@@ -130,7 +119,9 @@ export class OtherPlayerHand extends Component {
         eventBus.on(
             GameEventType.HAND_UPDATED,
             (payload) => {
-                this.onHandUpdated(payload);
+                if (payload.playerId === this.playerId) {
+                    this.onHandUpdated(payload);
+                }
             },
             this
         );
@@ -151,59 +142,16 @@ export class OtherPlayerHand extends Component {
 
     private syncCardNodes(targetCount: number): void {
         while (this.cardNodes.length < targetCount) {
-            const node = this.createCardBackNode();
+            const node = this.cardManager.acquireCardBack(this.node);
+            node.active = true;
+            node.setSiblingIndex(this.cardNodes.length);
             this.cardNodes.push(node);
         }
 
         while (this.cardNodes.length > targetCount) {
             const node = this.cardNodes.pop()!;
-            this.cardNodePool.release(node);
+            this.cardManager.releaseCard(node);
         }
-    }
-
-    private createCardBackNode(): Node {
-        const node = this.cardNodePool.acquire(this.node);
-        node.active = true;
-        node.setSiblingIndex(this.cardNodes.length);
-
-        if (this.cardBackSprite) {
-            this.applyCardBackSprite(node);
-        } else {
-            void this.ensureCardBackLoaded();
-        }
-
-        return node;
-    }
-
-    private async ensureCardBackLoaded(): Promise<void> {
-        if (this.cardBackSprite) {
-            return;
-        }
-        if (this.cardBackLoadingPromise) {
-            return this.cardBackLoadingPromise;
-        }
-
-        this.cardBackLoadingPromise = loadCardBackSprite()
-            .then((spriteFrame) => {
-                this.cardBackSprite = spriteFrame!;
-                this.applyCardBackSpriteToAllNodes();
-            })
-            .finally(() => {
-                this.cardBackLoadingPromise = null;
-            });
-
-        return this.cardBackLoadingPromise;
-    }
-
-    private applyCardBackSpriteToAllNodes(): void {
-        for (const node of this.cardNodes) {
-            this.applyCardBackSprite(node);
-        }
-    }
-
-    private applyCardBackSprite(node: Node): void {
-        const sprite = node.getComponent(Sprite)!;
-        sprite.spriteFrame = this.cardBackSprite;
     }
 
     private refreshCurvedFanLayoutIfChanged(animated: boolean): void {
@@ -262,7 +210,7 @@ export class OtherPlayerHand extends Component {
     private clearCards(): void {
         while (this.cardNodes.length > 0) {
             const node = this.cardNodes.pop()!;
-            this.cardNodePool.release(node);
+            this.cardManager.releaseCard(node);
         }
     }
 

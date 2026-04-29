@@ -12,6 +12,7 @@
             "library/": true,
             "local/": true,
             "temp/": true,
+            ".claude/worktrees/": true,
         },
         "search.exclude": {
             "**/node_modules": true,

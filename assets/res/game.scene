@@ -218,9 +218,6 @@
         "__id__": 6
       },
       {
-        "__id__": 28
-      },
-      {
         "__id__": 10
       },
       {
@@ -234,6 +231,9 @@
       },
       {
         "__id__": 33
+      },
+      {
+        "__id__": 28
       }
     ],
     "_active": true,
@@ -392,7 +392,7 @@
     },
     "_enabled": true,
     "__prefab": null,
-    "cardNodePool": {
+    "cardManager": {
       "__id__": 27
     },
     "expectedCardSpacing": 96,
@@ -1057,7 +1057,7 @@
     "_id": "d2lgFn+AVJdqdgEkABPKxe"
   },
   {
-    "__type__": "e5b0fu3TzxNGZo9XzjA5voR",
+    "__type__": "b68948vYyJCH7vDRVg2p9UV",
     "_name": "",
     "_objFlags": 0,
     "__editorExtras__": {},
@@ -1072,11 +1072,11 @@
     },
     "initialSize": 16,
     "maxRetainedNodes": 40,
-    "_id": "84sRNx0jBEb6GNBNYhg5Dm"
+    "_id": "eayJgd3q5N2LpebUKUCEPM"
   },
   {
     "__type__": "cc.Node",
-    "_name": "CardNodePool",
+    "_name": "CardManager",
     "_objFlags": 0,
     "__editorExtras__": {},
     "_parent": {
@@ -1120,7 +1120,7 @@
       "y": 0,
       "z": 0
     },
-    "_id": "98Ob4oGU9KB4HV35EujjvH"
+    "_id": "abejqPYKlC/48BTW9V+STo"
   },
   {
     "__type__": "cc.UITransform",
@@ -1134,15 +1134,15 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 10,
-      "height": 10
+      "width": 100,
+      "height": 100
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
       "x": 0.5,
       "y": 0.5
     },
-    "_id": "e7YVaGvKFEB5/Lx+iut2Sk"
+    "_id": "a3yHT9p85IxoJP1jVudKP2"
   },
   {
     "__type__": "cc.RealCurve",
@@ -1757,9 +1757,8 @@
     "deckNode": {
       "__id__": 32
     },
-    "discardCardPrefab": {
-      "__uuid__": "bf7500a1-0972-40cc-b4a3-d6706cfa1839",
-      "__expectedType__": "cc.Prefab"
+    "cardManager": {
+      "__id__": 27
     },
     "discardFlyDuration": 0.28,
     "maxStackedDiscardCards": 18,
@@ -2164,7 +2163,7 @@
     },
     "_enabled": true,
     "__prefab": null,
-    "cardNodePool": {
+    "cardManager": {
       "__id__": 27
     },
     "expectedCardSpacing": 96,
@@ -2292,7 +2291,7 @@
     },
     "_enabled": true,
     "__prefab": null,
-    "cardNodePool": {
+    "cardManager": {
       "__id__": 27
     },
     "expectedCardSpacing": 96,
@@ -2420,7 +2419,7 @@
     },
     "_enabled": true,
     "__prefab": null,
-    "cardNodePool": {
+    "cardManager": {
       "__id__": 27
     },
     "expectedCardSpacing": 96,

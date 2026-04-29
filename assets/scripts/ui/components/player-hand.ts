@@ -7,9 +7,8 @@
  * - 渲染函数：创建/销毁节点并把计算结果应用到 Cocos 节点。
  */
 
-import { _decorator, Component, Node, RealCurve, Sprite, Vec3 } from 'cc';
+import { _decorator, Component, Node, RealCurve, Vec3 } from 'cc';
 
-import { loadCardSprite } from '../../core/deck/deck-resources';
 import { validateCanPlayCard } from '../../core/utils/input-validator';
 import {
     eventBus,
@@ -30,7 +29,7 @@ import {
     createDefaultPlacementCurve,
     CurvedFanLayoutConfig,
 } from '../utils/hand-card-layout';
-import { CardNodePool } from './card-node-pool';
+import { CardManager } from './card-manager';
 
 const { ccclass, property } = _decorator;
 
@@ -93,7 +92,7 @@ function isWildCard(card: Card): boolean {
 
 /**
  * 判断当前卡牌在当前桌面顶牌下是否可出。
- * 纯计算函数：屏蔽“非自己回合/无顶牌”这类 UI 前置条件。
+ * 纯计算函数：屏蔽"非自己回合/无顶牌"这类 UI 前置条件。
  */
 function canPlayInCurrentTurn(
     card: Card,
@@ -146,13 +145,13 @@ function calculateFanCardLayout(input: FanLayoutInput): FanLayoutResult {
 
 @ccclass('PlayerHand')
 export class PlayerHand extends Component {
-    /** 卡牌节点对象池，必须在编辑器中绑定；不提供默认对象池 */
+    /** 卡牌管理器，必须在编辑器中绑定 */
     @property({
-        type: CardNodePool,
-        tooltip: '卡牌节点对象池，必须在编辑器中绑定；不提供默认对象池',
+        type: CardManager,
+        tooltip: '卡牌管理器，必须在编辑器中绑定',
         group: PLAYER_HAND_BINDINGS_GROUP,
     })
-    public cardNodePool!: CardNodePool;
+    public cardManager!: CardManager;
 
     @property({
         tooltip: '单张卡牌中心点预期间距；未超过最大宽度时直接使用该间距',
@@ -335,7 +334,7 @@ export class PlayerHand extends Component {
     private onHandUpdated(payload: HandUpdatedPayload): void {
         this.hoveredCardId = null;
         this.selectCard(null, false);
-        this.renderHand(payload.hand);
+        void this.renderHand(payload.hand);
     }
 
     /** 响应回合变化事件：维护当前回合状态，并刷新可出牌提示 */
@@ -360,27 +359,29 @@ export class PlayerHand extends Component {
     // ---------------------------------------------------------------------
 
     /** 重新渲染手牌节点：清空旧节点，再按当前手牌数据创建新节点 */
-    private renderHand(hand: readonly Card[]): void {
+    private async renderHand(hand: readonly Card[]): Promise<void> {
         this.clearCards();
 
+        const nodes = await Promise.all(
+            hand.map((card) => this.createCardNode(card))
+        );
+
         for (let i = 0; i < hand.length; i++) {
-            const card = hand[i];
-            const cardNode = this.createCardNode(card);
             const view: HandCardView = {
-                card,
-                node: cardNode,
+                card: hand[i],
+                node: nodes[i],
                 playable: false,
             };
             this.cardViews.push(view);
-            this.cardViewsById.set(card.id, view);
+            this.cardViewsById.set(hand[i].id, view);
         }
 
         this.refreshFanLayout(false);
     }
 
-    /** 创建单张卡牌节点，并绑定点击事件和异步牌面资源 */
-    private createCardNode(card: Card): Node {
-        const cardNode = this.cardNodePool.acquire(this.node);
+    /** 创建单张卡牌节点，并绑定点击事件 */
+    private async createCardNode(card: Card): Promise<Node> {
+        const cardNode = await this.cardManager.acquireCard(card, this.node);
         this.cardIdsByNode.set(cardNode, card.id);
         cardNode.on(
             Node.EventType.TOUCH_END,
@@ -418,20 +419,6 @@ export class PlayerHand extends Component {
             },
             this
         );
-
-        const sprite = cardNode.getComponent(Sprite);
-        if (sprite) {
-            void loadCardSprite(card).then((spriteFrame) => {
-                if (
-                    spriteFrame &&
-                    sprite &&
-                    sprite.isValid &&
-                    this.cardIdsByNode.get(cardNode) === card.id
-                ) {
-                    sprite.spriteFrame = spriteFrame;
-                }
-            });
-        }
 
         return cardNode;
     }
@@ -483,7 +470,7 @@ export class PlayerHand extends Component {
                 view.node.targetOff(this);
                 this.cardIdsByNode.delete(view.node);
             }
-            this.cardNodePool.release(view.node);
+            this.cardManager.releaseCard(view.node);
         }
         this.cardViews = [];
         this.cardViewsById.clear();
