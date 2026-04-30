@@ -56,8 +56,6 @@ export interface Card {
     color: CardColor | null;
     /** 数值(数字牌使用) */
     value: CardNumber | null;
-    /** 对应图片资源名 */
-    spriteName: string;
 }
 
 /** 卡牌集合接口：实现必须同时维护顺序与按 id 索引能力 */

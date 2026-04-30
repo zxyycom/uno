@@ -8,7 +8,6 @@ import {
     GameDirection,
     GamePlayerSetup,
     Player,
-    PlayerType,
     TopCard,
     UnoCardType,
 } from '../../foundation/types/game.types';
@@ -103,9 +102,7 @@ export function dealInitialHands(
  * @param setups 玩家启动结构数组
  * @returns 初始化结果
  */
-export function initializeGame(
-    setups: readonly GamePlayerSetup[]
-): InitResult {
+export function initializeGame(setups: readonly GamePlayerSetup[]): InitResult {
     // 初始化全局随机种子
     initRandom();
 

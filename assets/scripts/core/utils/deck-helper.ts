@@ -11,7 +11,6 @@ import {
     randomFloat,
     shuffle as shuffleWithSeed,
 } from '../../foundation/utils/random-seed';
-import { getSpriteName } from '../deck/deck-resources';
 
 /** 生成唯一ID */
 function generateCardId(
@@ -34,7 +33,6 @@ function createNumberCards(color: CardColor): Card[] {
                 type: UnoCardType.NUMBER,
                 color,
                 value,
-                spriteName: getSpriteName(color, UnoCardType.NUMBER, value),
             });
         }
     }
@@ -58,7 +56,6 @@ function createColorSpecialCards(color: CardColor): Card[] {
                 type,
                 color,
                 value: null,
-                spriteName: getSpriteName(color, type, null),
             });
         }
     }
@@ -75,18 +72,12 @@ function createWildCards(): Card[] {
             type: UnoCardType.WILD,
             color: null,
             value: null,
-            spriteName: getSpriteName(CardColor.RED, UnoCardType.WILD, null),
         });
         cards.push({
             id: generateCardId('wild', 'null', 'draw4'),
             type: UnoCardType.WILD_DRAW_4,
             color: null,
             value: null,
-            spriteName: getSpriteName(
-                CardColor.RED,
-                UnoCardType.WILD_DRAW_4,
-                null
-            ),
         });
     }
     return cards;
