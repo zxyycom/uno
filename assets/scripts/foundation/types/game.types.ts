@@ -133,4 +133,6 @@ export interface TopCard {
     draw2Count: number;
     /** +4连续计数 */
     draw4Count: number;
+    /** 当前顶牌的加牌惩罚是否已被摸牌结算 */
+    isDrawPenaltyResolved: boolean;
 }

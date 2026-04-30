@@ -124,6 +124,7 @@ export function initializeGame(setups: readonly GamePlayerSetup[]): InitResult {
         activeColor: firstCard.color || CardColor.RED,
         draw2Count: 0,
         draw4Count: 0,
+        isDrawPenaltyResolved: true,
     };
 
     return {

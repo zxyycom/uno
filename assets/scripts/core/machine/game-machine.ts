@@ -179,6 +179,9 @@ export const gameMachine = setup({
                     ? chosenColor || context.topCard.activeColor
                     : removedCard.color;
 
+            const isDrawPenaltyCard =
+                removedCard.type === UnoCardType.DRAW_2 ||
+                removedCard.type === UnoCardType.WILD_DRAW_4;
             const draw2Count =
                 topCard.draw2Count +
                 (removedCard.type === UnoCardType.DRAW_2 ? 1 : 0);
@@ -191,6 +194,7 @@ export const gameMachine = setup({
                 activeColor: newColor || topCard.activeColor,
                 draw2Count,
                 draw4Count,
+                isDrawPenaltyResolved: !isDrawPenaltyCard,
             };
 
             const player = playerManager.player;
@@ -269,6 +273,7 @@ export const gameMachine = setup({
             // 惩罚牌被摸走后重置
             context.topCard.draw2Count = 0;
             context.topCard.draw4Count = 0;
+            context.topCard.isDrawPenaltyResolved = true;
 
             const drawPlayer = drawPlayerManager.player;
             eventBus.emit(GameEventType.CARDS_DRAWN, {

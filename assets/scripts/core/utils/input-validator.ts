@@ -25,8 +25,11 @@ export function validateCanPlayCard(card: Card, topCard: TopCard): boolean {
     const topType = topCard.card.type;
     const cardType = card.type;
 
-    // 加牌只能接加牌
-    if (topType === UnoCardType.WILD_DRAW_4 || topType === UnoCardType.DRAW_2) {
+    // 加牌惩罚未结算时，只能出加牌
+    if (
+        (topType === UnoCardType.WILD_DRAW_4 || topType === UnoCardType.DRAW_2) &&
+        !topCard.isDrawPenaltyResolved
+    ) {
         return (
             cardType === UnoCardType.WILD_DRAW_4 ||
             cardType === UnoCardType.DRAW_2
