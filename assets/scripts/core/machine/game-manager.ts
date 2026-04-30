@@ -6,6 +6,7 @@
 import { _decorator, Component } from 'cc';
 import { Actor, createActor } from '../../../libs/npm/xstate/xstate.js';
 
+import { eventBus, GameEventType } from '../../foundation/events';
 import {
     Card,
     CardColor,
@@ -68,6 +69,11 @@ export class GameManager extends Component {
     /** 超时定时器回调 */
     private timeoutCallback: (() => void) | null = null;
 
+    /** 倒计时同步 tick */
+    private turnStartTime: number = 0;
+    private turnSyncTickHandle: (() => void) | null = null;
+    private turnSyncActive: boolean = false;
+
     /** 启动超时定时器 */
     private startTimeoutTimer(): void {
         this.cancelTimeoutTimer();
@@ -77,6 +83,7 @@ export class GameManager extends Component {
             this.onTimeout(currentPlayer.id);
         };
         this.scheduleOnce(this.timeoutCallback, this.config.timeoutSeconds);
+        this.startTimerSync(currentPlayer.id);
     }
 
     /** 取消超时定时器 */
@@ -85,6 +92,42 @@ export class GameManager extends Component {
             this.unschedule(this.timeoutCallback);
             this.timeoutCallback = null;
         }
+        this.cancelTimerSync();
+    }
+
+    /** 启动回合倒计时同步 tick */
+    private startTimerSync(playerId: string): void {
+        this.cancelTimerSync();
+        this.turnStartTime = Date.now();
+        this.turnSyncActive = true;
+        const tick = (): void => {
+            if (!this.turnSyncActive) return;
+            const elapsedSeconds = (Date.now() - this.turnStartTime) / 1000;
+            const remainingSeconds = Math.max(
+                0,
+                Math.ceil(this.config.timeoutSeconds - elapsedSeconds)
+            );
+            eventBus.emit(GameEventType.TURN_TIMER_SYNC, {
+                playerId,
+                turn: this.currentTurn,
+                remainingSeconds,
+                totalSeconds: this.config.timeoutSeconds,
+            });
+            this.turnSyncTickHandle = tick;
+            this.scheduleOnce(tick, 1);
+        };
+        this.turnSyncTickHandle = tick;
+        this.scheduleOnce(tick, 0);
+    }
+
+    /** 取消倒计时同步 tick */
+    private cancelTimerSync(): void {
+        this.turnSyncActive = false;
+        if (this.turnSyncTickHandle) {
+            this.unschedule(this.turnSyncTickHandle);
+            this.turnSyncTickHandle = null;
+        }
+        this.turnStartTime = 0;
     }
 
     private cancelPendingInit(): void {

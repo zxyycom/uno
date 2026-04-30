@@ -43,6 +43,9 @@ export enum GameEventType {
     DISCARD_UPDATED = 'DISCARD_UPDATED',
     DISCARD_CLEARED = 'DISCARD_CLEARED',
     CURRENT_PLAYER_UPDATED = 'CURRENT_PLAYER_UPDATED',
+
+    // === 倒计时同步 ===
+    TURN_TIMER_SYNC = 'TURN_TIMER_SYNC',
 }
 
 // ==================== Payload 类型 ====================
@@ -205,6 +208,14 @@ export interface CurrentPlayerUpdatedPayload {
     player: Player;
 }
 
+/** 回合倒计时同步参数 */
+export interface TurnTimerSyncPayload {
+    playerId: string;
+    turn: number;
+    remainingSeconds: number;
+    totalSeconds: number;
+}
+
 /** 回合开始参数 */
 export interface TurnStartedPayload {
     /** 当前玩家完整信息 */
@@ -240,4 +251,5 @@ export interface GameEvents {
     [GameEventType.CURRENT_PLAYER_UPDATED]: [
         payload: CurrentPlayerUpdatedPayload,
     ];
+    [GameEventType.TURN_TIMER_SYNC]: [payload: TurnTimerSyncPayload];
 }
