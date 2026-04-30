@@ -17,11 +17,11 @@ import {
     UIOpacity,
 } from 'cc';
 
+import { Card } from '../../foundation/types/game.types';
 import {
     loadCardBackSprite,
     loadCardSprite,
-} from '../../core/deck/deck-resources';
-import { Card } from '../../foundation/types/game.types';
+} from '../resources/card-sprite-loader';
 
 const { ccclass, property } = _decorator;
 
@@ -157,7 +157,7 @@ export class CardManager extends Component {
 
     /** 重置节点基础状态 */
     private resetNode(cardNode: Node): void {
-        if (!cardNode || !cardNode.isValid) {
+        if (!cardNode.isValid) {
             return;
         }
 

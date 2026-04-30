@@ -1,19 +1,18 @@
 /**
- * UNO卡牌资源管理
- * 负责卡牌Sprite资源的加载与key生成
+ * 卡牌精灵图异步加载
+ * 封装 Cocos AssetManager 的 bundle 与 SpriteFrame 加载。
+ * 资源加载失败属于外部运行时边界，返回 null 并 warn。
  */
 
 import { AssetManager, assetManager, SpriteFrame } from 'cc';
 
-import {
-    Card,
-    CardColor,
-    CardNumber,
-    UnoCardType,
-} from '../../foundation/types/game.types';
+import { Card } from '../../foundation/types/game.types';
+import { getCardSpriteKey } from './card-sprite-resolver';
 
 const BUNDLE_NAME = 'res';
 const CARD_BACK_SPRITE_NAME = 'Deck';
+const SPRITE_PATH_PREFIX = 'image/h200/';
+const SPRITE_PATH_SUFFIX = '/spriteFrame';
 
 let _bundleCache: AssetManager.Bundle | null = null;
 let _loadingPromise: Promise<AssetManager.Bundle | null> | null = null;
@@ -31,7 +30,7 @@ async function loadResBundle(): Promise<AssetManager.Bundle | null> {
         assetManager.loadBundle(BUNDLE_NAME, (err, bundle) => {
             if (err) {
                 console.warn(
-                    `[DeckResources] Failed to load bundle: ${BUNDLE_NAME}`,
+                    `[CardSpriteLoader] Failed to load bundle: ${BUNDLE_NAME}`,
                     err
                 );
                 _loadingPromise = null;
@@ -47,57 +46,6 @@ async function loadResBundle(): Promise<AssetManager.Bundle | null> {
     return _loadingPromise;
 }
 
-// 资源路径前缀
-const SPRITE_PATH_PREFIX = 'image/h200/';
-// 图片资源后缀
-const SPRITE_PATH_SUFFIX = '/spriteFrame';
-
-/**
- * 根据卡牌参数获取精灵图路径
- */
-export function getSpriteName(
-    color: CardColor,
-    type: UnoCardType,
-    value: CardNumber | null
-): string {
-    if (type === UnoCardType.WILD || type === UnoCardType.WILD_DRAW_4) {
-        return type === UnoCardType.WILD_DRAW_4 ? 'Wild_Draw' : 'Wild';
-    }
-
-    const colorMap: Record<CardColor, string> = {
-        [CardColor.RED]: 'Red',
-        [CardColor.YELLOW]: 'Yellow',
-        [CardColor.GREEN]: 'Green',
-        [CardColor.BLUE]: 'Blue',
-    };
-
-    const prefix = colorMap[color];
-
-    if (type === UnoCardType.NUMBER && value !== null) {
-        return `${prefix}_${value}`;
-    }
-
-    switch (type) {
-        case UnoCardType.REVERSE:
-            return `${prefix}_Reverse`;
-        case UnoCardType.SKIP:
-            return `${prefix}_Skip`;
-        case UnoCardType.DRAW_2:
-            return `${prefix}_Draw`;
-        default:
-            return `${prefix}_${type}`;
-    }
-}
-
-/**
- * 根据卡牌获取Sprite资源路径key
- */
-function getCardSpriteKey(card: Card): string {
-    return getSpriteKeyByName(
-        getSpriteName(card.color ?? CardColor.RED, card.type, card.value)
-    );
-}
-
 function getSpriteKeyByName(spriteName: string): string {
     return SPRITE_PATH_PREFIX + spriteName + SPRITE_PATH_SUFFIX;
 }
@@ -108,7 +56,7 @@ async function loadSpriteFrameByKey(
     const bundle = await loadResBundle();
 
     if (!bundle) {
-        console.warn(`[DeckResources] Bundle "${BUNDLE_NAME}" not found`);
+        console.warn(`[CardSpriteLoader] Bundle "${BUNDLE_NAME}" not found`);
         return null;
     }
 
@@ -116,7 +64,7 @@ async function loadSpriteFrameByKey(
         bundle.load(spriteKey, SpriteFrame, (err, spriteFrame) => {
             if (err) {
                 console.warn(
-                    `[DeckResources] Failed to load sprite: ${spriteKey}`,
+                    `[CardSpriteLoader] Failed to load sprite: ${spriteKey}`,
                     err
                 );
                 resolve(null);
@@ -128,7 +76,8 @@ async function loadSpriteFrameByKey(
 }
 
 /**
- * 加载卡牌SpriteFrame（异步）
+ * 加载卡牌 SpriteFrame（异步）。
+ * 加载失败返回 null，调用方据此降级处理。
  */
 export async function loadCardSprite(card: Card): Promise<SpriteFrame | null> {
     const spriteKey = getCardSpriteKey(card);
@@ -136,7 +85,8 @@ export async function loadCardSprite(card: Card): Promise<SpriteFrame | null> {
 }
 
 /**
- * 加载卡背 SpriteFrame（异步）
+ * 加载卡背 SpriteFrame（异步）。
+ * 加载失败返回 null。
  */
 export async function loadCardBackSprite(): Promise<SpriteFrame | null> {
     const spriteKey = getSpriteKeyByName(CARD_BACK_SPRITE_NAME);
@@ -144,12 +94,12 @@ export async function loadCardBackSprite(): Promise<SpriteFrame | null> {
 }
 
 /**
- * 批量预加载卡牌资源
+ * 批量预加载卡牌资源。
  */
 export async function preloadCardSprites(cards: Card[]): Promise<void> {
     const bundle = await loadResBundle();
     if (!bundle) {
-        console.warn(`[DeckResources] Bundle "${BUNDLE_NAME}" not found`);
+        console.warn(`[CardSpriteLoader] Bundle "${BUNDLE_NAME}" not found`);
         return;
     }
 
@@ -162,7 +112,7 @@ export async function preloadCardSprites(cards: Card[]): Promise<void> {
     for (const key of uniqueKeys) {
         bundle.load(key, SpriteFrame, (err) => {
             if (err) {
-                console.warn(`[DeckResources] Preload failed: ${key}`, err);
+                console.warn(`[CardSpriteLoader] Preload failed: ${key}`, err);
             }
         });
     }
