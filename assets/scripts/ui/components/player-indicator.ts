@@ -108,15 +108,14 @@ export class PlayerIndicator extends Component {
         }
     }
 
+    private lastActiveState: boolean = false;
+
     /** 设置激活状态 */
     public setActive(active: boolean): void {
+        if (active === this.lastActiveState) return;
+        this.lastActiveState = active;
         if (this.activeIndicator) {
             this.activeIndicator.active = active;
-        }
-
-        // TODO: 添加动画效果
-        if (active) {
-            console.log(`[PlayerIndicator] ${this.playerId} 回合开始`);
         }
     }
 

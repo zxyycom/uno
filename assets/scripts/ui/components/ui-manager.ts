@@ -12,7 +12,6 @@ import {
     eventBus,
     GameEventType,
     StartGamePayload,
-    TurnChangedPayload,
 } from '../../foundation/events';
 import {
     Card,
@@ -21,39 +20,18 @@ import {
     PlayerType,
     TopCard,
 } from '../../foundation/types/game.types';
+import {
+    calculateDirectionBinding,
+    PlayerIdByDirection,
+} from '../utils/seat-direction';
 import { DeckComponent } from './deck-component';
 import { GameMessage } from './game-message';
 import { OtherPlayerHand } from './other-player-hand';
 import { PlayerHand } from './player-hand';
-import { PlayerIndicator } from './player-indicator';
+import { PlayerSlotController } from './player-slot-controller';
 
 const { ccclass, property } = _decorator;
 const AI_DISPLAY_NAMES = ['小橘子', '阳光男孩', '酷盖'];
-
-/**
- * 根据本地玩家ID和玩家列表推算方位绑定
- * @param players 排序后的玩家列表（按 seatIndex 升序）
- * @param localPlayerId 本地玩家ID
- * @returns 方位映射，bottom=本地玩家，right/top/left 分别为后1/2/3位
- */
-export function calculateDirectionBinding(
-    players: readonly GamePlayerSetup[],
-    localPlayerId: string
-): {
-    bottom: string;
-    right: string;
-    top: string;
-    left: string;
-} {
-    const localIndex = players.findIndex((p) => p.id === localPlayerId);
-    const count = players.length;
-    return {
-        bottom: players[localIndex].id,
-        right: players[(localIndex + 1) % count].id,
-        top: players[(localIndex + 2) % count].id,
-        left: players[(localIndex + 3) % count].id,
-    };
-}
 
 @ccclass('UIManager')
 export class UIManager extends Component {
@@ -69,18 +47,18 @@ export class UIManager extends Component {
     @property(GameMessage)
     public gameMessage: GameMessage = null!;
 
-    // 方位绑定的玩家指示器
-    @property(PlayerIndicator)
-    public playerIndicatorBottom: PlayerIndicator = null!;
+    // 方位绑定的玩家槽位控制器
+    @property(PlayerSlotController)
+    public playerSlotBottom: PlayerSlotController = null!;
 
-    @property(PlayerIndicator)
-    public playerIndicatorRight: PlayerIndicator = null!;
+    @property(PlayerSlotController)
+    public playerSlotRight: PlayerSlotController = null!;
 
-    @property(PlayerIndicator)
-    public playerIndicatorTop: PlayerIndicator = null!;
+    @property(PlayerSlotController)
+    public playerSlotTop: PlayerSlotController = null!;
 
-    @property(PlayerIndicator)
-    public playerIndicatorLeft: PlayerIndicator = null!;
+    @property(PlayerSlotController)
+    public playerSlotLeft: PlayerSlotController = null!;
 
     // 方位绑定的其他玩家手牌
     @property(OtherPlayerHand)
@@ -97,12 +75,7 @@ export class UIManager extends Component {
 
     // 方位绑定状态
     private localPlayerId: string = '';
-    private playerIdByDirection: {
-        bottom: string;
-        right: string;
-        top: string;
-        left: string;
-    } | null = null;
+    private playerIdByDirection: PlayerIdByDirection | null = null;
 
     start() {
         this.initEventSubscriptions();
@@ -134,14 +107,6 @@ export class UIManager extends Component {
             GameEventType.DISCARD_UPDATED,
             (payload) => {
                 this.onDiscardUpdated(payload);
-            },
-            this
-        );
-
-        eventBus.on(
-            GameEventType.TURN_CHANGED,
-            (payload) => {
-                this.onTurnChanged(payload);
             },
             this
         );
@@ -184,48 +149,31 @@ export class UIManager extends Component {
             if (player.type === PlayerType.HUMAN) {
                 return player.name;
             }
-            // AI 玩家使用固定名称
             const aiIndex = sortedPlayers
                 .filter((p) => p.type === PlayerType.AI)
                 .findIndex((p) => p.id === player.id);
             return AI_DISPLAY_NAMES[aiIndex] ?? `AI玩家${aiIndex + 1}`;
         };
 
-        // 绑定玩家指示器
-        const bindIndicator = (
-            indicator: PlayerIndicator,
-            playerId: string
+        // 绑定玩家槽位控制器
+        const bindSlot = (
+            controller: PlayerSlotController,
+            playerId: string,
+            dir: 'bottom' | 'right' | 'top' | 'left'
         ) => {
-            const player = sortedPlayers.find((p) => p.id === playerId);
-            if (player) {
-                indicator.init(playerId, getDisplayName(player));
-            }
+            const player = sortedPlayers.find((p) => p.id === playerId)!;
+            const isLocal = playerId === localPlayerId;
+            controller.initSlot(playerId, getDisplayName(player), isLocal, dir);
         };
 
-        bindIndicator(
-            this.playerIndicatorBottom,
-            this.playerIdByDirection.bottom
+        bindSlot(
+            this.playerSlotBottom,
+            this.playerIdByDirection.bottom,
+            'bottom'
         );
-        bindIndicator(
-            this.playerIndicatorRight,
-            this.playerIdByDirection.right
-        );
-        bindIndicator(this.playerIndicatorTop, this.playerIdByDirection.top);
-        bindIndicator(this.playerIndicatorLeft, this.playerIdByDirection.left);
-    }
-
-    /** 处理回合变化 - 只更新高亮，不重新排座位 */
-    private onTurnChanged(payload: TurnChangedPayload): void {
-        const currentId = payload.currentPlayer.id;
-
-        const updateIndicator = (indicator: PlayerIndicator) => {
-            indicator.setActive(indicator.getPlayerId() === currentId);
-        };
-
-        updateIndicator(this.playerIndicatorBottom);
-        updateIndicator(this.playerIndicatorRight);
-        updateIndicator(this.playerIndicatorTop);
-        updateIndicator(this.playerIndicatorLeft);
+        bindSlot(this.playerSlotRight, this.playerIdByDirection.right, 'right');
+        bindSlot(this.playerSlotTop, this.playerIdByDirection.top, 'top');
+        bindSlot(this.playerSlotLeft, this.playerIdByDirection.left, 'left');
     }
 
     /** 初始化UI组件 */
