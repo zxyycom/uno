@@ -78,7 +78,8 @@ export class DeckComponent extends Component {
     }
 
     private onDeckTapped(): void {
-        const localPlayerId = LocalPlayerProfile.getInstance().getLocalPlayerId();
+        const localPlayerId =
+            LocalPlayerProfile.getInstance().getLocalPlayerId();
         GameManager.getInstance()?.drawCard(localPlayerId);
     }
 

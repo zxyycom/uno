@@ -61,11 +61,7 @@ export function randomFloat(min: number, max: number): number {
  * 从数组中随机选择一个元素
  */
 export function randomChoice<T>(array: T[]): T {
-    const result = getRandom().choice(array);
-    if (result === undefined) {
-        throw new Error('Cannot choose from empty array');
-    }
-    return result;
+    return getRandom().choice(array)!;
 }
 
 /**

@@ -1,4 +1,10 @@
-import { Card, CardColor, GamePlayerSetup, Player, TopCard } from '../types/game.types';
+import {
+    Card,
+    CardColor,
+    GamePlayerSetup,
+    Player,
+    TopCard,
+} from '../types/game.types';
 
 export enum GameEventType {
     // === 游戏流程事件 ===

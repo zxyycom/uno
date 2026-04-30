@@ -3,7 +3,7 @@
  * 协调所有UI组件的初始化和事件订阅
  */
 
-import { _decorator, Component, Node } from 'cc';
+import { _decorator, Component } from 'cc';
 
 import { LocalPlayerProfile } from '../../client/local-player-profile';
 import { GameManager } from '../../core/machine/game-manager';
@@ -44,11 +44,8 @@ export function calculateDirectionBinding(
     right: string;
     top: string;
     left: string;
-} | null {
+} {
     const localIndex = players.findIndex((p) => p.id === localPlayerId);
-    if (localIndex === -1) {
-        return null;
-    }
     const count = players.length;
     return {
         bottom: players[localIndex].id,
@@ -64,38 +61,38 @@ export class UIManager extends Component {
     public autoStartOnLoad: boolean = true;
 
     @property(PlayerHand)
-    public playerHand: PlayerHand | null = null;
+    public playerHand: PlayerHand = null!;
 
     @property(DeckComponent)
-    public deckComponent: DeckComponent | null = null;
+    public deckComponent: DeckComponent = null!;
 
     @property(GameMessage)
-    public gameMessage: GameMessage | null = null;
+    public gameMessage: GameMessage = null!;
 
     // 方位绑定的玩家指示器
     @property(PlayerIndicator)
-    public playerIndicatorBottom: PlayerIndicator | null = null;
+    public playerIndicatorBottom: PlayerIndicator = null!;
 
     @property(PlayerIndicator)
-    public playerIndicatorRight: PlayerIndicator | null = null;
+    public playerIndicatorRight: PlayerIndicator = null!;
 
     @property(PlayerIndicator)
-    public playerIndicatorTop: PlayerIndicator | null = null;
+    public playerIndicatorTop: PlayerIndicator = null!;
 
     @property(PlayerIndicator)
-    public playerIndicatorLeft: PlayerIndicator | null = null;
+    public playerIndicatorLeft: PlayerIndicator = null!;
 
     // 方位绑定的其他玩家手牌
     @property(OtherPlayerHand)
-    public otherPlayerHandRight: OtherPlayerHand | null = null;
+    public otherPlayerHandRight: OtherPlayerHand = null!;
 
     @property(OtherPlayerHand)
-    public otherPlayerHandTop: OtherPlayerHand | null = null;
+    public otherPlayerHandTop: OtherPlayerHand = null!;
 
     @property(OtherPlayerHand)
-    public otherPlayerHandLeft: OtherPlayerHand | null = null;
+    public otherPlayerHandLeft: OtherPlayerHand = null!;
 
-    private gameManager: GameManager | null = null;
+    private gameManager: GameManager = null!;
     private currentTopCard: TopCard | null = null;
 
     // 方位绑定状态
@@ -166,35 +163,21 @@ export class UIManager extends Component {
             sortedPlayers,
             localPlayerId
         );
-        if (!direction) {
-            console.warn(
-                `[UIManager] localPlayerId ${localPlayerId} not found in players`
-            );
-            return;
-        }
 
         this.localPlayerId = localPlayerId;
         this.playerIdByDirection = direction;
 
         // 绑定本地玩家手牌
-        if (this.playerHand) {
-            this.playerHand.init(this.localPlayerId, this);
-        }
+        this.playerHand.init(this.localPlayerId, this);
 
         // 绑定其他玩家手牌
         const rightId = this.playerIdByDirection.right;
         const topId = this.playerIdByDirection.top;
         const leftId = this.playerIdByDirection.left;
 
-        if (this.otherPlayerHandRight) {
-            this.otherPlayerHandRight.init(rightId);
-        }
-        if (this.otherPlayerHandTop) {
-            this.otherPlayerHandTop.init(topId);
-        }
-        if (this.otherPlayerHandLeft) {
-            this.otherPlayerHandLeft.init(leftId);
-        }
+        this.otherPlayerHandRight.init(rightId);
+        this.otherPlayerHandTop.init(topId);
+        this.otherPlayerHandLeft.init(leftId);
 
         // 获取AI玩家显示名称
         const getDisplayName = (player: GamePlayerSetup): string => {
@@ -210,10 +193,9 @@ export class UIManager extends Component {
 
         // 绑定玩家指示器
         const bindIndicator = (
-            indicator: PlayerIndicator | null,
+            indicator: PlayerIndicator,
             playerId: string
         ) => {
-            if (!indicator) return;
             const player = sortedPlayers.find((p) => p.id === playerId);
             if (player) {
                 indicator.init(playerId, getDisplayName(player));
@@ -236,33 +218,24 @@ export class UIManager extends Component {
     private onTurnChanged(payload: TurnChangedPayload): void {
         const currentId = payload.currentPlayer.id;
 
-        const updateIndicator = (
-            indicator: PlayerIndicator | null,
-            isActive: boolean
-        ) => {
-            if (indicator) {
-                indicator.setActive(indicator.getPlayerId() === currentId);
-            }
+        const updateIndicator = (indicator: PlayerIndicator) => {
+            indicator.setActive(indicator.getPlayerId() === currentId);
         };
 
-        updateIndicator(this.playerIndicatorBottom, false);
-        updateIndicator(this.playerIndicatorRight, false);
-        updateIndicator(this.playerIndicatorTop, false);
-        updateIndicator(this.playerIndicatorLeft, false);
+        updateIndicator(this.playerIndicatorBottom);
+        updateIndicator(this.playerIndicatorRight);
+        updateIndicator(this.playerIndicatorTop);
+        updateIndicator(this.playerIndicatorLeft);
     }
 
     /** 初始化UI组件 */
     private initUIComponents(): void {
         // 获取游戏管理器
-        this.gameManager = GameManager.getInstance();
+        this.gameManager = GameManager.getInstance()!;
     }
 
     /** 开始新游戏 */
     public startNewGame(): void {
-        if (!this.gameManager) {
-            return;
-        }
-
         const localProfile = LocalPlayerProfile.getInstance();
         const localPlayerId = localProfile.getLocalPlayerId();
         const localPlayerName = localProfile.getLocalPlayerName();
@@ -299,8 +272,8 @@ export class UIManager extends Component {
     }
 
     /** 提供给当前玩家手牌读取的顶牌信息，由 UIManager 通过事件维护 */
-    public getTopCard(): TopCard | null {
-        return this.currentTopCard;
+    public getTopCard(): TopCard {
+        return this.currentTopCard!;
     }
 
     /** 提供给当前玩家手牌触发出牌，统一由 UIManager 转发到游戏管理器 */
@@ -309,13 +282,13 @@ export class UIManager extends Component {
         card: Card,
         chosenColor?: CardColor
     ): void {
-        this.gameManager?.playCard(playerId, card, chosenColor);
+        this.gameManager.playCard(playerId, card, chosenColor);
     }
 
     /** 弃牌堆更新：同步 UI 层顶牌状态，并通知手牌刷新可出牌提示 */
     private onDiscardUpdated(payload: DiscardUpdatedPayload): void {
         this.currentTopCard = payload.topCardInfo;
-        this.playerHand?.refreshPlayableCards(true);
+        this.playerHand.refreshPlayableCards(true);
     }
 
     /** 取消订阅 */

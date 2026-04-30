@@ -34,7 +34,7 @@ import { CardManager } from './card-manager';
 const { ccclass, property } = _decorator;
 
 export type PlayerHandContext = {
-    getTopCard(): TopCard | null;
+    getTopCard(): TopCard;
     playCard(playerId: string, card: Card, chosenColor?: CardColor): void;
 };
 
@@ -61,7 +61,7 @@ type FanLayoutInput = {
     isMyTurn: boolean;
     hoveredCardId: string | null;
     selectedCardId: string | null;
-    topCard: TopCard | null;
+    topCard: TopCard;
     config: FanLayoutConfig;
 };
 
@@ -97,9 +97,9 @@ function isWildCard(card: Card): boolean {
 function canPlayInCurrentTurn(
     card: Card,
     isMyTurn: boolean,
-    topCard: TopCard | null
+    topCard: TopCard
 ): boolean {
-    return Boolean(isMyTurn && topCard && validateCanPlayCard(card, topCard));
+    return isMyTurn && validateCanPlayCard(card, topCard);
 }
 
 /**
@@ -223,7 +223,7 @@ export class PlayerHand extends Component {
         tooltip: '万能牌颜色选择面板节点',
         group: PLAYER_HAND_BINDINGS_GROUP,
     })
-    public wildColorPanel: Node | null = null;
+    public wildColorPanel: Node = null!;
 
     /** 万能牌选择红色按钮节点 */
     @property({
@@ -231,7 +231,7 @@ export class PlayerHand extends Component {
         tooltip: '万能牌选择红色按钮节点',
         group: PLAYER_HAND_BINDINGS_GROUP,
     })
-    public wildRedButton: Node | null = null;
+    public wildRedButton: Node = null!;
 
     /** 万能牌选择黄色按钮节点 */
     @property({
@@ -239,7 +239,7 @@ export class PlayerHand extends Component {
         tooltip: '万能牌选择黄色按钮节点',
         group: PLAYER_HAND_BINDINGS_GROUP,
     })
-    public wildYellowButton: Node | null = null;
+    public wildYellowButton: Node = null!;
 
     /** 万能牌选择绿色按钮节点 */
     @property({
@@ -247,7 +247,7 @@ export class PlayerHand extends Component {
         tooltip: '万能牌选择绿色按钮节点',
         group: PLAYER_HAND_BINDINGS_GROUP,
     })
-    public wildGreenButton: Node | null = null;
+    public wildGreenButton: Node = null!;
 
     /** 万能牌选择蓝色按钮节点 */
     @property({
@@ -255,7 +255,7 @@ export class PlayerHand extends Component {
         tooltip: '万能牌选择蓝色按钮节点',
         group: PLAYER_HAND_BINDINGS_GROUP,
     })
-    public wildBlueButton: Node | null = null;
+    public wildBlueButton: Node = null!;
 
     private cardViews: HandCardView[] = [];
     private readonly cardViewsById = new Map<string, HandCardView>();
@@ -551,10 +551,7 @@ export class PlayerHand extends Component {
     }
 
     /** 绑定单个颜色按钮 */
-    private bindColorButton(node: Node | null, color: CardColor): void {
-        if (!node) {
-            return;
-        }
+    private bindColorButton(node: Node, color: CardColor): void {
         node.on(
             Node.EventType.TOUCH_END,
             () => {
@@ -578,16 +575,12 @@ export class PlayerHand extends Component {
 
     /** 显示万能牌颜色选择面板 */
     private showWildColorPanel(): void {
-        if (this.wildColorPanel) {
-            this.wildColorPanel.active = true;
-        }
+        this.wildColorPanel.active = true;
     }
 
     /** 隐藏万能牌颜色选择面板 */
     private hideWildColorPanel(): void {
-        if (this.wildColorPanel) {
-            this.wildColorPanel.active = false;
-        }
+        this.wildColorPanel.active = false;
     }
 
     /** 汇总布局配置，便于纯计算函数只接收必要数据 */
