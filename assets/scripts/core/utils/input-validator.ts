@@ -36,6 +36,11 @@ export function validateCanPlayCard(card: Card, topCard: TopCard): boolean {
         );
     }
 
+    // 万能牌在任何非加牌惩罚状态下始终可出
+    if (cardType === UnoCardType.WILD || cardType === UnoCardType.WILD_DRAW_4) {
+        return true;
+    }
+
     // 颜色匹配
     if (card.color === topCard.activeColor) {
         return true;
