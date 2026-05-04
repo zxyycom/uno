@@ -18,9 +18,7 @@
             "title": "修复初始发牌逻辑",
             "status": "ready",
             "description": "修复每个玩家拿到同一组初始手牌的问题，并保证初始顶牌从发牌后的剩余牌堆中抽取。",
-            "targetFiles": [
-                "assets/scripts/core/game/game-initializer.ts"
-            ],
+            "targetFiles": ["assets/scripts/core/game/game-initializer.ts"],
             "implementationNotes": [
                 "重写 dealInitialHands 的发牌流程，使用 deck.splice(0, 7) 按顺序从牌堆顶部每次取出 7 张分配给每个玩家，splice 从原数组移除取出的牌，天然保证手牌不重复且剩余牌堆不含手牌。",
                 "初始顶牌必须从发完手牌后的剩余牌堆中抽取。",
@@ -40,9 +38,7 @@
             "title": "修复万能牌合法性",
             "status": "ready",
             "description": "让 WILD 和 WILD_DRAW_4 在普通状态下被 validateCanPlayCard 正确识别为可出牌。",
-            "targetFiles": [
-                "assets/scripts/core/utils/input-validator.ts"
-            ],
+            "targetFiles": ["assets/scripts/core/utils/input-validator.ts"],
             "implementationNotes": [
                 "在无加牌惩罚待结算时，WILD 与 WILD_DRAW_4 应直接视为可出。",
                 "保留加牌惩罚未结算时只能继续出 DRAW_2 或 WILD_DRAW_4 的现有叠加规则。",
@@ -80,18 +76,14 @@
                 "后续玩家摸牌或回合推进时，不会因当前顶牌仍是 SKIP/REVERSE 而再次触发同一效果。",
                 "加牌惩罚叠加与结算逻辑不被该改动破坏。"
             ],
-            "dependencies": [
-                "T01"
-            ]
+            "dependencies": ["T01"]
         },
         {
             "id": "T04",
             "title": "修复弃牌堆重洗保留顶牌",
             "status": "ready",
             "description": "修复 reshuffleDiscardPile 把当前桌面顶牌一起洗回抽牌堆的问题。",
-            "targetFiles": [
-                "assets/scripts/core/deck/deck-manager.ts"
-            ],
+            "targetFiles": ["assets/scripts/core/deck/deck-manager.ts"],
             "implementationNotes": [
                 "重洗时从弃牌堆中保留最后一张牌作为当前顶牌。",
                 "只将当前顶牌之前的弃牌洗入抽牌堆。",
@@ -112,9 +104,7 @@
             "title": "清理 ui-game-events.ts",
             "status": "ready",
             "description": "删除已经完全无引用、无场景挂载的旧 UI 事件监听器。",
-            "targetFiles": [
-                "assets/scripts/ui/listeners/ui-game-events.ts"
-            ],
+            "targetFiles": ["assets/scripts/ui/listeners/ui-game-events.ts"],
             "implementationNotes": [
                 "确认 UIGameEvents 没有 import 引用，也没有场景或预制体挂载。",
                 "删除 ui-game-events.ts 源文件。",
@@ -133,9 +123,7 @@
             "title": "清理 player-indicator.ts",
             "status": "ready",
             "description": "删除已被 PlayerSlot 组件体系替代且不再挂载的旧玩家指示器组件。",
-            "targetFiles": [
-                "assets/scripts/ui/components/player-indicator.ts"
-            ],
+            "targetFiles": ["assets/scripts/ui/components/player-indicator.ts"],
             "implementationNotes": [
                 "确认 PlayerIndicator 没有 import 引用，也没有场景或预制体挂载。",
                 "删除 player-indicator.ts 源文件。",
@@ -154,9 +142,7 @@
             "title": "清理 card-node-pool.ts",
             "status": "ready",
             "description": "删除已被 CardManager 内部 NodePool 覆盖且不再挂载的旧卡牌节点池组件。",
-            "targetFiles": [
-                "assets/scripts/ui/components/card-node-pool.ts"
-            ],
+            "targetFiles": ["assets/scripts/ui/components/card-node-pool.ts"],
             "implementationNotes": [
                 "确认 CardNodePool 没有 import 引用，也没有场景或预制体挂载。",
                 "删除 card-node-pool.ts 源文件。",
@@ -193,12 +179,7 @@
                 "如新增测试，测试可通过项目命令运行。",
                 "如未新增测试，最终说明中明确记录原因和剩余风险。"
             ],
-            "dependencies": [
-                "T01",
-                "T02",
-                "T03",
-                "T04"
-            ]
+            "dependencies": ["T01", "T02", "T03", "T04"]
         },
         {
             "id": "T09",
@@ -239,9 +220,7 @@
             "title": "更新文件索引",
             "status": "ready",
             "description": "更新 .claude/FILE_INDEX.md，反映 T05/T06/T07 删除的废弃 UI 组件文件，以及最新的目录结构。",
-            "targetFiles": [
-                ".claude/FILE_INDEX.md"
-            ],
+            "targetFiles": [".claude/FILE_INDEX.md"],
             "implementationNotes": [
                 "移除 card-node-pool.ts、player-indicator.ts、ui-game-events.ts 的条目（对应 T05/T06/T07 的删除）。",
                 "如果 T01-T04 涉及新增文件或路径变更，同步更新相应条目。"
@@ -250,12 +229,7 @@
                 "FILE_INDEX.md 中不再列出已删除的三个废弃 UI 组件。",
                 "文件总数与 find assets/scripts -name '*.ts' | wc -l 结果一致。"
             ],
-            "dependencies": [
-                "T05",
-                "T06",
-                "T07",
-                "T09"
-            ]
+            "dependencies": ["T05", "T06", "T07", "T09"]
         }
     ]
 }

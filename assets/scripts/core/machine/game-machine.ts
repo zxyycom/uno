@@ -155,7 +155,10 @@ export const gameMachine = setup({
 
                 // SKIP/REVERSE 效果已在此处应用完毕，标记为已结算
                 // DRAW_2/WILD_DRAW_4 的摸牌惩罚由摸牌环节结算，不在此处标记
-                if (topCard.card.type === UnoCardType.SKIP || topCard.card.type === UnoCardType.REVERSE) {
+                if (
+                    topCard.card.type === UnoCardType.SKIP ||
+                    topCard.card.type === UnoCardType.REVERSE
+                ) {
                     context.topCard.isEffectResolved = true;
                 }
             }

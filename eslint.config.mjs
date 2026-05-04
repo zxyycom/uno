@@ -34,6 +34,7 @@ export default [
             'docs/**',
             '**/*.d.ts',
             'extensions/**',
+            '.claude/worktrees/**',
         ],
     },
 

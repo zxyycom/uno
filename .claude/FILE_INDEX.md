@@ -9,9 +9,9 @@
 
 ### deck/
 
-| 文件                                                            | 说明                         |
-| --------------------------------------------------------------- | ---------------------------- |
-| [deck-manager.ts](assets/scripts/core/deck/deck-manager.ts)   | 牌堆管理器 - 抽卡/弃牌堆管理 |
+| 文件                                                        | 说明                         |
+| ----------------------------------------------------------- | ---------------------------- |
+| [deck-manager.ts](assets/scripts/core/deck/deck-manager.ts) | 牌堆管理器 - 抽卡/弃牌堆管理 |
 
 ### game/
 
@@ -59,7 +59,7 @@
 
 | 文件                                                             | 说明         |
 | ---------------------------------------------------------------- | ------------ |
-| [logger.ts](assets/scripts/foundation/utils/logger.ts)         | 日志工具     |
+| [logger.ts](assets/scripts/foundation/utils/logger.ts)           | 日志工具     |
 | [random-seed.ts](assets/scripts/foundation/utils/random-seed.ts) | 随机种子工具 |
 
 ---
@@ -68,23 +68,23 @@
 
 ### components/
 
-| 文件                                                                        | 说明             |
-| --------------------------------------------------------------------------- | ---------------- |
-| [ai-auto-responder.ts](assets/scripts/ui/components/ai-auto-responder.ts)   | AI 自动响应器    |
-| [card-manager.ts](assets/scripts/ui/components/card-manager.ts)             | 卡牌管理器       |
-| [card-node-pool.ts](assets/scripts/ui/components/card-node-pool.ts)         | 卡牌节点池       |
-| [deck-component.ts](assets/scripts/ui/components/deck-component.ts)         | 牌堆组件         |
-| [game-message.ts](assets/scripts/ui/components/game-message.ts)             | 游戏消息组件     |
-| [other-player-hand.ts](assets/scripts/ui/components/other-player-hand.ts)   | 其他玩家手牌     |
-| [played-card-pile.ts](assets/scripts/ui/components/played-card-pile.ts)     | 弃牌堆组件       |
-| [player-hand.ts](assets/scripts/ui/components/player-hand.ts)               | 玩家手牌组件     |
-| [player-hand-count-view.ts](assets/scripts/ui/components/player-hand-count-view.ts) | 手牌数量视图 |
-| [player-indicator.ts](assets/scripts/ui/components/player-indicator.ts)     | 玩家指示器       |
-| [player-seat-view.ts](assets/scripts/ui/components/player-seat-view.ts)   | 玩家座位视图     |
+| 文件                                                                                | 说明           |
+| ----------------------------------------------------------------------------------- | -------------- |
+| [ai-auto-responder.ts](assets/scripts/ui/components/ai-auto-responder.ts)           | AI 自动响应器  |
+| [card-manager.ts](assets/scripts/ui/components/card-manager.ts)                     | 卡牌管理器     |
+| [card-node-pool.ts](assets/scripts/ui/components/card-node-pool.ts)                 | 卡牌节点池     |
+| [deck-component.ts](assets/scripts/ui/components/deck-component.ts)                 | 牌堆组件       |
+| [game-message.ts](assets/scripts/ui/components/game-message.ts)                     | 游戏消息组件   |
+| [other-player-hand.ts](assets/scripts/ui/components/other-player-hand.ts)           | 其他玩家手牌   |
+| [played-card-pile.ts](assets/scripts/ui/components/played-card-pile.ts)             | 弃牌堆组件     |
+| [player-hand.ts](assets/scripts/ui/components/player-hand.ts)                       | 玩家手牌组件   |
+| [player-hand-count-view.ts](assets/scripts/ui/components/player-hand-count-view.ts) | 手牌数量视图   |
+| [player-indicator.ts](assets/scripts/ui/components/player-indicator.ts)             | 玩家指示器     |
+| [player-seat-view.ts](assets/scripts/ui/components/player-seat-view.ts)             | 玩家座位视图   |
 | [player-slot-controller.ts](assets/scripts/ui/components/player-slot-controller.ts) | 玩家槽位控制器 |
-| [player-turn-countdown.ts](assets/scripts/ui/components/player-turn-countdown.ts) | 回合倒计时     |
-| [player-turn-indicator.ts](assets/scripts/ui/components/player-turn-indicator.ts) | 回合指示器   |
-| [ui-manager.ts](assets/scripts/ui/components/ui-manager.ts)                 | UI 管理器       |
+| [player-turn-countdown.ts](assets/scripts/ui/components/player-turn-countdown.ts)   | 回合倒计时     |
+| [player-turn-indicator.ts](assets/scripts/ui/components/player-turn-indicator.ts)   | 回合指示器     |
+| [ui-manager.ts](assets/scripts/ui/components/ui-manager.ts)                         | UI 管理器      |
 
 ### listeners/
 
@@ -94,24 +94,24 @@
 
 ### resources/
 
-| 文件                                                                        | 说明             |
-| --------------------------------------------------------------------------- | ---------------- |
-| [card-sprite-loader.ts](assets/scripts/ui/resources/card-sprite-loader.ts)   | 卡牌精灵加载器   |
+| 文件                                                                           | 说明           |
+| ------------------------------------------------------------------------------ | -------------- |
+| [card-sprite-loader.ts](assets/scripts/ui/resources/card-sprite-loader.ts)     | 卡牌精灵加载器 |
 | [card-sprite-resolver.ts](assets/scripts/ui/resources/card-sprite-resolver.ts) | 卡牌精灵解析器 |
 
 ### utils/
 
-| 文件                                                           | 说明             |
-| -------------------------------------------------------------- | ---------------- |
+| 文件                                                               | 说明         |
+| ------------------------------------------------------------------ | ------------ |
 | [hand-card-layout.ts](assets/scripts/ui/utils/hand-card-layout.ts) | 手牌布局工具 |
-| [seat-direction.ts](assets/scripts/ui/utils/seat-direction.ts)     | 座位方向工具   |
+| [seat-direction.ts](assets/scripts/ui/utils/seat-direction.ts)     | 座位方向工具 |
 
 ---
 
 ## Client Layer (客户端层)
 
-| 文件                                                                        | 说明         |
-| --------------------------------------------------------------------------- | ------------ |
-| [local-player-profile.ts](assets/scripts/client/local-player-profile.ts)   | 本地玩家档案 |
+| 文件                                                                     | 说明         |
+| ------------------------------------------------------------------------ | ------------ |
+| [local-player-profile.ts](assets/scripts/client/local-player-profile.ts) | 本地玩家档案 |
 
 ---

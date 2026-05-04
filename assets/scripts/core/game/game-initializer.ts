@@ -81,7 +81,10 @@ export function dealInitialHands(
     let firstCard = remainingDeck.pop()!;
 
     // TODO: WILD_DRAW_4 as initial top card — skip and find next valid card
-    while (firstCard.type === UnoCardType.WILD_DRAW_4 && remainingDeck.length > 0) {
+    while (
+        firstCard.type === UnoCardType.WILD_DRAW_4 &&
+        remainingDeck.length > 0
+    ) {
         remainingDeck.unshift(firstCard);
         firstCard = remainingDeck.pop()!;
     }

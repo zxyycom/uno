@@ -79,7 +79,8 @@ export class DeckManager {
         if (failOnInsufficient) {
             if (
                 autoReshuffleOnInsufficient &&
-                this._deck.length + Math.max(0, this._discardPile.length - 1) < count
+                this._deck.length + Math.max(0, this._discardPile.length - 1) <
+                    count
             ) {
                 return {
                     reason: 'insufficient',
@@ -129,7 +130,10 @@ export class DeckManager {
     reshuffleDiscardPile(): void {
         if (this._discardPile.length < 2) return;
 
-        this._deck = shuffle([...this._deck, ...this._discardPile.slice(0, -1)]);
+        this._deck = shuffle([
+            ...this._deck,
+            ...this._discardPile.slice(0, -1),
+        ]);
         this._discardPile = [this._discardPile[this._discardPile.length - 1]];
     }
 
