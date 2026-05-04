@@ -63,28 +63,28 @@ export function dealInitialHands(
     activeColor: CardColor;
 } {
     const cardsPerPlayer = 7;
-    const deck = deckManager.deck;
+    const deck = [...deckManager.deck];
 
-    // 发牌给每个玩家
-    const updatedPlayers = playManager.players.map((player) => ({
-        ...player,
-        hand: new CardCollection(deck.slice(0, cardsPerPlayer)),
-    }));
+    // 发牌给每个玩家 - 依次分配不重复的手牌
+    let dealIndex = 0;
+    const updatedPlayers = playManager.players.map((player) => {
+        const handCards = deck.slice(dealIndex, dealIndex + cardsPerPlayer);
+        dealIndex += cardsPerPlayer;
+        return {
+            ...player,
+            hand: new CardCollection(handCards),
+        };
+    });
 
-    // 复制牌堆并抽取第一张牌
-    const deckCopy = [...deck];
-    let firstCard = deckCopy.pop()!;
+    // 从发牌后的剩余牌堆中抽取初始顶牌
+    const remainingDeck = deck.slice(dealIndex);
+    let firstCard = remainingDeck.pop()!;
 
-    // 确保第一张牌不是 WILD_DRAW_4
-    while (firstCard.type === UnoCardType.WILD_DRAW_4 && deckCopy.length > 0) {
-        deckCopy.unshift(firstCard);
-        firstCard = deckCopy.pop()!;
+    // TODO: WILD_DRAW_4 as initial top card — skip and find next valid card
+    while (firstCard.type === UnoCardType.WILD_DRAW_4 && remainingDeck.length > 0) {
+        remainingDeck.unshift(firstCard);
+        firstCard = remainingDeck.pop()!;
     }
-
-    // 剩余牌堆（去掉已发的手牌）
-    const remainingDeck = deckCopy.slice(
-        cardsPerPlayer * updatedPlayers.length
-    );
 
     return {
         playManager: new PlayManager(
