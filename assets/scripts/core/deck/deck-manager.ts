@@ -79,7 +79,7 @@ export class DeckManager {
         if (failOnInsufficient) {
             if (
                 autoReshuffleOnInsufficient &&
-                this._deck.length + this._discardPile.length < count
+                this._deck.length + Math.max(0, this._discardPile.length - 1) < count
             ) {
                 return {
                     reason: 'insufficient',
@@ -124,13 +124,13 @@ export class DeckManager {
     }
 
     /**
-     * 弃牌堆洗牌（将弃牌堆全部洗入牌堆）
+     * 弃牌堆洗牌（保留当前顶牌，其余洗入牌堆）
      */
     reshuffleDiscardPile(): void {
-        if (this._discardPile.length < 1) return;
+        if (this._discardPile.length < 2) return;
 
-        this._deck = shuffle([...this._discardPile]);
-        this._discardPile = [];
+        this._deck = shuffle([...this._deck, ...this._discardPile.slice(0, -1)]);
+        this._discardPile = [this._discardPile[this._discardPile.length - 1]];
     }
 
     /**
