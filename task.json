@@ -1,0 +1,261 @@
+{
+    "title": "UNO 核心规则修复与废弃 UI 组件清理",
+    "status": "ready_for_agent_execution",
+    "summary": "修复初始发牌、万能牌合法性、SKIP/REVERSE 重复结算、弃牌堆重洗保留顶牌四个核心规则问题，并清理 ui-game-events.ts、player-indicator.ts、card-node-pool.ts 三个已不再接入运行链路的旧 UI 组件。",
+    "executionMode": "execute_changes_not_planning",
+    "constraints": [
+        "只做纯代码修复，不检查或调整场景设计。",
+        "禁止手动编辑 .scene、.prefab、.meta 文件。",
+        "不手动删除 .meta 文件；如需资源元数据清理，交给 Cocos Creator 或后续专门资源清理流程。",
+        "不新增 any，不使用 as 类型断言绕过类型系统。",
+        "不使用 try/catch、默认值兜底或可选链隐藏内部流程错误。",
+        "依赖方向保持 UI -> Foundation/Core，Core 不依赖 UI。",
+        "格式化唯一使用 pnpm run format；本任务若只修改少量代码，可在执行后按项目要求决定是否运行。"
+    ],
+    "tasks": [
+        {
+            "id": "T01",
+            "title": "修复初始发牌逻辑",
+            "status": "ready",
+            "description": "修复每个玩家拿到同一组初始手牌的问题，并保证初始顶牌从发牌后的剩余牌堆中抽取。",
+            "targetFiles": [
+                "assets/scripts/core/game/game-initializer.ts"
+            ],
+            "implementationNotes": [
+                "重写 dealInitialHands 的发牌流程，使用 deck.splice(0, 7) 按顺序从牌堆顶部每次取出 7 张分配给每个玩家，splice 从原数组移除取出的牌，天然保证手牌不重复且剩余牌堆不含手牌。",
+                "初始顶牌必须从发完手牌后的剩余牌堆中抽取。",
+                "splice 方式天然保证返回的 DeckManager.deck 仅含剩余牌堆（不含玩家手牌或当前顶牌）。",
+                "在初始顶牌抽取逻辑处加 TODO：WILD_DRAW_4 作为初始顶牌时继续寻找下一张可出牌，被跳过牌保留在剩余牌堆（暂不实现）。"
+            ],
+            "acceptanceCriteria": [
+                "开局所有玩家各有 7 张牌。",
+                "任意两个玩家的初始手牌不会是同一批 Card 对象。",
+                "抽牌堆数量等于完整牌堆扣除玩家手牌和当前顶牌后的数量。",
+                "当前顶牌不在抽牌堆中。"
+            ],
+            "dependencies": []
+        },
+        {
+            "id": "T02",
+            "title": "修复万能牌合法性",
+            "status": "ready",
+            "description": "让 WILD 和 WILD_DRAW_4 在普通状态下被 validateCanPlayCard 正确识别为可出牌。",
+            "targetFiles": [
+                "assets/scripts/core/utils/input-validator.ts"
+            ],
+            "implementationNotes": [
+                "在无加牌惩罚待结算时，WILD 与 WILD_DRAW_4 应直接视为可出。",
+                "保留加牌惩罚未结算时只能继续出 DRAW_2 或 WILD_DRAW_4 的现有叠加规则。",
+                "保留颜色匹配、非数字功能牌类型匹配、数字值匹配逻辑。",
+                "同步确认 AIManager 通过 getPlayableCards 能自然获得万能牌候选，不额外写 AI 特判。"
+            ],
+            "acceptanceCriteria": [
+                "普通状态下玩家手牌中的 WILD 可出。",
+                "普通状态下玩家手牌中的 WILD_DRAW_4 可出。",
+                "加牌惩罚未结算时，非加牌类型仍不可出。",
+                "AI 可在无其他可出牌时选择万能牌而不是直接摸牌。"
+            ],
+            "dependencies": []
+        },
+        {
+            "id": "T03",
+            "title": "防止 SKIP 和 REVERSE 重复结算",
+            "status": "ready",
+            "description": "为功能牌效果增加一次性结算机制，避免顶牌不变时每个回合开始都重复触发 SKIP 或 REVERSE。",
+            "targetFiles": [
+                "assets/scripts/foundation/types/game.types.ts",
+                "assets/scripts/core/machine/game-machine.ts"
+            ],
+            "implementationNotes": [
+                "将 isDrawPenaltyResolved 字段重命名为 isEffectResolved，其语义也同步扩展：它不仅表示 +2/+4 摸牌惩罚是否已处理，还表示当前顶牌的功能牌效果（SKIP/REVERSE）是否已触发。",
+                "一旦任何功能牌效果被应用过（无论 SKIP/REVERSE 还是 DRAW_2/DRAW_4），该标记即为 true。",
+                "出牌生成新的 topCard 时，必须将该标记重置为 false（效果待触发）。",
+                "应用卡牌效果执行后（无论哪种效果），必须将该标记设置为 true（效果已触发/已应用）。",
+                "应用卡牌效果开始时若该标记已为 true，则只推进当前玩家，不重复触发效果。",
+                "由于 isEffectResolved 语义已统一，原有的 +2/+4 叠加逻辑仍通过该标记判断是否允许继续出加牌牌，无需新增额外字段。"
+            ],
+            "acceptanceCriteria": [
+                "玩家打出 SKIP 后只跳过下一名玩家一次。",
+                "玩家打出 REVERSE 后只反转方向一次。",
+                "后续玩家摸牌或回合推进时，不会因当前顶牌仍是 SKIP/REVERSE 而再次触发同一效果。",
+                "加牌惩罚叠加与结算逻辑不被该改动破坏。"
+            ],
+            "dependencies": [
+                "T01"
+            ]
+        },
+        {
+            "id": "T04",
+            "title": "修复弃牌堆重洗保留顶牌",
+            "status": "ready",
+            "description": "修复 reshuffleDiscardPile 把当前桌面顶牌一起洗回抽牌堆的问题。",
+            "targetFiles": [
+                "assets/scripts/core/deck/deck-manager.ts"
+            ],
+            "implementationNotes": [
+                "重洗时从弃牌堆中保留最后一张牌作为当前顶牌。",
+                "只将当前顶牌之前的弃牌洗入抽牌堆。",
+                "重洗后 discardPile 应继续只保留当前顶牌。",
+                "如果弃牌堆数量小于等于 1，则不执行重洗。",
+                "确认 drawMultiple 在牌堆不足时调用 reshuffleDiscardPile 后，仍能从新牌堆抽牌。"
+            ],
+            "acceptanceCriteria": [
+                "抽牌堆不足触发重洗后，当前顶牌仍在 discardPile 中。",
+                "当前顶牌不会出现在 deck 中。",
+                "弃牌堆只有当前顶牌时，不会生成新的抽牌堆。",
+                "DISCARD_CLEARED 事件如继续使用，其语义需要与保留顶牌后的行为保持一致或在最终说明中记录。"
+            ],
+            "dependencies": []
+        },
+        {
+            "id": "T05",
+            "title": "清理 ui-game-events.ts",
+            "status": "ready",
+            "description": "删除已经完全无引用、无场景挂载的旧 UI 事件监听器。",
+            "targetFiles": [
+                "assets/scripts/ui/listeners/ui-game-events.ts"
+            ],
+            "implementationNotes": [
+                "确认 UIGameEvents 没有 import 引用，也没有场景或预制体挂载。",
+                "删除 ui-game-events.ts 源文件。",
+                "不要手动删除 ui-game-events.ts.meta。",
+                "确认删除后没有残留 import 或类型引用。"
+            ],
+            "acceptanceCriteria": [
+                "源码中不再存在 UIGameEvents 类。",
+                "rg UIGameEvents 无运行代码引用。",
+                "type-check 不因删除该文件失败。"
+            ],
+            "dependencies": []
+        },
+        {
+            "id": "T06",
+            "title": "清理 player-indicator.ts",
+            "status": "ready",
+            "description": "删除已被 PlayerSlot 组件体系替代且不再挂载的旧玩家指示器组件。",
+            "targetFiles": [
+                "assets/scripts/ui/components/player-indicator.ts"
+            ],
+            "implementationNotes": [
+                "确认 PlayerIndicator 没有 import 引用，也没有场景或预制体挂载。",
+                "删除 player-indicator.ts 源文件。",
+                "不要手动删除 player-indicator.ts.meta。",
+                "确认 UIManager 和 PlayerSlotController 不依赖该旧组件。"
+            ],
+            "acceptanceCriteria": [
+                "源码中不再存在 PlayerIndicator 类。",
+                "rg PlayerIndicator 只允许命中计划/任务文档或不再命中运行代码。",
+                "type-check 不因删除该文件失败。"
+            ],
+            "dependencies": []
+        },
+        {
+            "id": "T07",
+            "title": "清理 card-node-pool.ts",
+            "status": "ready",
+            "description": "删除已被 CardManager 内部 NodePool 覆盖且不再挂载的旧卡牌节点池组件。",
+            "targetFiles": [
+                "assets/scripts/ui/components/card-node-pool.ts"
+            ],
+            "implementationNotes": [
+                "确认 CardNodePool 没有 import 引用，也没有场景或预制体挂载。",
+                "删除 card-node-pool.ts 源文件。",
+                "不要手动删除 card-node-pool.ts.meta。",
+                "确认 CardManager 仍是卡牌节点创建与回收的唯一入口。"
+            ],
+            "acceptanceCriteria": [
+                "源码中不再存在 CardNodePool 类。",
+                "rg CardNodePool 无运行代码引用。",
+                "CardManager 仍可通过 NodePool 管理卡牌节点。"
+            ],
+            "dependencies": []
+        },
+        {
+            "id": "T08",
+            "title": "补充核心规则验证",
+            "status": "ready",
+            "description": "为本次规则修复补充最小可验证覆盖，优先使用现有项目检查命令；如项目暂无测试框架，记录缺口。",
+            "targetFiles": [
+                "assets/scripts/core/game/game-initializer.ts",
+                "assets/scripts/core/utils/input-validator.ts",
+                "assets/scripts/core/machine/game-machine.ts",
+                "assets/scripts/core/deck/deck-manager.ts"
+            ],
+            "implementationNotes": [
+                "验证初始发牌唯一性和牌堆数量。",
+                "验证 WILD 与 WILD_DRAW_4 的可出牌规则。",
+                "验证 SKIP 与 REVERSE 只结算一次。",
+                "验证弃牌堆重洗保留当前顶牌。",
+                "如果没有测试框架，不强行引入新框架；在最终说明中列出手工或后续测试建议。"
+            ],
+            "acceptanceCriteria": [
+                "关键规则有明确验证方式。",
+                "如新增测试，测试可通过项目命令运行。",
+                "如未新增测试，最终说明中明确记录原因和剩余风险。"
+            ],
+            "dependencies": [
+                "T01",
+                "T02",
+                "T03",
+                "T04"
+            ]
+        },
+        {
+            "id": "T09",
+            "title": "运行类型检查和 lint",
+            "status": "ready",
+            "description": "先格式化代码，再确认本次修复和清理没有破坏 TypeScript 与 ESLint 状态。",
+            "targetFiles": [
+                "assets/scripts",
+                "package.json",
+                "tsconfig.json",
+                "eslint.config.mjs"
+            ],
+            "implementationNotes": [
+                "运行 pnpm run format 全项目格式化（即使超出本次修改范围也一起格式化）。",
+                "运行 pnpm run type-check。",
+                "运行 pnpm run lint。",
+                "优先修复本次新增 error 或 warning。",
+                "若仍存在 event-bus.ts 的既有 any warning，最终说明中明确记录。"
+            ],
+            "acceptanceCriteria": [
+                "pnpm run type-check 通过。",
+                "pnpm run lint 无新增 error。",
+                "废弃 UI 组件删除后没有残留引用。"
+            ],
+            "dependencies": [
+                "T01",
+                "T02",
+                "T03",
+                "T04",
+                "T05",
+                "T06",
+                "T07",
+                "T09"
+            ]
+        },
+        {
+            "id": "T10",
+            "title": "更新文件索引",
+            "status": "ready",
+            "description": "更新 .claude/FILE_INDEX.md，反映 T05/T06/T07 删除的废弃 UI 组件文件，以及最新的目录结构。",
+            "targetFiles": [
+                ".claude/FILE_INDEX.md"
+            ],
+            "implementationNotes": [
+                "移除 card-node-pool.ts、player-indicator.ts、ui-game-events.ts 的条目（对应 T05/T06/T07 的删除）。",
+                "如果 T01-T04 涉及新增文件或路径变更，同步更新相应条目。"
+            ],
+            "acceptanceCriteria": [
+                "FILE_INDEX.md 中不再列出已删除的三个废弃 UI 组件。",
+                "文件总数与 find assets/scripts -name '*.ts' | wc -l 结果一致。"
+            ],
+            "dependencies": [
+                "T05",
+                "T06",
+                "T07",
+                "T09"
+            ]
+        }
+    ]
+}
