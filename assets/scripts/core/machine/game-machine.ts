@@ -129,7 +129,7 @@ export const gameMachine = setup({
         应用卡牌效果: ({ context }) => {
             const { topCard, playManager } = context;
 
-            if (!topCard.isEffectResolved) {
+            if (!topCard.actionEffectResolved) {
                 let skip = topCard.card.type === UnoCardType.SKIP;
                 if (topCard.card.type === UnoCardType.REVERSE) {
                     const previousDirection = context.playManager.direction;
@@ -153,14 +153,8 @@ export const gameMachine = setup({
                     });
                 }
 
-                // SKIP/REVERSE 效果已在此处应用完毕，标记为已结算
-                // DRAW_2/WILD_DRAW_4 的摸牌惩罚由摸牌环节结算，不在此处标记
-                if (
-                    topCard.card.type === UnoCardType.SKIP ||
-                    topCard.card.type === UnoCardType.REVERSE
-                ) {
-                    context.topCard.isEffectResolved = true;
-                }
+                // SKIP/REVERSE/DRAW_2/WILD_DRAW_4 的动作效果已在此处处理完毕或无需处理，标记为已结算
+                context.topCard.actionEffectResolved = true;
             }
 
             const previousPlayer = context.playManager.getCurrentPlayer();
@@ -190,9 +184,10 @@ export const gameMachine = setup({
                     ? chosenColor || context.topCard.activeColor
                     : removedCard.color;
 
-            const hasEffect =
+            const hasActionEffect =
                 removedCard.type === UnoCardType.SKIP ||
-                removedCard.type === UnoCardType.REVERSE ||
+                removedCard.type === UnoCardType.REVERSE;
+            const hasDrawPenalty =
                 removedCard.type === UnoCardType.DRAW_2 ||
                 removedCard.type === UnoCardType.WILD_DRAW_4;
             const draw2Count =
@@ -207,7 +202,8 @@ export const gameMachine = setup({
                 activeColor: newColor || topCard.activeColor,
                 draw2Count,
                 draw4Count,
-                isEffectResolved: !hasEffect,
+                actionEffectResolved: !hasActionEffect,
+                drawPenaltyResolved: !hasDrawPenalty,
             };
 
             const player = playerManager.player;
@@ -286,7 +282,7 @@ export const gameMachine = setup({
             // 惩罚牌被摸走后重置
             context.topCard.draw2Count = 0;
             context.topCard.draw4Count = 0;
-            context.topCard.isEffectResolved = true;
+            context.topCard.drawPenaltyResolved = true;
 
             const drawPlayer = drawPlayerManager.player;
             eventBus.emit(GameEventType.CARDS_DRAWN, {
@@ -301,9 +297,7 @@ export const gameMachine = setup({
             eventBus.emit(GameEventType.DECK_UPDATED, {
                 remainingCards: context.deckManager.deckCount,
             });
-            if (result.reshuffled) {
-                eventBus.emit(GameEventType.DISCARD_CLEARED);
-            }
+            // 重洗时弃牌堆顶牌保留，UI 无需清理
         },
     },
 }).createMachine({

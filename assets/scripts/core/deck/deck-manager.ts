@@ -99,13 +99,11 @@ export class DeckManager {
             }
         }
 
-        // 是否需要触发洗牌
+        // 是否需要触发洗牌（以实际是否执行重洗为准）
         const reshuffled =
-            autoReshuffleOnInsufficient && this._deck.length < count;
-
-        if (reshuffled) {
+            autoReshuffleOnInsufficient &&
+            this._deck.length < count &&
             this.reshuffleDiscardPile();
-        }
 
         // 抽卡
         const cards: Card[] = [];
@@ -126,15 +124,17 @@ export class DeckManager {
 
     /**
      * 弃牌堆洗牌（保留当前顶牌，其余洗入牌堆）
+     * @returns 是否实际执行了洗牌
      */
-    reshuffleDiscardPile(): void {
-        if (this._discardPile.length < 2) return;
+    reshuffleDiscardPile(): boolean {
+        if (this._discardPile.length < 2) return false;
 
         this._deck = shuffle([
             ...this._deck,
             ...this._discardPile.slice(0, -1),
         ]);
         this._discardPile = [this._discardPile[this._discardPile.length - 1]];
+        return true;
     }
 
     /**
@@ -158,9 +158,9 @@ export class DeckManager {
         return this._deck.length === 0;
     }
 
-    /** 弃牌堆是否可洗牌 */
+    /** 弃牌堆是否可洗牌（仅剩顶牌时不可洗） */
     get canReshuffle(): boolean {
-        return this._discardPile.length > 0;
+        return this._discardPile.length > 1;
     }
 
     /** 牌堆数量 */

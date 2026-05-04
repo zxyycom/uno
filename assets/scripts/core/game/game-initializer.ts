@@ -9,7 +9,6 @@ import {
     GamePlayerSetup,
     Player,
     TopCard,
-    UnoCardType,
 } from '../../foundation/types/game.types';
 import { initRandom } from '../../foundation/utils/random-seed';
 import { DeckManager } from '../deck/deck-manager';
@@ -66,28 +65,17 @@ export function dealInitialHands(
     const deck = [...deckManager.deck];
 
     // 发牌给每个玩家 - 依次分配不重复的手牌
-    let dealIndex = 0;
     const updatedPlayers = playManager.players.map((player) => {
-        const handCards = deck.slice(dealIndex, dealIndex + cardsPerPlayer);
-        dealIndex += cardsPerPlayer;
+        const handCards = deck.splice(0, cardsPerPlayer);
         return {
             ...player,
             hand: new CardCollection(handCards),
         };
     });
 
-    // 从发牌后的剩余牌堆中抽取初始顶牌
-    const remainingDeck = deck.slice(dealIndex);
-    let firstCard = remainingDeck.pop()!;
-
-    // TODO: WILD_DRAW_4 as initial top card — skip and find next valid card
-    while (
-        firstCard.type === UnoCardType.WILD_DRAW_4 &&
-        remainingDeck.length > 0
-    ) {
-        remainingDeck.unshift(firstCard);
-        firstCard = remainingDeck.pop()!;
-    }
+    // 从剩余牌堆中抽取初始顶牌
+    const firstCard = deck.pop()!;
+    // TODO: WILD_DRAW_4 作为初始顶牌的处理（当前直接允许）
 
     return {
         playManager: new PlayManager(
@@ -95,7 +83,7 @@ export function dealInitialHands(
             0,
             GameDirection.CLOCKWISE
         ),
-        deckManager: new DeckManager(remainingDeck, [firstCard]),
+        deckManager: new DeckManager(deck, [firstCard]),
         activeColor: firstCard.color || CardColor.RED,
     };
 }
@@ -127,7 +115,8 @@ export function initializeGame(setups: readonly GamePlayerSetup[]): InitResult {
         activeColor: firstCard.color || CardColor.RED,
         draw2Count: 0,
         draw4Count: 0,
-        isEffectResolved: true,
+        actionEffectResolved: true,
+        drawPenaltyResolved: true,
     };
 
     return {

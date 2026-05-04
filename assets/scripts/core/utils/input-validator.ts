@@ -29,7 +29,7 @@ export function validateCanPlayCard(card: Card, topCard: TopCard): boolean {
     if (
         (topType === UnoCardType.WILD_DRAW_4 ||
             topType === UnoCardType.DRAW_2) &&
-        !topCard.isEffectResolved
+        !topCard.drawPenaltyResolved
     ) {
         return (
             cardType === UnoCardType.WILD_DRAW_4 ||
