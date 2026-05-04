@@ -1,191 +1,191 @@
 {
-    "title": "UNO 核心规则修复与废弃 UI 组件清理",
+    "title": "UNO UI 卡牌移动动画改造",
     "status": "ready_for_agent_execution",
-    "summary": "修复初始发牌、万能牌合法性、SKIP/REVERSE 重复结算、弃牌堆重洗保留顶牌四个核心规则问题，并清理 ui-game-events.ts、player-indicator.ts、card-node-pool.ts 三个已不再接入运行链路的旧 UI 组件。",
+    "summary": "让卡牌始终不透明，并把出牌、摸牌、手牌新增/移除后的重排改成事件驱动动画：出牌从手牌飞到弃牌堆，摸牌从牌堆飞到手牌末尾，初始化和摸牌后执行中央合并再展开。",
     "executionMode": "execute_changes_not_planning",
     "constraints": [
-        "只做纯代码修复，不检查或调整场景设计。",
         "禁止手动编辑 .scene、.prefab、.meta 文件。",
-        "不手动删除 .meta 文件；如需资源元数据清理，交给 Cocos Creator 或后续专门资源清理流程。",
+        "不做 Cocos 预览验证要求；本任务验收以代码格式化、类型检查和 lint 为准。",
+        "Core 不依赖 UI；UI 动画事件由 UI 层根据 Core 事件转发。",
         "不新增 any，不使用 as 类型断言绕过类型系统。",
-        "不使用 try/catch、默认值兜底或可选链隐藏内部流程错误。",
-        "依赖方向保持 UI -> Foundation/Core，Core 不依赖 UI。",
-        "格式化唯一使用 pnpm run format；本任务若只修改少量代码，可在执行后按项目要求决定是否运行。"
+        "格式化唯一使用 pnpm run format，并且必须在验证阶段运行。"
     ],
     "tasks": [
         {
             "id": "T01",
-            "title": "修复初始发牌逻辑",
+            "title": "取消卡牌透明状态",
             "status": "ready",
-            "description": "修复每个玩家拿到同一组初始手牌的问题，并保证初始顶牌从发牌后的剩余牌堆中抽取。",
-            "targetFiles": ["assets/scripts/core/game/game-initializer.ts"],
+            "description": "保证手牌、飞行动画牌和弃牌堆牌运行时都保持完全不透明。",
+            "targetFiles": [
+                "assets/scripts/ui/components/player-hand.ts",
+                "assets/scripts/ui/utils/hand-card-layout.ts",
+                "assets/scripts/ui/components/card-manager.ts"
+            ],
             "implementationNotes": [
-                "重写 dealInitialHands 的发牌流程，使用 deck.splice(0, 7) 按顺序从牌堆顶部每次取出 7 张分配给每个玩家，splice 从原数组移除取出的牌，天然保证手牌不重复且剩余牌堆不含手牌。",
-                "初始顶牌必须从发完手牌后的剩余牌堆中抽取。",
-                "splice 方式天然保证返回的 DeckManager.deck 仅含剩余牌堆（不含玩家手牌或当前顶牌）。",
-                "在初始顶牌抽取逻辑处加 TODO：WILD_DRAW_4 作为初始顶牌时继续寻找下一张可出牌，被跳过牌保留在剩余牌堆（暂不实现）。"
+                "所有手牌布局结果统一使用 255 透明度，或不再写入透明度并由 CardManager reset 保持 255。",
+                "不再通过 disabledCardOpacity 弱化不可出牌卡牌；保留序列化字段，避免场景迁移。",
+                "CardManager.resetNode 继续重置 UIOpacity 为 255。"
             ],
             "acceptanceCriteria": [
-                "开局所有玩家各有 7 张牌。",
-                "任意两个玩家的初始手牌不会是同一批 Card 对象。",
-                "抽牌堆数量等于完整牌堆扣除玩家手牌和当前顶牌后的数量。",
-                "当前顶牌不在抽牌堆中。"
+                "不可出牌卡不会变透明。",
+                "对象池复用后的卡牌节点不会继承旧透明度。",
+                "弃牌堆和飞行动画节点不会出现半透明状态。"
             ],
             "dependencies": []
         },
         {
             "id": "T02",
-            "title": "修复万能牌合法性",
+            "title": "增加卡牌移动动画事件",
             "status": "ready",
-            "description": "让 WILD 和 WILD_DRAW_4 在普通状态下被 validateCanPlayCard 正确识别为可出牌。",
-            "targetFiles": ["assets/scripts/core/utils/input-validator.ts"],
+            "description": "为 UI 层新增统一卡牌移动请求和完成事件，后续手牌与弃牌堆通过该事件协作。",
+            "targetFiles": ["assets/scripts/foundation/events/game.events.ts"],
             "implementationNotes": [
-                "在无加牌惩罚待结算时，WILD 与 WILD_DRAW_4 应直接视为可出。",
-                "保留加牌惩罚未结算时只能继续出 DRAW_2 或 WILD_DRAW_4 的现有叠加规则。",
-                "保留颜色匹配、非数字功能牌类型匹配、数字值匹配逻辑。",
-                "同步确认 AIManager 通过 getPlayableCards 能自然获得万能牌候选，不额外写 AI 特判。"
+                "新增 CARD_MOVE_REQUESTED 和 CARD_MOVE_COMPLETED。",
+                "payload 包含 animationId、kind、playerId、card、node、目标父节点、起止世界坐标、目标角度、目标缩放、目标层级。",
+                "kind 固定为 play-to-discard 或 draw-to-hand。",
+                "Core 不直接发这些事件。"
             ],
             "acceptanceCriteria": [
-                "普通状态下玩家手牌中的 WILD 可出。",
-                "普通状态下玩家手牌中的 WILD_DRAW_4 可出。",
-                "加牌惩罚未结算时，非加牌类型仍不可出。",
-                "AI 可在无其他可出牌时选择万能牌而不是直接摸牌。"
+                "事件类型在 GameEvents 中有完整类型映射。",
+                "新增事件不破坏现有事件订阅和 emit 类型检查。",
+                "UI 层可以基于事件传递真实卡牌节点。"
             ],
             "dependencies": []
         },
         {
             "id": "T03",
-            "title": "防止 SKIP 和 REVERSE 重复结算",
+            "title": "新增 CardMoveAnimator",
             "status": "ready",
-            "description": "为功能牌效果增加一次性结算机制，避免顶牌不变时每个回合开始都重复触发 SKIP 或 REVERSE。",
+            "description": "实现统一卡牌飞行动画组件，专门监听卡牌移动事件并执行 tween。",
             "targetFiles": [
-                "assets/scripts/foundation/types/game.types.ts",
-                "assets/scripts/core/machine/game-machine.ts"
+                "assets/scripts/ui/components/card-move-animator.ts"
             ],
             "implementationNotes": [
-                "将 isDrawPenaltyResolved 字段重命名为 isEffectResolved，其语义也同步扩展：它不仅表示 +2/+4 摸牌惩罚是否已处理，还表示当前顶牌的功能牌效果（SKIP/REVERSE）是否已触发。",
-                "一旦任何功能牌效果被应用过（无论 SKIP/REVERSE 还是 DRAW_2/DRAW_4），该标记即为 true。",
-                "出牌生成新的 topCard 时，必须将该标记重置为 false（效果待触发）。",
-                "应用卡牌效果执行后（无论哪种效果），必须将该标记设置为 true（效果已触发/已应用）。",
-                "应用卡牌效果开始时若该标记已为 true，则只推进当前玩家，不重复触发效果。",
-                "由于 isEffectResolved 语义已统一，原有的 +2/+4 叠加逻辑仍通过该标记判断是否允许继续出加牌牌，无需新增额外字段。"
+                "监听 CARD_MOVE_REQUESTED。",
+                "把真实节点临时挂到桌面飞行层，保留原世界坐标。",
+                "按请求的起点、终点、角度、缩放、层级执行 tween。",
+                "完成后设置目标父节点和最终 transform，再发 CARD_MOVE_COMPLETED。",
+                "支持请求中的 delay，用于多张摸牌逐张错峰。"
             ],
             "acceptanceCriteria": [
-                "玩家打出 SKIP 后只跳过下一名玩家一次。",
-                "玩家打出 REVERSE 后只反转方向一次。",
-                "后续玩家摸牌或回合推进时，不会因当前顶牌仍是 SKIP/REVERSE 而再次触发同一效果。",
-                "加牌惩罚叠加与结算逻辑不被该改动破坏。"
+                "组件不负责手牌数据同步。",
+                "组件不负责弃牌堆业务。",
+                "飞行完成后一定发 CARD_MOVE_COMPLETED。"
+            ],
+            "dependencies": ["T02"]
+        },
+        {
+            "id": "T04",
+            "title": "扩展 CardManager 牌面切换",
+            "status": "ready",
+            "description": "让其他玩家卡背节点可以在飞出时切换成真实牌面，并统一复用牌面加载逻辑。",
+            "targetFiles": ["assets/scripts/ui/components/card-manager.ts"],
+            "implementationNotes": [
+                "新增 setCardFace(node, card)。",
+                "新增 setCardBack(node)。",
+                "acquireCard 和 acquireCardBack 复用新增方法。",
+                "所有 acquire/release/reset 路径都确保 active、position、scale、angle、opacity 稳定。"
+            ],
+            "acceptanceCriteria": [
+                "卡背节点可以切换为真实牌面。",
+                "真实牌面节点可以切回卡背。",
+                "卡牌节点复用后不会残留旧 spriteFrame 或 transform。"
             ],
             "dependencies": ["T01"]
         },
         {
-            "id": "T04",
-            "title": "修复弃牌堆重洗保留顶牌",
-            "status": "ready",
-            "description": "修复 reshuffleDiscardPile 把当前桌面顶牌一起洗回抽牌堆的问题。",
-            "targetFiles": ["assets/scripts/core/deck/deck-manager.ts"],
-            "implementationNotes": [
-                "重洗时从弃牌堆中保留最后一张牌作为当前顶牌。",
-                "只将当前顶牌之前的弃牌洗入抽牌堆。",
-                "重洗后 discardPile 应继续只保留当前顶牌。",
-                "如果弃牌堆数量小于等于 1，则不执行重洗。",
-                "确认 drawMultiple 在牌堆不足时调用 reshuffleDiscardPile 后，仍能从新牌堆抽牌。"
-            ],
-            "acceptanceCriteria": [
-                "抽牌堆不足触发重洗后，当前顶牌仍在 discardPile 中。",
-                "当前顶牌不会出现在 deck 中。",
-                "弃牌堆只有当前顶牌时，不会生成新的抽牌堆。",
-                "DISCARD_CLEARED 事件如继续使用，其语义需要与保留顶牌后的行为保持一致或在最终说明中记录。"
-            ],
-            "dependencies": []
-        },
-        {
             "id": "T05",
-            "title": "清理 ui-game-events.ts",
+            "title": "改造弃牌堆动画接管",
             "status": "ready",
-            "description": "删除已经完全无引用、无场景挂载的旧 UI 事件监听器。",
-            "targetFiles": ["assets/scripts/ui/listeners/ui-game-events.ts"],
+            "description": "移除 PlayedCardPile 当前从牌堆创建牌并飞到弃牌堆的错误出牌动画，改为接管飞来的真实节点。",
+            "targetFiles": ["assets/scripts/ui/components/played-card-pile.ts"],
             "implementationNotes": [
-                "确认 UIGameEvents 没有 import 引用，也没有场景或预制体挂载。",
-                "删除 ui-game-events.ts 源文件。",
-                "不要手动删除 ui-game-events.ts.meta。",
-                "确认删除后没有残留 import 或类型引用。"
+                "删除或停用 CARD_PLAYED 中 animateCardToDiscard 的牌堆到弃牌堆逻辑。",
+                "监听 CARD_MOVE_COMPLETED。",
+                "仅 kind 为 play-to-discard 时把节点加入弃牌堆堆叠数组。",
+                "DISCARD_UPDATED 只处理初始顶牌或同步兜底，动画期间不重复生成顶牌。"
             ],
             "acceptanceCriteria": [
-                "源码中不再存在 UIGameEvents 类。",
-                "rg UIGameEvents 无运行代码引用。",
-                "type-check 不因删除该文件失败。"
+                "出牌动画不再从 deckNode 起飞。",
+                "飞到弃牌堆的真实节点会成为弃牌堆堆叠的一部分。",
+                "弃牌堆不会因 CARD_PLAYED 和 DISCARD_UPDATED 双重生成同一张牌。"
             ],
-            "dependencies": []
+            "dependencies": ["T02", "T03", "T04"]
         },
         {
             "id": "T06",
-            "title": "清理 player-indicator.ts",
+            "title": "改造本地玩家手牌动画",
             "status": "ready",
-            "description": "删除已被 PlayerSlot 组件体系替代且不再挂载的旧玩家指示器组件。",
-            "targetFiles": ["assets/scripts/ui/components/player-indicator.ts"],
+            "description": "让本地玩家出牌使用真实被点击节点飞向弃牌堆，摸牌从牌堆飞入手牌末尾，并支持中央合并再展开。",
+            "targetFiles": ["assets/scripts/ui/components/player-hand.ts"],
             "implementationNotes": [
-                "确认 PlayerIndicator 没有 import 引用，也没有场景或预制体挂载。",
-                "删除 player-indicator.ts 源文件。",
-                "不要手动删除 player-indicator.ts.meta。",
-                "确认 UIManager 和 PlayerSlotController 不依赖该旧组件。"
+                "HAND_UPDATED 改为按 card.id 差量同步，不再整手清空重建。",
+                "初始化时先把所有手牌节点放在中央，再展开到纯布局函数计算出的目标位置。",
+                "CARD_PLAYED 命中本地玩家时，移除对应真实节点并发 play-to-discard 移动事件。",
+                "出牌后其余手牌按最新布局缓动补位，不触发中央合并展开。",
+                "CARDS_DRAWN 命中本地玩家时，新增节点插入末尾，逐张从牌堆飞入，全部到达后中央合并再展开。"
             ],
             "acceptanceCriteria": [
-                "源码中不再存在 PlayerIndicator 类。",
-                "rg PlayerIndicator 只允许命中计划/任务文档或不再命中运行代码。",
-                "type-check 不因删除该文件失败。"
+                "本地玩家出牌时飞出的就是点击的那张牌。",
+                "本地玩家摸牌时新增牌插入手牌末尾。",
+                "本地玩家摸多张牌时逐张错峰飞入。",
+                "本地玩家手牌新增后会中央合并再展开。",
+                "本地玩家手牌移除后剩余牌缓动到目标位置。"
             ],
-            "dependencies": []
+            "dependencies": ["T01", "T02", "T03", "T04", "T05"]
         },
         {
             "id": "T07",
-            "title": "清理 card-node-pool.ts",
+            "title": "改造其他玩家手牌动画",
             "status": "ready",
-            "description": "删除已被 CardManager 内部 NodePool 覆盖且不再挂载的旧卡牌节点池组件。",
-            "targetFiles": ["assets/scripts/ui/components/card-node-pool.ts"],
+            "description": "让其他玩家出牌随机一张卡背飞出，摸牌从牌堆飞入卡背末尾，并支持中央合并再展开。",
+            "targetFiles": [
+                "assets/scripts/ui/components/other-player-hand.ts"
+            ],
             "implementationNotes": [
-                "确认 CardNodePool 没有 import 引用，也没有场景或预制体挂载。",
-                "删除 card-node-pool.ts 源文件。",
-                "不要手动删除 card-node-pool.ts.meta。",
-                "确认 CardManager 仍是卡牌节点创建与回收的唯一入口。"
+                "CARD_PLAYED 命中该玩家时，从现有卡背节点中随机取一张真实节点发 play-to-discard 移动事件。",
+                "飞出的卡背节点在飞行前或飞行中通过 CardManager.setCardFace 切换为实际打出的牌面。",
+                "未飞出的卡背节点按最新数量和布局缓动补位。",
+                "CARDS_DRAWN 命中该玩家时，新增卡背节点插入末尾，逐张从牌堆飞入。",
+                "摸牌完成后中央合并再展开。"
             ],
             "acceptanceCriteria": [
-                "源码中不再存在 CardNodePool 类。",
-                "rg CardNodePool 无运行代码引用。",
-                "CardManager 仍可通过 NodePool 管理卡牌节点。"
+                "其他玩家出牌时不是从牌堆飞出。",
+                "其他玩家出牌时随机一张现有卡背节点飞出。",
+                "其他玩家摸牌时新增卡背插入末尾。",
+                "其他玩家手牌数量和卡背数量保持一致。"
             ],
-            "dependencies": []
+            "dependencies": ["T01", "T02", "T03", "T04", "T05"]
         },
         {
             "id": "T08",
-            "title": "补充核心规则验证",
+            "title": "复用纯布局并统一重整动画",
             "status": "ready",
-            "description": "为本次规则修复补充最小可验证覆盖，优先使用现有项目检查命令；如项目暂无测试框架，记录缺口。",
+            "description": "把手牌新增、移除、初始化后的布局统一为先计算最终布局，再用 tween 应用。",
             "targetFiles": [
-                "assets/scripts/core/game/game-initializer.ts",
-                "assets/scripts/core/utils/input-validator.ts",
-                "assets/scripts/core/machine/game-machine.ts",
-                "assets/scripts/core/deck/deck-manager.ts"
+                "assets/scripts/ui/components/player-hand.ts",
+                "assets/scripts/ui/components/other-player-hand.ts",
+                "assets/scripts/ui/utils/hand-card-layout.ts"
             ],
             "implementationNotes": [
-                "验证初始发牌唯一性和牌堆数量。",
-                "验证 WILD 与 WILD_DRAW_4 的可出牌规则。",
-                "验证 SKIP 与 REVERSE 只结算一次。",
-                "验证弃牌堆重洗保留当前顶牌。",
-                "如果没有测试框架，不强行引入新框架；在最终说明中列出手工或后续测试建议。"
+                "继续使用 calculateCurvedFanCardLayouts 计算目标布局。",
+                "新增中央合并再展开流程时，不把布局计算和节点状态读取混在一起。",
+                "新增卡牌默认插入数组末尾。",
+                "移除卡牌后剩余节点只缓动到最新目标布局。"
             ],
             "acceptanceCriteria": [
-                "关键规则有明确验证方式。",
-                "如新增测试，测试可通过项目命令运行。",
-                "如未新增测试，最终说明中明确记录原因和剩余风险。"
+                "初始化触发中央合并再展开。",
+                "摸牌完成后触发中央合并再展开。",
+                "普通出牌移除只触发缓动重排。",
+                "布局函数仍保持纯计算职责。"
             ],
-            "dependencies": ["T01", "T02", "T03", "T04"]
+            "dependencies": ["T06", "T07"]
         },
         {
             "id": "T09",
-            "title": "运行类型检查和 lint",
+            "title": "运行格式化和静态检查",
             "status": "ready",
-            "description": "先格式化代码，再确认本次修复和清理没有破坏 TypeScript 与 ESLint 状态。",
+            "description": "按项目要求完成代码格式化、类型检查和 lint，不包含 Cocos 预览验证。",
             "targetFiles": [
                 "assets/scripts",
                 "package.json",
@@ -193,16 +193,17 @@
                 "eslint.config.mjs"
             ],
             "implementationNotes": [
-                "运行 pnpm run format 全项目格式化（即使超出本次修改范围也一起格式化）。",
+                "运行 pnpm run format。",
                 "运行 pnpm run type-check。",
                 "运行 pnpm run lint。",
                 "优先修复本次新增 error 或 warning。",
-                "若仍存在 event-bus.ts 的既有 any warning，最终说明中明确记录。"
+                "若仍存在既有 warning，最终说明中明确记录。"
             ],
             "acceptanceCriteria": [
+                "pnpm run format 已运行。",
                 "pnpm run type-check 通过。",
                 "pnpm run lint 无新增 error。",
-                "废弃 UI 组件删除后没有残留引用。"
+                "最终说明不要求 Cocos 预览验证。"
             ],
             "dependencies": [
                 "T01",
@@ -212,24 +213,8 @@
                 "T05",
                 "T06",
                 "T07",
-                "T09"
+                "T08"
             ]
-        },
-        {
-            "id": "T10",
-            "title": "更新文件索引",
-            "status": "ready",
-            "description": "更新 .claude/FILE_INDEX.md，反映 T05/T06/T07 删除的废弃 UI 组件文件，以及最新的目录结构。",
-            "targetFiles": [".claude/FILE_INDEX.md"],
-            "implementationNotes": [
-                "移除 card-node-pool.ts、player-indicator.ts、ui-game-events.ts 的条目（对应 T05/T06/T07 的删除）。",
-                "如果 T01-T04 涉及新增文件或路径变更，同步更新相应条目。"
-            ],
-            "acceptanceCriteria": [
-                "FILE_INDEX.md 中不再列出已删除的三个废弃 UI 组件。",
-                "文件总数与 find assets/scripts -name '*.ts' | wc -l 结果一致。"
-            ],
-            "dependencies": ["T05", "T06", "T07", "T09"]
         }
     ]
 }

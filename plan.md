@@ -1,106 +1,124 @@
-# UNO 核心规则修复与废弃 UI 组件清理执行指导
+# UNO UI 卡牌移动动画改造执行指导
 
 ## Status: Ready for Agent Execution
 
 ## Summary
 
-本计划聚焦纯代码修复，不涉及 `.scene`、`.prefab`、`.meta` 或场景设计。目标是修复当前 UNO 核心规则中的四个高风险问题，并清理三份已经不再接入运行链路的旧 UI 组件。
+本计划聚焦卡牌 UI 动画与手牌重整，不手动编辑 `.scene`、`.prefab`、`.meta`。目标是让所有卡牌保持不透明，并把出牌、摸牌、手牌增删后的重排统一到事件驱动动画流程中。
 
 需要处理的问题：
 
-- 初始发牌逻辑错误：每个玩家拿到同一组 `deck.slice(0, 7)` 手牌。
-- 万能牌合法性缺失：`WILD` / `WILD_DRAW_4` 没有按 UNO 规则作为可出牌处理。
-- `SKIP` / `REVERSE` 效果重复结算：当前每次进入“回合开始”都会重新读取顶牌效果。
-- 弃牌堆重洗错误：当前会把桌面当前顶牌一起洗回牌堆。
-- 废弃 UI 组件未清理：`ui-game-events.ts`、`player-indicator.ts`、`card-node-pool.ts` 已无 import 且无场景/预制体挂载。
+- 卡牌节点当前会出现透明状态，不符合要求。
+- 出牌动画现在从牌堆飞到弃牌堆，应该从对应玩家手牌飞到弃牌堆。
+- 摸牌需要从牌堆飞到对应玩家手牌。
+- 手牌新增卡牌应插入最后，并触发统一重整动画。
+- 手牌移除卡牌后，其余卡牌应缓动到最新布局。
+- 初始化和摸牌后需要支持“所有手牌合并到中央再展开”的动画。
 
 ## Current Findings
 
-- `pnpm run type-check` 当前通过。
-- `pnpm run lint` 当前只有 `event-bus.ts` 中 `any` 的既有 warning。
-- `ui-game-events.ts` 完全无引用，职责已被 `PlayerSlotController`、`GameMessage`、`PlayedCardPile`、`PlayerHand` 等组件替代。
-- `player-indicator.ts` 已被新的玩家槽位组件体系替代，且不再挂载。
-- `card-node-pool.ts` 的职责已被 `CardManager` 内部 `NodePool` 覆盖，且不再挂载。
+- `PlayerHand` 当前在 `HAND_UPDATED` 中清空整手并重建节点，会导致真实节点无法参与出牌/摸牌动画。
+- `PlayedCardPile` 当前在 `CARD_PLAYED` 中明确从 `deckNode` 创建卡牌并飞到弃牌堆，这是出牌动画来源错误的直接原因。
+- 本地玩家不可出牌透明度来自 `PlayerHand.disabledCardOpacity = 150`，并通过 `UIOpacity` 应用到卡牌节点。
+- `OtherPlayerHand` 当前只按数量同步卡背节点，适合改造成随机取一张卡背节点执行其他玩家出牌动画。
+- `hand-card-layout.ts` 已经把布局计算和 transform 应用分开，可继续保留纯函数计算布局，再把结果交给 tween 应用。
 
 ## Required Code Changes
 
-### 1. 修复初始发牌
+### 1. 取消卡牌透明状态
 
-修改 `assets/scripts/core/game/game-initializer.ts`：
+修改 `assets/scripts/ui/components/player-hand.ts` 和 `assets/scripts/ui/utils/hand-card-layout.ts`：
 
-- 发牌时每个玩家用 `deck.splice(0, 7)` 依次从牌堆顶部取 7 张牌，splice 会从原数组中移除取出的牌。
-- 初始顶牌从发完手牌之后的剩余牌堆中 `pop()` 抽取。
-- 如抽到 WILD_DRAW_4 则塞回剩余牌堆头部继续 pop 下一张。
-- splice 方式天然保证返回的 `DeckManager.deck` 仅含剩余牌堆（不含已发手牌和顶牌）。
+- 所有手牌布局结果的透明度统一为 255。
+- 不再用透明度弱化不可出牌卡牌；如果需要提示不可出牌，只保留已有抬升/可交互状态，不改变透明度。
+- 保留 `disabledCardOpacity` / `enabledCardOpacity` 序列化字段不做场景迁移，但运行时不再让卡牌透明。
+- `CardManager.resetNode` 继续把复用节点 `UIOpacity` 重置为 255。
 
-### 2. 修复万能牌合法性
+### 2. 增加卡牌移动动画事件
 
-修改 `assets/scripts/core/utils/input-validator.ts`：
+修改 `assets/scripts/foundation/events/game.events.ts`：
 
-- 普通无惩罚状态下，`WILD` 和 `WILD_DRAW_4` 应作为可出牌。
-- 加牌惩罚未结算时，保持当前叠加规则：只能继续出 `DRAW_2` 或 `WILD_DRAW_4`。
-- 保持颜色匹配、功能牌类型匹配、数字值匹配的现有逻辑。
+- 增加 `CARD_MOVE_REQUESTED` 和 `CARD_MOVE_COMPLETED` 事件。
+- payload 至少包含 `animationId`、`kind`、`playerId`、`card`、真实 `node`、目标父节点、起止世界坐标、目标角度、目标缩放、目标层级。
+- `kind` 固定使用 `'play-to-discard' | 'draw-to-hand'`，避免调用方自由拼字符串。
+- Core 不直接发这些 UI 动画事件；由 UI 组件在收到 `CARD_PLAYED` / `CARDS_DRAWN` 后转发。
 
-### 3. 防止 SKIP / REVERSE 重复结算
+### 3. 新增统一卡牌移动动画组件
 
-修改 `assets/scripts/core/machine/game-machine.ts`：
+新增 `assets/scripts/ui/components/card-move-animator.ts`：
 
-- 将 `isDrawPenaltyResolved` 字段重命名为 `isEffectResolved`，其语义也同步扩展：它不仅表示 +2/+4 摸牌惩罚是否已处理，还表示当前顶牌的功能牌效果（SKIP/REVERSE）是否已触发。
-- 一旦任何功能牌效果被应用过（无论 SKIP/REVERSE 还是 DRAW_2/DRAW_4），该标记即为 true。
-- 出牌生成新的 topCard 时，必须将该标记重置为 false（效果待触发）。
-- 应用卡牌效果执行后（无论哪种效果），必须将该标记设置为 true（效果已触发/已应用）。
-- 应用卡牌效果开始时若该标记已为 true，则只推进当前玩家，不重复触发效果。
-- 由于 `isEffectResolved` 语义已统一，原有的 +2/+4 叠加逻辑仍通过该标记判断是否允许继续出加牌牌，无需新增额外字段。
+- 监听 `CARD_MOVE_REQUESTED`。
+- 接收真实卡牌节点，把节点临时挂到桌面飞行层，保留原世界坐标。
+- 使用 tween 从起点飞到终点，完成后设置目标父节点、最终局部 transform、层级，并发 `CARD_MOVE_COMPLETED`。
+- 支持多张摸牌的逐张错峰：调用方提供 delay 或 animator 根据同批次 index 处理短间隔。
+- 组件必须只负责飞行动画，不负责手牌数据同步、不负责弃牌堆业务。
 
-### 4. 修复弃牌堆重洗
+### 4. 改造本地玩家手牌
 
-修改 `assets/scripts/core/deck/deck-manager.ts`：
+修改 `assets/scripts/ui/components/player-hand.ts`：
 
-- 重洗弃牌堆时必须保留当前桌面顶牌，不把它洗回抽牌堆。
-- 只有顶牌以外的弃牌可以洗入抽牌堆。
-- 重洗后弃牌堆仍应保留当前顶牌，`discardCount` 能正确反映剩余弃牌堆状态。
-- 如果弃牌堆只有当前顶牌，则不能产生新的抽牌堆。
+- `HAND_UPDATED` 改为按 `card.id` 差量同步，不再每次清空整手重建。
+- 初始化时创建所有手牌节点在中央，再用已有纯布局函数计算目标位置并展开。
+- 本地玩家出牌时，在 `CARD_PLAYED` 中找到真实卡牌节点，从 `cardViews` 中移除，发 `play-to-discard` 移动事件，其余手牌立即按最新布局缓动补位。
+- 摸牌时在 `CARDS_DRAWN` 中为新增卡牌创建真实节点，插入手牌数组最后，逐张从牌堆飞到最终手牌位置；全部到达后执行中央合并再展开。
+- 普通出牌移除只做剩余手牌缓动重排，不触发中央合并再展开。
 
-### 5. 清理废弃 UI 组件
+### 5. 改造其他玩家手牌
 
-删除或停用以下纯代码文件：
+修改 `assets/scripts/ui/components/other-player-hand.ts`：
 
-- `assets/scripts/ui/listeners/ui-game-events.ts`
-- `assets/scripts/ui/components/player-indicator.ts`
-- `assets/scripts/ui/components/card-node-pool.ts`
+- 出牌时从现有卡背节点中随机选择一张真实节点飞向弃牌堆。
+- 被选中的卡背节点在飞行动画中切换为实际打出的牌面，落入弃牌堆后由弃牌堆组件接管。
+- 未飞出的卡背节点按最新数量和最新布局缓动补位。
+- 摸牌时新增卡背节点插入末尾，逐张从牌堆飞入，完成后中央合并再展开。
 
-清理要求：
+### 6. 改造弃牌堆展示
 
-- 确认没有 import、没有场景/预制体挂载后再删除。
-- 不手动删除或修改 `.meta` 文件。
-- 如果 Cocos 需要自动清理 `.meta`，交给编辑器或后续专门资源清理流程处理。
-- 删除后确保没有残留 import、类型引用或 lint 错误。
+修改 `assets/scripts/ui/components/played-card-pile.ts`：
+
+- 移除当前 `CARD_PLAYED` 中“从牌堆创建卡牌并飞到弃牌堆”的逻辑。
+- 监听 `CARD_MOVE_COMPLETED`，只在 `kind === 'play-to-discard'` 时接管飞来的真实节点。
+- 接管后把节点加入弃牌堆堆叠数组，应用弃牌堆偏移、角度、层级。
+- `DISCARD_UPDATED` 仅用于初始顶牌或同步兜底，不能在动画过程中重复生成顶牌。
+
+### 7. 扩展 CardManager 能力
+
+修改 `assets/scripts/ui/components/card-manager.ts`：
+
+- 增加 `setCardFace(node, card)`，用于把卡背节点切换成真实牌面。
+- 增加 `setCardBack(node)`，用于把复用节点切回卡背。
+- `acquireCard` / `acquireCardBack` 复用这两个方法，避免牌面设置逻辑分散。
+- 所有 acquire/release/reset 路径都确保节点 active、scale、angle、position、opacity 被重置到稳定状态。
 
 ## Implementation Order
 
-1. 修复 `dealInitialHands` 的发牌与初始顶牌抽取。
-2. 修复 `validateCanPlayCard` 的万能牌可出规则。
-3. 给功能牌效果增加一次性结算机制，并调整状态机流转。
-4. 修改弃牌堆重洗逻辑，保留当前顶牌。
-5. 删除三份废弃 UI 组件代码，并清理残留引用。
-6. 运行 `pnpm run format`（全项目格式化，不限于本次修改文件）。
-7. 运行 `pnpm run type-check`。
-8. 运行 `pnpm run lint`，记录或修复新增问题。
+1. 调整透明度逻辑，保证所有卡牌运行时 `UIOpacity` 为 255。
+2. 增加 `CARD_MOVE_REQUESTED` / `CARD_MOVE_COMPLETED` 类型定义。
+3. 新增 `CardMoveAnimator` 并接入现有飞行层节点。
+4. 改造 `PlayedCardPile`，去掉错误的牌堆到弃牌堆出牌动画。
+5. 改造 `PlayerHand` 的差量同步、真实节点出牌、摸牌飞入、中央合并再展开。
+6. 改造 `OtherPlayerHand` 的随机卡背出牌、摸牌飞入和缓动重排。
+7. 扩展 `CardManager` 的牌面/卡背切换方法并复用。
+8. 运行 `pnpm run format`。
+9. 运行 `pnpm run type-check`。
+10. 运行 `pnpm run lint`，记录或修复新增问题。
 
 ## Acceptance Criteria
 
-- 四名玩家开局各有 7 张互不重复的手牌。
-- 初始抽牌堆不包含任何玩家手牌，也不包含当前顶牌。
-- `WILD` / `WILD_DRAW_4` 在普通状态下可被玩家和 AI 识别为可出牌。
-- `SKIP` / `REVERSE` 只对刚打出的那张牌结算一次，不会因顶牌未变化反复触发。
-- 抽牌堆不足触发重洗时，当前顶牌仍留在弃牌堆顶部，不会进入抽牌堆。
-- `ui-game-events.ts`、`player-indicator.ts`、`card-node-pool.ts` 不再参与编译引用和运行链路。
+- 任意手牌、飞行动画牌、弃牌堆牌都不出现半透明状态。
+- 本地玩家出牌时，被点击的真实卡牌从手牌飞到弃牌堆，其余手牌缓动补位。
+- 其他玩家出牌时，随机一张卡背从对应玩家手牌飞到弃牌堆，并在飞行或落点显示真实牌面。
+- 摸 1 张或多张时，卡牌从牌堆逐张错峰飞到对应玩家手牌末尾。
+- 初始化和摸牌后，目标玩家手牌会先合并到中央再展开。
+- 普通出牌移除后，只剩余手牌缓动重排，不触发中央合并展开。
+- `pnpm run format` 已运行。
 - `pnpm run type-check` 通过。
 - `pnpm run lint` 无新增 error；若仍有既有 warning，最终说明中明确记录。
 
 ## Constraints
 
 - 不手动编辑 `.scene`、`.prefab`、`.meta`。
-- 不引入新的 `any`、`as` 断言、try/catch 包装或静默兜底。
-- 保持依赖方向：UI → Foundation/Core，Core 不依赖 UI。
-- 修改范围限于纯代码和计划文件。
+- 不做 Cocos 预览验证要求；本任务验收以代码格式化、类型检查和 lint 为准。
+- 不引入新的 `any`、不使用 `as` 断言绕过类型系统。
+- 保持依赖方向：Core 不依赖 UI；UI 动画事件由 UI 层根据 Core 事件转发。
+- 修改范围限于纯代码和计划/任务文件。

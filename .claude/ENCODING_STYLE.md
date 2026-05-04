@@ -11,6 +11,7 @@
 假设所有必需的输入、属性、依赖都存在。内部业务逻辑中不主动写 null 检查 (`if (x)`) 或防御性 `?.`/`??`。
 
 `?.` 使用边界（整条链路失败可归因于单一原因时允许使用）：
+
 - 实例可能未初始化的方法调用：`this.actor?.send(...)`、`this.actor?.stop()`
 - 单例可能未初始化的调用：`GameManager.getInstance()?.drawCard()`
 - 环境能力检测：`globalThis.setTimeout?.(...)`
@@ -46,12 +47,14 @@
 ### 1.7 No `as` Assertions
 
 `as` 类型断言允许在以下场景使用：
+
 - 空对象 + 类型标注：`{} as Type`（如 xstate setup 的 types 占位、context 初始化）
 - 系统边界类型转换：`event as string`（泛型参数传递给具体 API 约束）
 - 数学运算后的类型收窄：`-value as EnumType`
 - import 重命名：`import { X as Y }`（不是类型断言，不受本条约束）
 
 禁止场景：
+
 - 用 `as` 绕过类型检查来掩盖设计缺陷
 - 用 `as any` 跳过完整的类型链路
 
@@ -72,6 +75,7 @@
 ### 2.3 `??` 用于边界类型统一
 
 `??` 在边界处用于类型统一是可接受的：
+
 - `Array.pop() ?? null`：将 `undefined` 统一为 `null`
 
 这属于边界类型适配，不违反 Assume Existence 的内部原则。
