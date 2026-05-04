@@ -129,27 +129,35 @@ export const gameMachine = setup({
         应用卡牌效果: ({ context }) => {
             const { topCard, playManager } = context;
 
-            let skip = topCard.card.type === UnoCardType.SKIP;
-            if (topCard.card.type === UnoCardType.REVERSE) {
-                const previousDirection = context.playManager.direction;
-                context.playManager.reverseDirection();
-                eventBus.emit(GameEventType.DIRECTION_CHANGED, {
-                    previousDirection,
-                    newDirection: context.playManager.direction,
-                });
-                // 只剩两个人的时候等于禁用
-                if (playManager.players.length === 2) {
-                    skip = true;
+            if (!topCard.isEffectResolved) {
+                let skip = topCard.card.type === UnoCardType.SKIP;
+                if (topCard.card.type === UnoCardType.REVERSE) {
+                    const previousDirection = context.playManager.direction;
+                    context.playManager.reverseDirection();
+                    eventBus.emit(GameEventType.DIRECTION_CHANGED, {
+                        previousDirection,
+                        newDirection: context.playManager.direction,
+                    });
+                    // 只剩两个人的时候等于禁用
+                    if (playManager.players.length === 2) {
+                        skip = true;
+                    }
                 }
-            }
 
-            // SKIP: 跳过一个玩家
-            if (skip) {
-                const skippedPlayer = context.playManager.getNextPlayer();
-                context.playManager.moveToNextPlayer();
-                eventBus.emit(GameEventType.PLAYER_SKIPPED, {
-                    skippedPlayer,
-                });
+                // SKIP: 跳过一个玩家
+                if (skip) {
+                    const skippedPlayer = context.playManager.getNextPlayer();
+                    context.playManager.moveToNextPlayer();
+                    eventBus.emit(GameEventType.PLAYER_SKIPPED, {
+                        skippedPlayer,
+                    });
+                }
+
+                // SKIP/REVERSE 效果已在此处应用完毕，标记为已结算
+                // DRAW_2/WILD_DRAW_4 的摸牌惩罚由摸牌环节结算，不在此处标记
+                if (topCard.card.type === UnoCardType.SKIP || topCard.card.type === UnoCardType.REVERSE) {
+                    context.topCard.isEffectResolved = true;
+                }
             }
 
             const previousPlayer = context.playManager.getCurrentPlayer();
@@ -179,7 +187,9 @@ export const gameMachine = setup({
                     ? chosenColor || context.topCard.activeColor
                     : removedCard.color;
 
-            const isDrawPenaltyCard =
+            const hasEffect =
+                removedCard.type === UnoCardType.SKIP ||
+                removedCard.type === UnoCardType.REVERSE ||
                 removedCard.type === UnoCardType.DRAW_2 ||
                 removedCard.type === UnoCardType.WILD_DRAW_4;
             const draw2Count =
@@ -194,7 +204,7 @@ export const gameMachine = setup({
                 activeColor: newColor || topCard.activeColor,
                 draw2Count,
                 draw4Count,
-                isDrawPenaltyResolved: !isDrawPenaltyCard,
+                isEffectResolved: !hasEffect,
             };
 
             const player = playerManager.player;
@@ -273,7 +283,7 @@ export const gameMachine = setup({
             // 惩罚牌被摸走后重置
             context.topCard.draw2Count = 0;
             context.topCard.draw4Count = 0;
-            context.topCard.isDrawPenaltyResolved = true;
+            context.topCard.isEffectResolved = true;
 
             const drawPlayer = drawPlayerManager.player;
             eventBus.emit(GameEventType.CARDS_DRAWN, {
