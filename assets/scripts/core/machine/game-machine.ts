@@ -129,27 +129,32 @@ export const gameMachine = setup({
         应用卡牌效果: ({ context }) => {
             const { topCard, playManager } = context;
 
-            let skip = topCard.card.type === UnoCardType.SKIP;
-            if (topCard.card.type === UnoCardType.REVERSE) {
-                const previousDirection = context.playManager.direction;
-                context.playManager.reverseDirection();
-                eventBus.emit(GameEventType.DIRECTION_CHANGED, {
-                    previousDirection,
-                    newDirection: context.playManager.direction,
-                });
-                // 只剩两个人的时候等于禁用
-                if (playManager.players.length === 2) {
-                    skip = true;
+            if (!topCard.actionEffectResolved) {
+                let skip = topCard.card.type === UnoCardType.SKIP;
+                if (topCard.card.type === UnoCardType.REVERSE) {
+                    const previousDirection = context.playManager.direction;
+                    context.playManager.reverseDirection();
+                    eventBus.emit(GameEventType.DIRECTION_CHANGED, {
+                        previousDirection,
+                        newDirection: context.playManager.direction,
+                    });
+                    // 只剩两个人的时候等于禁用
+                    if (playManager.players.length === 2) {
+                        skip = true;
+                    }
                 }
-            }
 
-            // SKIP: 跳过一个玩家
-            if (skip) {
-                const skippedPlayer = context.playManager.getNextPlayer();
-                context.playManager.moveToNextPlayer();
-                eventBus.emit(GameEventType.PLAYER_SKIPPED, {
-                    skippedPlayer,
-                });
+                // SKIP: 跳过一个玩家
+                if (skip) {
+                    const skippedPlayer = context.playManager.getNextPlayer();
+                    context.playManager.moveToNextPlayer();
+                    eventBus.emit(GameEventType.PLAYER_SKIPPED, {
+                        skippedPlayer,
+                    });
+                }
+
+                // SKIP/REVERSE/DRAW_2/WILD_DRAW_4 的动作效果已在此处处理完毕或无需处理，标记为已结算
+                context.topCard.actionEffectResolved = true;
             }
 
             const previousPlayer = context.playManager.getCurrentPlayer();
@@ -179,7 +184,10 @@ export const gameMachine = setup({
                     ? chosenColor || context.topCard.activeColor
                     : removedCard.color;
 
-            const isDrawPenaltyCard =
+            const hasActionEffect =
+                removedCard.type === UnoCardType.SKIP ||
+                removedCard.type === UnoCardType.REVERSE;
+            const hasDrawPenalty =
                 removedCard.type === UnoCardType.DRAW_2 ||
                 removedCard.type === UnoCardType.WILD_DRAW_4;
             const draw2Count =
@@ -194,7 +202,8 @@ export const gameMachine = setup({
                 activeColor: newColor || topCard.activeColor,
                 draw2Count,
                 draw4Count,
-                isDrawPenaltyResolved: !isDrawPenaltyCard,
+                actionEffectResolved: !hasActionEffect,
+                drawPenaltyResolved: !hasDrawPenalty,
             };
 
             const player = playerManager.player;
@@ -273,7 +282,7 @@ export const gameMachine = setup({
             // 惩罚牌被摸走后重置
             context.topCard.draw2Count = 0;
             context.topCard.draw4Count = 0;
-            context.topCard.isDrawPenaltyResolved = true;
+            context.topCard.drawPenaltyResolved = true;
 
             const drawPlayer = drawPlayerManager.player;
             eventBus.emit(GameEventType.CARDS_DRAWN, {
@@ -288,9 +297,7 @@ export const gameMachine = setup({
             eventBus.emit(GameEventType.DECK_UPDATED, {
                 remainingCards: context.deckManager.deckCount,
             });
-            if (result.reshuffled) {
-                eventBus.emit(GameEventType.DISCARD_CLEARED);
-            }
+            // 重洗时弃牌堆顶牌保留，UI 无需清理
         },
     },
 }).createMachine({

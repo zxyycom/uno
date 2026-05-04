@@ -37,3 +37,4 @@ tests/test-results/*
 *.log
 
 .claude/settings.local.json
+.claude/worktrees/

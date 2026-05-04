@@ -27,13 +27,19 @@ export function validateCanPlayCard(card: Card, topCard: TopCard): boolean {
 
     // 加牌惩罚未结算时，只能出加牌
     if (
-        (topType === UnoCardType.WILD_DRAW_4 || topType === UnoCardType.DRAW_2) &&
-        !topCard.isDrawPenaltyResolved
+        (topType === UnoCardType.WILD_DRAW_4 ||
+            topType === UnoCardType.DRAW_2) &&
+        !topCard.drawPenaltyResolved
     ) {
         return (
             cardType === UnoCardType.WILD_DRAW_4 ||
             cardType === UnoCardType.DRAW_2
         );
+    }
+
+    // 万能牌在任何非加牌惩罚状态下始终可出
+    if (cardType === UnoCardType.WILD || cardType === UnoCardType.WILD_DRAW_4) {
+        return true;
     }
 
     // 颜色匹配

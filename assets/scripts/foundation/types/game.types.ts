@@ -133,6 +133,8 @@ export interface TopCard {
     draw2Count: number;
     /** +4连续计数 */
     draw4Count: number;
-    /** 当前顶牌的加牌惩罚是否已被摸牌结算 */
-    isDrawPenaltyResolved: boolean;
+    /** 当前顶牌的 SKIP/REVERSE 动作效果是否已被结算 */
+    actionEffectResolved: boolean;
+    /** 当前顶牌的 DRAW_2/WILD_DRAW_4 摸牌惩罚是否已被结算 */
+    drawPenaltyResolved: boolean;
 }

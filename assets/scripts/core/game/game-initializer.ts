@@ -9,7 +9,6 @@ import {
     GamePlayerSetup,
     Player,
     TopCard,
-    UnoCardType,
 } from '../../foundation/types/game.types';
 import { initRandom } from '../../foundation/utils/random-seed';
 import { DeckManager } from '../deck/deck-manager';
@@ -63,28 +62,20 @@ export function dealInitialHands(
     activeColor: CardColor;
 } {
     const cardsPerPlayer = 7;
-    const deck = deckManager.deck;
+    const deck = [...deckManager.deck];
 
-    // 发牌给每个玩家
-    const updatedPlayers = playManager.players.map((player) => ({
-        ...player,
-        hand: new CardCollection(deck.slice(0, cardsPerPlayer)),
-    }));
+    // 发牌给每个玩家 - 依次分配不重复的手牌
+    const updatedPlayers = playManager.players.map((player) => {
+        const handCards = deck.splice(0, cardsPerPlayer);
+        return {
+            ...player,
+            hand: new CardCollection(handCards),
+        };
+    });
 
-    // 复制牌堆并抽取第一张牌
-    const deckCopy = [...deck];
-    let firstCard = deckCopy.pop()!;
-
-    // 确保第一张牌不是 WILD_DRAW_4
-    while (firstCard.type === UnoCardType.WILD_DRAW_4 && deckCopy.length > 0) {
-        deckCopy.unshift(firstCard);
-        firstCard = deckCopy.pop()!;
-    }
-
-    // 剩余牌堆（去掉已发的手牌）
-    const remainingDeck = deckCopy.slice(
-        cardsPerPlayer * updatedPlayers.length
-    );
+    // 从剩余牌堆中抽取初始顶牌
+    const firstCard = deck.pop()!;
+    // TODO: WILD_DRAW_4 作为初始顶牌的处理（当前直接允许）
 
     return {
         playManager: new PlayManager(
@@ -92,7 +83,7 @@ export function dealInitialHands(
             0,
             GameDirection.CLOCKWISE
         ),
-        deckManager: new DeckManager(remainingDeck, [firstCard]),
+        deckManager: new DeckManager(deck, [firstCard]),
         activeColor: firstCard.color || CardColor.RED,
     };
 }
@@ -124,7 +115,8 @@ export function initializeGame(setups: readonly GamePlayerSetup[]): InitResult {
         activeColor: firstCard.color || CardColor.RED,
         draw2Count: 0,
         draw4Count: 0,
-        isDrawPenaltyResolved: true,
+        actionEffectResolved: true,
+        drawPenaltyResolved: true,
     };
 
     return {

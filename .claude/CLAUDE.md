@@ -25,7 +25,7 @@ pnpm install          # 安装依赖
 pnpm run lint         # 运行 ESLint
 pnpm run type-check   # 运行 TypeScript 类型检查 (tsc --noEmit)
 pnpm run bundle:libraries  # 通过 Rollup 打包第三方库
-pmpm run format       # 格式化代码，格式化唯一方式
+pnpm run format       # 格式化代码，格式化唯一方式
 ```
 
 ---
@@ -42,11 +42,11 @@ pmpm run format       # 格式化代码，格式化唯一方式
 | **Foundation Layer** | 事件总线、类型定义、纯工具函数     | 无业务依赖，可被所有层依赖             |
 | **Core Layer**       | 游戏规则、状态机、抽牌逻辑、AI决策 | 不依赖 UI 和 Foundation 以外的任何东西 |
 
-### 文件索引
+### 3.2 文件索引
 
 详细文件索引见 [.claude/FILE_INDEX.md](.claude/FILE_INDEX.md)。
 
-### 3.2 状态机 (game-machine.ts)
+### 3.3 状态机 (game-machine.ts)
 
 游戏流程由 xstate v5 状态机管理：
 
@@ -56,10 +56,10 @@ pmpm run format       # 格式化代码，格式化唯一方式
 | **初始化游戏** | 执行 `初始化游戏` action，收到 `初始化结束` 后跳转 | → 回合开始            |
 | **回合开始**   | 执行 `应用卡牌效果` (skip/reverse)、`增加回合`     | → 等待出牌            |
 | **等待出牌**   | 接收 `出牌`、`放弃出牌`、`超时` 事件               | → 回合结束 / 摸牌     |
-| **摸牌**       | 处理抽牌逻辑 (+2/+4 叠加)                          | → 等待出牌            |
+| **摸牌**       | 处理抽牌逻辑 (+2/+4 叠加)                          | → 回合开始            |
 | **回合结束**   | 检查胜利者、自动呼叫 UNO，循环或结束               | → 回合开始 / 游戏结束 |
 
-### 3.3 事件系统
+### 3.4 事件系统
 
 所有游戏事件通过 `EventBus` (foundation/events/event-bus.ts) 流转，它封装 Cocos Creator 的 `EventTarget`。
 
@@ -69,18 +69,24 @@ pmpm run format       # 格式化代码，格式化唯一方式
 
 ---
 
-## 5. 编码规范
+## 4. 编码规范
 
-核心原则（详见 [ENCODING_STYLE.md](.claude/ENCODING_STYLE.md)）：
+核心规范主题：
+- **类型安全**: Assume Existence、显式类型接口、非空断言规则、`as` 断言限制
+- **空值边界**: 内部非空类型、外部 `A | null` 边界、`??` 用于类型统一
+- **逻辑分离**: 纯计算函数与业务编排分离、类内 `#region` 分离
+- **代码组织**: 禁止 Bracket Notation、kebab-case 命名
 
-1. **Assume Existence**: 假设输入/属性存在，不写 `?.`、`??`、if null 检查
-2. **显式类型**: 避免 `any`，用接口替代
-3. **逻辑分离**: 纯计算（独立工具函数）与业务流（状态变更）分离
-4. **No Safety Wrappers**: 不用 try/catch 隐藏错误，不用 `as` 断言
+完整规则和示例请参阅 [ENCODING_STYLE.md](.claude/ENCODING_STYLE.md)。
 
-## 6. Cocos Creator 资源文件
+## 5. Cocos Creator 资源文件
 
-⚠️ **禁止手动创建或修改 `.meta` 文件**。`.meta` 文件由 Cocos Creator 自动生成和管理，手动编辑会导致"资源导入失败"错误。如遇此问题，请通过 Cocos Creator MCP 工具修复。
+`.meta` 文件由 Cocos Creator 自动生成和管理，手动编辑会导致"资源导入失败"错误。
+
+- ❌ **禁止**手动创建 `.meta` 文件（留给 Cocos Creator 自动生成）
+- ❌ **禁止**手动修改 `.meta` 文件内容
+- ✅ **允许**在文件移动/复制/删除时一同移动/删除对应的 `.meta` 文件
+- 如遇 `.meta` 相关问题，请通过 Cocos Creator MCP 工具修复
 
 涉及以下文件类型时，**必须使用 Cocos Creator MCP 工具**进行操作，严禁直接编辑：
 
