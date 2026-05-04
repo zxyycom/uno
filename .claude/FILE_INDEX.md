@@ -72,25 +72,17 @@
 | ----------------------------------------------------------------------------------- | -------------- |
 | [ai-auto-responder.ts](assets/scripts/ui/components/ai-auto-responder.ts)           | AI 自动响应器  |
 | [card-manager.ts](assets/scripts/ui/components/card-manager.ts)                     | 卡牌管理器     |
-| [card-node-pool.ts](assets/scripts/ui/components/card-node-pool.ts)                 | 卡牌节点池     |
 | [deck-component.ts](assets/scripts/ui/components/deck-component.ts)                 | 牌堆组件       |
 | [game-message.ts](assets/scripts/ui/components/game-message.ts)                     | 游戏消息组件   |
 | [other-player-hand.ts](assets/scripts/ui/components/other-player-hand.ts)           | 其他玩家手牌   |
 | [played-card-pile.ts](assets/scripts/ui/components/played-card-pile.ts)             | 弃牌堆组件     |
 | [player-hand.ts](assets/scripts/ui/components/player-hand.ts)                       | 玩家手牌组件   |
 | [player-hand-count-view.ts](assets/scripts/ui/components/player-hand-count-view.ts) | 手牌数量视图   |
-| [player-indicator.ts](assets/scripts/ui/components/player-indicator.ts)             | 玩家指示器     |
 | [player-seat-view.ts](assets/scripts/ui/components/player-seat-view.ts)             | 玩家座位视图   |
 | [player-slot-controller.ts](assets/scripts/ui/components/player-slot-controller.ts) | 玩家槽位控制器 |
 | [player-turn-countdown.ts](assets/scripts/ui/components/player-turn-countdown.ts)   | 回合倒计时     |
 | [player-turn-indicator.ts](assets/scripts/ui/components/player-turn-indicator.ts)   | 回合指示器     |
 | [ui-manager.ts](assets/scripts/ui/components/ui-manager.ts)                         | UI 管理器      |
-
-### listeners/
-
-| 文件                                                               | 说明              |
-| ------------------------------------------------------------------ | ----------------- |
-| [ui-game-events.ts](assets/scripts/ui/listeners/ui-game-events.ts) | UI 游戏事件监听器 |
 
 ### resources/
 
