@@ -1,254 +1,250 @@
 {
-    "title": "卡牌移动动画 API 化重构",
+    "title": "统一摸牌组件重构",
     "status": "ready_for_agent_execution",
-    "summary": "将卡牌移动动画从全局事件驱动改为 UI 内部 CardMoveAnimator 请求 API，重建本地玩家、其他玩家、弃牌堆之间的节点移动与所有权模型。",
+    "summary": "把摸牌动画从 PlayerHand / OtherPlayerHand 中移出，由专门的 HandDrawAnimator 集中订阅摸牌事件、创建节点、执行飞行动画，并在完成后调用目标手牌组件的追加接口。",
     "executionMode": "execute_changes_not_planning",
     "architectureDecisions": [
-        "CardMoveAnimator 是 UI 层内部动画服务，不向 foundation/events 增加卡牌移动事件。",
-        "业务事件仍通过 EventBus 流转；卡牌飞行动画由 UI 组件直接调用 CardMoveAnimator.requestMove()。",
-        "一个动画请求可以包含多个 CardMoveItem，多卡摸牌必须使用单个请求。",
-        "CardMoveAnimator 只负责 tween、临时飞行层挂载、完成/取消回调分发，不拥有最终节点生命周期。",
-        "节点所有权唯一：摸牌完成后 Hand 拥有；出牌完成后 PlayedCardPile 拥有；出牌取消后发起方 Hand 拥有并释放。",
-        "场景节点通过 @property 绑定和 UIManager 注入，禁止字符串查找和动态 addComponent 兜底。"
-    ],
-    "lessonsToAvoid": [
-        "不要混用 CARD_MOVE_COMPLETED 事件和请求回调两套完成路径。",
-        "不要实现只清理单个 node 的半取消；取消必须作用于整个 request。",
-        "不要在 onCancelled 内递归调用 cancelAnimation 或 cancel handle。",
-        "不要让 PlayerHand、OtherPlayerHand、PlayedCardPile 同时 release/destroy 同一个节点。",
-        "不要在异步 acquireCard 完成后无 token 校验地写回 UI 状态。",
-        "不要保留弱类型 builder、可选单卡参数和非空断言拼请求。",
-        "不要在 OtherPlayerHand.update() 中每帧做布局签名检查。",
-        "不要绕过 CardMoveAnimator 注入配置直接读取默认动画常量。"
+        "摸牌动画由 UI 层 HandDrawAnimator 统一处理，不再由各手牌组件自行管理。",
+        "摸牌开始时由摸牌组件创建节点；动画结束后，同一个节点追加给目标手牌组件。",
+        "HandDrawAnimator 通过 UIManager.getInstance() 使用现有 UI 单例属性，不重复绑定已有节点和组件。",
+        "PlayerHand 和 OtherPlayerHand 只提供追加接口和单卡目标布局接口。",
+        "常规手牌变化拆分为 CARDS_DRAWN 和 CARD_PLAYED，不再使用 HAND_UPDATED 驱动 UI。",
+        "保留一个全量手牌同步事件作为未来校验 UI 与 Core 数据一致性的入口，但不用于常规 UI 流程。"
     ],
     "constraints": [
-        "不新增 CARD_MOVE_REQUESTED、CARD_MOVE_COMPLETED、CARD_MOVE_CANCELLED 或其他卡牌移动全局事件。",
-        "不手动编辑 .scene、.prefab、.meta；场景绑定变更必须使用 Cocos Creator MCP。",
-        "不新增 any，不使用 as 类型断言绕过类型系统。",
-        "保持依赖方向 UI → Foundation → Core，Core 不依赖 UI。",
-        "CardMoveAnimator 不处理业务规则，不订阅业务事件。",
-        "节点生命周期必须有唯一 owner，禁止同一节点在同一路径中既 release 又 destroy。",
-        "格式化唯一使用 pnpm run format。"
+        "不手动编辑 .scene、.prefab、.meta。",
+        "不新增卡牌移动全局事件。",
+        "不新增 any，不使用 as any 绕过类型系统。",
+        "保持依赖方向 UI → Foundation → Core。",
+        "HandDrawAnimator 是 UI 层动画组件，不处理游戏规则，不改写 Core 状态。",
+        "格式化唯一使用 pnpm run format。",
+        "game.scene 和 .meta 变更已审查为合理，保持现状。",
+        "GameMessage 删除保持现状。"
     ],
     "tasks": [
         {
             "id": "T01",
-            "title": "新增 CardMoveAnimator 请求 API",
+            "title": "调整手牌事件模型",
             "status": "ready",
             "targetFiles": [
-                "assets/scripts/ui/components/card-move-animator.ts"
+                "assets/scripts/foundation/events/game.events.ts",
+                "assets/scripts/core/machine/game-machine.ts"
             ],
-            "description": "实现 UI 内部卡牌移动动画服务，调用方通过 requestMove 发起请求并通过 handle 取消。",
+            "description": "停止使用 HAND_UPDATED 驱动常规 UI，明确常规手牌增加使用 CARDS_DRAWN、减少使用 CARD_PLAYED，并新增保留的全量同步事件。",
             "implementationNotes": [
-                "新增 CardMoveKind、CardMoveItem、CardMoveRequest、CardMoveRequestHandle、CardMoveCancelReason 等 UI 内部类型。",
-                "requestMove(request) 为每个请求创建 active record，并返回包含 id、cancel(reason)、isActive() 的 handle。",
-                "active record 使用 remainingCount 初始化为 request.items.length。",
-                "每个 item 完成后设置目标父节点、目标 transform、目标层级和 siblingIndex，然后递减 remainingCount。",
-                "remainingCount 归零时清理索引并调用 request.onCompleted。",
-                "cancel(reason)、节点替换、节点失效、组件销毁都取消整个 request，并调用 request.onCancelled。",
-                "activeAnimationIdsByNode 仅作为 node 到 request id 的索引，不作为完成判断来源。",
-                "不订阅 eventBus，不 emit 卡牌移动事件。"
+                "新增 HAND_SNAPSHOT_SYNCED 或等价全量同步事件，payload 包含 playerId、hand、cardCount。",
+                "在事件定义附近添加注释，说明全量同步事件用于未来校验 UI 与 Core 手牌数据一致性、重连或强制同步，不用于常规摸牌/出牌 UI。",
+                "初始化游戏时不再发 HAND_UPDATED 驱动 UI，改为对每个玩家发 CARDS_DRAWN，cards 为初始手牌。",
+                "摸牌流程继续发 CARDS_DRAWN。",
+                "出牌流程继续发 CARD_PLAYED。",
+                "删除常规流程中 HAND_UPDATED 的 emit。"
             ],
             "acceptanceCriteria": [
-                "CardMoveAnimator 提供 requestMove API 和可取消 handle。",
-                "多 item 请求只触发一次请求级完成回调。",
-                "任一取消路径都会取消整个请求并触发请求级取消回调。",
-                "文件中没有 eventBus、CARD_MOVE_REQUESTED、CARD_MOVE_COMPLETED。"
+                "常规初始化发牌和摸牌都通过 CARDS_DRAWN 表达手牌增加。",
+                "常规出牌通过 CARD_PLAYED 表达手牌减少。",
+                "HAND_SNAPSHOT_SYNCED 或等价事件存在，并有未来用途注释。",
+                "game-machine 常规流程不再 emit HAND_UPDATED。"
             ],
             "dependencies": []
         },
         {
             "id": "T02",
-            "title": "扩展 CardManager 节点复用能力",
+            "title": "UIManager 提供单例访问",
             "status": "ready",
-            "targetFiles": ["assets/scripts/ui/components/card-manager.ts"],
-            "description": "集中卡面、卡背和节点 reset 逻辑，支持其他玩家卡背出牌时切换真实牌面。",
+            "targetFiles": [
+                "assets/scripts/ui/components/ui-manager.ts"
+            ],
+            "description": "让新增摸牌组件可以通过 UIManager 单例复用已有 UI 属性，避免在摸牌组件上重复绑定同一批节点和组件。",
             "implementationNotes": [
-                "新增 setCardFace(node, card)，异步设置真实卡牌 sprite。",
-                "新增 setCardBack(node)，设置卡背 sprite，卡背资源未加载完成时保留异步补设逻辑。",
-                "acquireCard 复用 setCardFace，acquireCardBack 复用 setCardBack。",
-                "releaseCard 和 resetNode 保证停止 tween、移除父节点、active false、position/scale/angle/opacity/sprite 归一。",
-                "resetNode 不销毁节点；是否销毁由对象池容量策略决定。"
+                "新增 private static instance: UIManager | null。",
+                "onLoad 设置 UIManager.instance = this。",
+                "onDestroy 在实例匹配时清空 instance。",
+                "新增 static getInstance(): UIManager | null。",
+                "保留现有 cardMoveAnimator、deckNode、discardStackLayerNode、playerHand、otherPlayerHandRight、otherPlayerHandTop、otherPlayerHandLeft、playedCardPile 等属性。",
+                "暴露动画配置供 HandDrawAnimator 使用。"
             ],
             "acceptanceCriteria": [
-                "卡面和卡背设置逻辑不再分散。",
-                "复用节点归还后不会保留旧牌面、旧透明度、旧 transform 或旧 tween。",
-                "其他组件可以安全调用 setCardFace 切换卡背为真实牌面。"
+                "HandDrawAnimator 可以通过 UIManager.getInstance() 取得所需 UI 对象。",
+                "HandDrawAnimator 不需要重复 @property 绑定 cardMoveAnimator、deckNode、discardStackLayerNode 或手牌组件。"
+            ],
+            "dependencies": [
+                "T01"
+            ]
+        },
+        {
+            "id": "T03",
+            "title": "新增 HandDrawAnimator",
+            "status": "ready",
+            "targetFiles": [
+                "assets/scripts/ui/components/hand-draw-animator.ts"
+            ],
+            "description": "集中处理所有摸牌事件，创建节点，发起 draw-to-hand 飞行动画，并在完成后调用目标手牌组件追加节点。",
+            "implementationNotes": [
+                "订阅 GameEventType.CARDS_DRAWN。",
+                "订阅 START_GAME 或在销毁路径取消当前 active draw request。",
+                "通过 UIManager.getInstance() 获取 cardMoveAnimator、deckNode、discardStackLayerNode、各手牌组件、cardManager 和动画配置。",
+                "根据 payload.player.id 找到目标 PlayerHand 或 OtherPlayerHand。",
+                "本地玩家摸牌创建真实牌面节点。",
+                "其他玩家摸牌创建卡背节点。",
+                "对每张 card 调用目标组件 getDrawTargetLayout(card, index, totalCount) 计算目标布局。",
+                "使用 CardMoveAnimator.requestMove() 发起单个多 item draw-to-hand 请求。",
+                "onCompleted 调用目标组件 appendDrawnCards(cards, nodes)。",
+                "onCancelled 释放本次创建但尚未追加给手牌组件的节点。",
+                "不 emit 任何卡牌移动全局事件。"
+            ],
+            "acceptanceCriteria": [
+                "所有摸牌飞行动画只由 HandDrawAnimator 发起。",
+                "多张摸牌只发起一个 CardMoveAnimator request。",
+                "动画完成后同一批节点追加给目标手牌组件。",
+                "取消时未追加节点被释放。",
+                "HandDrawAnimator 不包含游戏规则判断。"
+            ],
+            "dependencies": [
+                "T02"
+            ]
+        },
+        {
+            "id": "T04",
+            "title": "改造 PlayerHand 摸牌接收接口",
+            "status": "ready",
+            "targetFiles": [
+                "assets/scripts/ui/components/player-hand.ts"
+            ],
+            "description": "移除本地玩家手牌组件中的摸牌动画逻辑，只保留动画完成后的节点追加能力。",
+            "implementationNotes": [
+                "删除 CARDS_DRAWN 订阅。",
+                "删除 activeDrawHandle、摸牌 request 构造、摸牌取消和 pending draw request 生命周期。",
+                "新增 appendDrawnCards(cards, nodes)，注册真实牌面节点到 cardViewsById，更新 handOrder，并绑定点击、悬停、触摸事件。",
+                "appendDrawnCards 完成后触发中央收起再展开动画。",
+                "新增 getDrawTargetLayout(card, index, totalCount)，根据追加后的最终手牌数量返回该 card 的目标 CardLayoutTransform。",
+                "本地玩家出牌逻辑仍保留在 PlayerHand，通过 CARD_PLAYED 移除真实节点并飞向弃牌堆。",
+                "将 uiContext 改为 private uiContext: PlayerHandContext = null!，去掉可选字段语义。"
+            ],
+            "acceptanceCriteria": [
+                "PlayerHand 不再订阅 CARDS_DRAWN。",
+                "PlayerHand 中不存在 activeDrawHandle 或 draw-to-hand request 构造逻辑。",
+                "appendDrawnCards 后新增节点可点击、悬停、选中。",
+                "appendDrawnCards 后会触发中央收起再展开动画。",
+                "PlayerHand 出牌行为不回归。"
+            ],
+            "dependencies": [
+                "T03"
+            ]
+        },
+        {
+            "id": "T05",
+            "title": "改造 OtherPlayerHand 摸牌接收接口",
+            "status": "ready",
+            "targetFiles": [
+                "assets/scripts/ui/components/other-player-hand.ts"
+            ],
+            "description": "移除其他玩家手牌组件中的摸牌动画逻辑，只保留动画完成后的卡背节点追加能力。",
+            "implementationNotes": [
+                "删除 CARDS_DRAWN 订阅。",
+                "删除 activeDrawHandle、摸牌 request 构造和摸牌取消逻辑。",
+                "新增 appendDrawnCards(cards, nodes)，将卡背节点追加到 cardNodes。",
+                "appendDrawnCards 完成后触发中央收起再展开动画。",
+                "新增 getDrawTargetLayout(card, index, totalCount)，根据追加后的最终数量返回该新增卡背的目标 CardLayoutTransform。",
+                "card 参数用于与 PlayerHand 保持统一接口，OtherPlayerHand 不需要读取牌面业务信息。",
+                "其他玩家出牌逻辑仍保留在 OtherPlayerHand。"
+            ],
+            "acceptanceCriteria": [
+                "OtherPlayerHand 不再订阅 CARDS_DRAWN。",
+                "OtherPlayerHand 中不存在 activeDrawHandle 或 draw-to-hand request 构造逻辑。",
+                "appendDrawnCards 后新增卡背节点进入对应玩家手牌布局。",
+                "appendDrawnCards 后会触发中央收起再展开动画。",
+                "OtherPlayerHand 出牌行为不回归。"
+            ],
+            "dependencies": [
+                "T03"
+            ]
+        },
+        {
+            "id": "T06",
+            "title": "更新玩家槽位数量",
+            "status": "ready",
+            "targetFiles": [
+                "assets/scripts/ui/components/player-slot-controller.ts"
+            ],
+            "description": "玩家槽位不再依赖 HAND_UPDATED 更新数量，改为通过摸牌和出牌细化事件维护显示数量。",
+            "implementationNotes": [
+                "删除 HAND_UPDATED 订阅和 HandUpdatedPayload import。",
+                "订阅 CARDS_DRAWN，命中当前 playerId 时按 payload.cards.length 增加数量。",
+                "订阅 CARD_PLAYED，命中当前 playerId 时数量减 1。",
+                "START_GAME 时重置显示数量和 UNO 状态。",
+                "CALL_UNO、TURN_CHANGED、TURN_TIMER_SYNC、GAME_OVER 行为保持不变。"
+            ],
+            "acceptanceCriteria": [
+                "PlayerSlotController 不再引用 HAND_UPDATED。",
+                "初始发牌、摸牌、出牌后手牌数量显示正确。",
+                "非 1 张手牌时 UNO 标识仍会被清理。"
+            ],
+            "dependencies": [
+                "T01"
+            ]
+        },
+        {
+            "id": "T07",
+            "title": "补充 CardMoveAnimator 中途失效说明",
+            "status": "ready",
+            "targetFiles": [
+                "assets/scripts/ui/components/card-move-animator.ts"
+            ],
+            "description": "不增加复杂失效监听，仅补充注释说明 tween 期间节点控制权归动画组件，现有 isValid 校验是防御性保护。",
+            "implementationNotes": [
+                "保留 startMoveItem 和 completeItem 中的 node.isValid 校验。",
+                "在启动 tween 的逻辑附近添加注释说明：动画期间节点不应被其他组件 release/destroy。",
+                "说明节点中途失效理论上不应发生，完成时校验用于防御异常情况。",
+                "不新增节点销毁监听机制。"
+            ],
+            "acceptanceCriteria": [
+                "CardMoveAnimator 说明了节点中途失效的设计假设。",
+                "没有引入复杂监听或额外生命周期分支。",
+                "现有 request cancel/complete 行为不改变。"
             ],
             "dependencies": []
         },
         {
-            "id": "T03",
-            "title": "新增动画工具和配置入口",
-            "status": "ready",
-            "targetFiles": ["assets/scripts/ui/utils/card-move-animation.ts"],
-            "description": "提供动画配置、draw-to-hand item 构造纯函数和中央合并再展开工具。",
-            "implementationNotes": [
-                "定义 CardMoveAnimationConfig 和默认配置常量。",
-                "新增 createDrawToHandMoveItems 纯函数，显式接收 cards、nodes、layouts、fromWorldPosition、targetParent、targetLayer、drawStaggerDelay。",
-                "createDrawToHandMoveItems 返回 CardMoveItem[]，不读取组件状态、不 emit 事件、不启动 tween。",
-                "新增 animateCenterMergeExpand(nodes, component, refreshLayout, canRun, config)。",
-                "animateCenterMergeExpand 使用显式 config，不直接读取默认常量。"
-            ],
-            "acceptanceCriteria": [
-                "draw-to-hand item 构造逻辑可被 PlayerHand 和 OtherPlayerHand 复用。",
-                "工具函数不依赖 this、不访问 eventBus、不启动飞行请求。",
-                "动画错峰 delay 可由注入后的配置传入。"
-            ],
-            "dependencies": ["T01"]
-        },
-        {
-            "id": "T04",
-            "title": "通过 UIManager 注入动画依赖",
-            "status": "ready",
-            "targetFiles": ["assets/scripts/ui/components/ui-manager.ts"],
-            "description": "让 UIManager 负责绑定并注入 CardMoveAnimator、牌堆锚点、弃牌堆目标和弃牌堆接管能力。",
-            "implementationNotes": [
-                "新增 @property(CardMoveAnimator) cardMoveAnimator。",
-                "新增 @property(Node) deckNode、discardPileNode、discardStackLayerNode。",
-                "新增 @property(PlayedCardPile) playedCardPile。",
-                "start/initUIComponents 中初始化 cardMoveAnimator 配置。",
-                "构造 UI 内部 cardMoveContext，注入 animator、deckNode、discardPileNode、discardStackLayerNode、acceptDiscardNode 回调和 animationConfig。",
-                "PlayerHand.init 和 OtherPlayerHand.init 接收或另行设置该 context。",
-                "删除任何场景字符串查找和动态 addComponent 兜底。"
-            ],
-            "acceptanceCriteria": [
-                "UIManager 不调用 find、getChildByName 或 addComponent。",
-                "Hand 组件所需动画依赖全部来自 UIManager 注入。",
-                "CardMoveAnimator 配置由 UIManager 初始化。"
-            ],
-            "dependencies": ["T01", "T03"]
-        },
-        {
-            "id": "T05",
-            "title": "重建 PlayedCardPile 接管模型",
-            "status": "ready",
-            "targetFiles": ["assets/scripts/ui/components/played-card-pile.ts"],
-            "description": "弃牌堆不再自行发起出牌飞行动画，只接管已经飞完的真实节点。",
-            "implementationNotes": [
-                "删除 CARD_PLAYED 订阅和从 deckNode 创建卡牌飞向弃牌堆的逻辑。",
-                "新增 public acceptDiscardNode(card, node): void。",
-                "acceptDiscardNode 将节点作为弃牌堆顶牌接管，加入 discardCardNodes 并 layoutDiscardStack。",
-                "DISCARD_UPDATED 只在无动画接管节点且无顶牌时做初始或兜底展示。",
-                "discardPileNode、tableCardLayerNode、cardManager 使用必绑属性，不使用 null fallback。",
-                "clearDiscardCards/dispose 通过 CardManager.releaseCard 释放已接管节点。"
-            ],
-            "acceptanceCriteria": [
-                "PlayedCardPile 不再监听 CARD_PLAYED 来创建出牌动画。",
-                "PlayedCardPile 提供 acceptDiscardNode 接管飞完节点。",
-                "弃牌堆清理时不会 destroy 已池化节点绕过 CardManager。",
-                "不存在 tableCardLayerNode || this.node 这类静默 fallback。"
-            ],
-            "dependencies": ["T02"]
-        },
-        {
-            "id": "T06",
-            "title": "重建 PlayerHand 差量同步和动画流程",
-            "status": "ready",
-            "targetFiles": ["assets/scripts/ui/components/player-hand.ts"],
-            "description": "本地玩家手牌使用真实节点差量同步，并通过 CardMoveAnimator API 完成出牌和摸牌动画。",
-            "implementationNotes": [
-                "HAND_UPDATED 改为按 card.id 差量同步，不再全量 clear 后重建。",
-                "使用 cardViewsById + handOrder 或等价单一顺序模型，避免数组和 Map 双源失配。",
-                "CARD_PLAYED 命中本玩家时，从手牌状态移除真实节点，调用 animator.requestMove 发起 play-to-discard。",
-                "play-to-discard onCompleted 调用 acceptDiscardNode(card, node)，onCancelled 释放节点回 CardManager。",
-                "CARDS_DRAWN 命中本玩家时创建新增节点，登记 active draw handle，构造单个多 item draw-to-hand 请求。",
-                "draw-to-hand onCompleted 清空 active handle 并执行中央合并再展开。",
-                "draw-to-hand onCancelled 校验当前 handle，清理 pending card ids，并释放不再属于手牌的节点。",
-                "START_GAME、dispose、clearCards 取消 active request 并递增批次 token，使旧异步回调失效。",
-                "删除不可出牌透明度运行时逻辑，卡牌保持 255 opacity。"
-            ],
-            "acceptanceCriteria": [
-                "本地玩家出牌从真实手牌节点飞向弃牌堆。",
-                "本地玩家摸多张牌只发起一个 draw-to-hand 请求。",
-                "重置或销毁后旧异步 createCardNode 不会写回已清空手牌。",
-                "出牌取消后节点只由 PlayerHand 释放。",
-                "普通出牌只触发剩余手牌补位，不触发中央合并再展开。"
-            ],
-            "dependencies": ["T01", "T02", "T03", "T04", "T05"]
-        },
-        {
-            "id": "T07",
-            "title": "重建 OtherPlayerHand 出牌和摸牌动画",
-            "status": "ready",
-            "targetFiles": [
-                "assets/scripts/ui/components/other-player-hand.ts"
-            ],
-            "description": "其他玩家手牌使用卡背节点参与出牌和摸牌动画，布局刷新改为事件驱动。",
-            "implementationNotes": [
-                "CARD_PLAYED 命中当前玩家时，从 cardNodes 中选择一个卡背节点并移除。",
-                "调用 CardManager.setCardFace 将该卡背切换成真实牌面，再发起 play-to-discard 请求。",
-                "play-to-discard onCompleted 调用 acceptDiscardNode(card, node)，onCancelled 释放节点。",
-                "CARDS_DRAWN 命中当前玩家时新增卡背节点，构造单个多 item draw-to-hand 请求。",
-                "draw-to-hand 完成后清空 active handle 并中央合并再展开。",
-                "draw-to-hand 取消后按节点是否仍在 cardNodes 中决定刷新布局或释放。",
-                "删除 update()、layoutSignature、refreshCurvedFanLayoutIfChanged 和 createCurvedFanLayoutSignature import，布局由事件路径显式刷新。",
-                "START_GAME、dispose、clearCards 取消 active request 并清理 pending 出牌节点。"
-            ],
-            "acceptanceCriteria": [
-                "其他玩家出牌时一张卡背切换成真实牌面并飞向弃牌堆。",
-                "其他玩家摸多张牌只发起一个 draw-to-hand 请求。",
-                "OtherPlayerHand 不再每帧计算布局签名。",
-                "出牌取消后节点只由 OtherPlayerHand 释放。",
-                "OtherPlayerHand 不订阅任何卡牌移动完成事件。"
-            ],
-            "dependencies": ["T01", "T02", "T03", "T04", "T05"]
-        },
-        {
             "id": "T08",
-            "title": "纯化布局应用并清理透明度遗留",
+            "title": "使用 MCP 工具更新场景挂载与绑定",
             "status": "ready",
             "targetFiles": [
-                "assets/scripts/ui/utils/hand-card-layout.ts",
-                "assets/scripts/ui/components/player-hand.ts",
-                "assets/scripts/ui/components/other-player-hand.ts"
+                "db://assets/res/game.scene"
             ],
-            "description": "移除布局工具内部不必要副作用和透明度弱化逻辑，调用方显式控制 tween 停止。",
+            "description": "代码变更完成后，通过 Cocos Creator MCP 工具修改场景，将 HandDrawAnimator 挂载到 GameController 节点，绑定 UIManager.cardManager（若新增），并验证所有 @property 引用有效。",
             "implementationNotes": [
-                "calculateFanCardLayout 不再输出不可出牌透明度。",
-                "PlayerHand 删除或停止使用 disabledCardOpacity、enabledCardOpacity。",
-                "applyCardLayoutTransform 不负责 Tween.stopAllByTarget，调用方在需要时显式停止已有 tween。",
-                "CardManager.resetNode 继续保证 UIOpacity 为 255。"
+                "使用 cocos_node(action:\"mount_script\") 将 HandDrawAnimator 挂载到 GameController 节点。",
+                "若 UIManager 新增了 @property(CardManager) cardManager，使用 cocos_component(action:\"set_property\") 绑定场景中的 CardManager 节点（UUID: abejqPYKlC/48BTW9V+STo）。",
+                "使用 cocos_component(action:\"info\") 逐一验证 UIManager 上所有 @property 引用在场景中是否有效。",
+                "HandDrawAnimator 通过 UIManager.getInstance() 获取所有依赖，无需在编辑器上单独设置属性。",
+                "仅在 cocos_* MCP 工具提供的接口内操作，禁止手动编辑 .scene/.prefab/.meta 文件。"
             ],
             "acceptanceCriteria": [
-                "运行时所有卡牌保持不透明。",
-                "布局工具不隐藏停止 tween 的副作用。",
-                "rg 不再找到运行时使用 disabledCardOpacity 或 enabledCardOpacity 的路径。"
+                "HandDrawAnimator 已挂载到 GameController 节点并可正常接收生命周期事件。",
+                "若 UIManager 声明了 cardManager 属性，场景中已完成节点绑定。",
+                "UIManager 所有已有 @property（playerHand、deckComponent、cardMoveAnimator、deckNode、discardStackLayerNode、playedCardPile、各 PlayerSlotController、各 OtherPlayerHand）在场景中仍然有效。",
+                "未使用文件编辑工具手动修改 .scene/.prefab/.meta。"
             ],
-            "dependencies": ["T06", "T07"]
+            "dependencies": [
+                "T01",
+                "T02",
+                "T03",
+                "T04",
+                "T05",
+                "T06",
+                "T07"
+            ]
         },
         {
             "id": "T09",
-            "title": "清理动画事件残留和死代码",
+            "title": "格式化和静态检查",
             "status": "ready",
             "targetFiles": [
-                "assets/scripts/foundation/events/game.events.ts",
-                "assets/scripts/ui/components",
-                "assets/scripts/ui/utils"
+                "assets/scripts",
+                "plan.md",
+                "task.json"
             ],
-            "description": "确保卡牌移动动画没有进入全局事件系统，并清理旧事件化实现残留。",
-            "implementationNotes": [
-                "foundation/events/game.events.ts 不新增卡牌移动事件和 payload。",
-                "删除任何 CARD_MOVE_REQUESTED、CARD_MOVE_COMPLETED、CARD_MOVE_CANCELLED 相关引用。",
-                "删除空订阅、空回调、未使用 active id helper、弱类型 request builder。",
-                "确保 CardMoveAnimator 不 import eventBus。",
-                "确保 PlayerHand、OtherPlayerHand、PlayedCardPile 不通过动画事件通信。"
-            ],
-            "acceptanceCriteria": [
-                "rg CARD_MOVE_REQUESTED 无结果。",
-                "rg CARD_MOVE_COMPLETED 无结果。",
-                "rg CARD_MOVE_CANCELLED 无结果。",
-                "CardMoveAnimator 中没有 eventBus import。",
-                "无 unused import 或 unused private method。"
-            ],
-            "dependencies": ["T01", "T05", "T06", "T07", "T08"]
-        },
-        {
-            "id": "T10",
-            "title": "运行格式化和静态检查",
-            "status": "ready",
-            "targetFiles": ["assets/scripts", "plan.md", "task.json"],
-            "description": "完成重构后运行项目指定格式化、类型检查和 lint，并记录剩余既有 warning。",
+            "description": "完成重构后运行项目指定格式化、类型检查和 lint。",
             "implementationNotes": [
                 "运行 pnpm run format。",
                 "运行 pnpm run type-check。",
@@ -260,7 +256,7 @@
                 "pnpm run format 已运行。",
                 "pnpm run type-check 通过。",
                 "pnpm run lint 无新增 error。",
-                "最终说明记录剩余 warning。"
+                "最终说明记录剩余既有 warning。"
             ],
             "dependencies": [
                 "T01",
@@ -270,8 +266,7 @@
                 "T05",
                 "T06",
                 "T07",
-                "T08",
-                "T09"
+                "T08"
             ]
         }
     ]
