@@ -12,16 +12,13 @@ import { _decorator, Component, Node, RealCurve, Tween, Vec3 } from 'cc';
 
 import {
     CardPlayedPayload,
-    CardsDrawnPayload,
     eventBus,
     GameEventType,
-    HandUpdatedPayload,
 } from '../../foundation/events';
 import { Card } from '../../foundation/types/game.types';
 import {
     animateCenterMergeExpand,
     CardMoveContext,
-    createDrawToHandMoveItems,
 } from '../utils/card-move-animation';
 import {
     applyCardLayoutTransform,
@@ -99,11 +96,10 @@ export class OtherPlayerHand extends Component {
     })
     public layoutTweenDuration: number = 0.12;
 
-    private playerId: string = '';
+    public playerId: string = '';
     private cardMoveContext: CardMoveContext = null!;
     private readonly cardNodes: Node[] = [];
     private readonly pendingPlayNodes = new Set<Node>();
-    private activeDrawHandle: CardMoveRequestHandle | null = null;
     private activePlayHandle: CardMoveRequestHandle | null = null;
     private lifecycleVersion: number = 0;
     private requestSequence: number = 0;
@@ -134,16 +130,6 @@ export class OtherPlayerHand extends Component {
         );
 
         eventBus.on(
-            GameEventType.HAND_UPDATED,
-            (payload) => {
-                if (payload.playerId === this.playerId) {
-                    this.onHandUpdated(payload);
-                }
-            },
-            this
-        );
-
-        eventBus.on(
             GameEventType.CARD_PLAYED,
             (payload) => {
                 this.onCardPlayed(payload);
@@ -151,28 +137,6 @@ export class OtherPlayerHand extends Component {
             this
         );
 
-        eventBus.on(
-            GameEventType.CARDS_DRAWN,
-            (payload) => {
-                this.onCardsDrawn(payload);
-            },
-            this
-        );
-    }
-
-    private onHandUpdated(payload: HandUpdatedPayload): void {
-        if (payload.playerId !== this.playerId) {
-            return;
-        }
-
-        if (
-            this.activeDrawHandle?.isActive() &&
-            this.cardNodes.length === payload.cardCount
-        ) {
-            return;
-        }
-
-        this.renderCardBacks(payload.cardCount, true);
     }
 
     private onCardPlayed(payload: CardPlayedPayload): void {
@@ -181,14 +145,6 @@ export class OtherPlayerHand extends Component {
         }
 
         void this.startPlayToDiscard(payload.card);
-    }
-
-    private onCardsDrawn(payload: CardsDrawnPayload): void {
-        if (payload.player.id !== this.playerId) {
-            return;
-        }
-
-        this.startDrawToHand(payload.cards);
     }
 
     private renderCardBacks(count: number, animated: boolean): void {
@@ -314,64 +270,6 @@ export class OtherPlayerHand extends Component {
             this.cardMoveContext.animator.requestMove(request);
     }
 
-    private startDrawToHand(cards: readonly Card[]): void {
-        if (cards.length === 0) {
-            return;
-        }
-
-        this.cancelActiveDrawRequest(CardMoveCancelReason.Requested);
-
-        const lifecycleVersion = this.lifecycleVersion;
-        const nodes: Node[] = [];
-        for (let i = 0; i < cards.length; i++) {
-            const node = this.cardManager.acquireCardBack(this.node);
-            node.active = true;
-            this.cardNodes.push(node);
-            nodes.push(node);
-        }
-
-        const requestId = this.createRequestId('draw');
-        const layouts = this.createDrawLayouts(nodes.length);
-        const request: CardMoveRequest = {
-            id: requestId,
-            kind: CardMoveKind.DrawToHand,
-            playerId: this.playerId,
-            items: createDrawToHandMoveItems(
-                cards,
-                nodes,
-                layouts,
-                this.cardMoveContext.deckNode.worldPosition,
-                this.node,
-                this.cardMoveContext.discardStackLayerNode,
-                this.cardMoveContext.animationConfig.drawStaggerDelay
-            ),
-            onCompleted: () => {
-                if (!this.isCurrentDrawRequest(requestId, lifecycleVersion)) {
-                    return;
-                }
-                this.activeDrawHandle = null;
-                this.animateCenterMergeExpand(lifecycleVersion);
-            },
-            onCancelled: () => {
-                this.releaseDrawNodesNoLongerInHand(nodes);
-                if (this.activeDrawHandle?.id === requestId) {
-                    this.activeDrawHandle = null;
-                }
-            },
-        };
-
-        this.activeDrawHandle =
-            this.cardMoveContext.animator.requestMove(request);
-    }
-
-    private createDrawLayouts(drawCount: number): CardLayoutTransform[] {
-        const allLayouts = calculateCurvedFanCardLayouts(
-            this.cardNodes.length,
-            this.getCurvedFanLayoutConfig()
-        );
-        return allLayouts.slice(this.cardNodes.length - drawCount);
-    }
-
     private animateCenterMergeExpand(lifecycleVersion: number): void {
         animateCenterMergeExpand(
             this.cardNodes,
@@ -382,16 +280,6 @@ export class OtherPlayerHand extends Component {
             () => this.lifecycleVersion === lifecycleVersion,
             this.cardMoveContext.animationConfig
         );
-    }
-
-    private releaseDrawNodesNoLongerInHand(nodes: readonly Node[]): void {
-        for (const node of nodes) {
-            if (this.cardNodes.includes(node)) {
-                continue;
-            }
-            this.cardManager.releaseCard(node);
-        }
-        this.refreshCurvedFanLayout(true);
     }
 
     private clearCards(): void {
@@ -427,7 +315,6 @@ export class OtherPlayerHand extends Component {
 
     private cancelActiveRequests(reason: CardMoveCancelReason): void {
         this.cancelActivePlayRequest(reason);
-        this.cancelActiveDrawRequest(reason);
     }
 
     private cancelActivePlayRequest(reason: CardMoveCancelReason): void {
@@ -436,15 +323,6 @@ export class OtherPlayerHand extends Component {
             return;
         }
         this.activePlayHandle = null;
-        handle.cancel(reason);
-    }
-
-    private cancelActiveDrawRequest(reason: CardMoveCancelReason): void {
-        const handle = this.activeDrawHandle;
-        if (!handle) {
-            return;
-        }
-        this.activeDrawHandle = null;
         handle.cancel(reason);
     }
 
@@ -471,13 +349,23 @@ export class OtherPlayerHand extends Component {
         );
     }
 
-    private isCurrentDrawRequest(
-        requestId: string,
-        lifecycleVersion: number
-    ): boolean {
-        return (
-            this.lifecycleVersion === lifecycleVersion &&
-            this.activeDrawHandle?.id === requestId
+    public appendDrawnCards(cards: readonly Card[], nodes: readonly Node[]): void {
+        for (const node of nodes) {
+            this.cardNodes.push(node);
+        }
+        this.animateCenterMergeExpand(this.lifecycleVersion);
+    }
+
+    public getDrawTargetLayout(
+        _card: Card,
+        index: number,
+        totalCount: number
+    ): CardLayoutTransform {
+        const allLayouts = calculateCurvedFanCardLayouts(
+            totalCount,
+            this.getCurvedFanLayoutConfig()
         );
+        const currentCount = this.cardNodes.length;
+        return allLayouts[currentCount + index];
     }
 }
