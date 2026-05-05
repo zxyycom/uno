@@ -31,7 +31,6 @@ import {
 } from '../utils/seat-direction';
 import { CardMoveAnimator } from './card-move-animator';
 import { DeckComponent } from './deck-component';
-import { GameMessage } from './game-message';
 import { OtherPlayerHand } from './other-player-hand';
 import { PlayedCardPile } from './played-card-pile';
 import { PlayerHand } from './player-hand';
@@ -65,9 +64,6 @@ export class UIManager extends Component {
 
     @property(PlayedCardPile)
     public playedCardPile: PlayedCardPile = null!;
-
-    @property(GameMessage)
-    public gameMessage: GameMessage = null!;
 
     // 方位绑定的玩家槽位控制器
     @property(PlayerSlotController)
