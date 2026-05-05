@@ -22,6 +22,7 @@ import {
     TopCard,
     UnoCardType,
 } from '../../foundation/types/game.types';
+import { CardMoveContext } from '../utils/card-move-animation';
 import {
     applyCardLayoutTransform,
     calculateCurvedFanCardLayouts,
@@ -33,7 +34,7 @@ import { CardManager } from './card-manager';
 
 const { ccclass, property } = _decorator;
 
-export type PlayerHandContext = {
+export type PlayerHandContext = CardMoveContext & {
     getTopCard(): TopCard;
     playCard(playerId: string, card: Card, chosenColor?: CardColor): void;
 };

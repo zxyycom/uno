@@ -15,6 +15,7 @@ import {
     GameEventType,
     HandUpdatedPayload,
 } from '../../foundation/events';
+import { CardMoveContext } from '../utils/card-move-animation';
 import {
     applyCardLayoutTransform,
     calculateCurvedFanCardLayouts,
@@ -87,6 +88,7 @@ export class OtherPlayerHand extends Component {
     public layoutTweenDuration: number = 0.12;
 
     private playerId: string = '';
+    private cardMoveContext: CardMoveContext = null!;
     private readonly cardNodes: Node[] = [];
     private layoutSignature: string = '';
 
@@ -94,8 +96,9 @@ export class OtherPlayerHand extends Component {
         this.refreshCurvedFanLayoutIfChanged(false);
     }
 
-    public init(playerId: string): void {
+    public init(playerId: string, cardMoveContext: CardMoveContext): void {
         this.playerId = playerId;
+        this.cardMoveContext = cardMoveContext;
         this.renderCardBacks(0, false);
     }
 

@@ -7,6 +7,7 @@ import { Component, Node, tween, Tween, UITransform, Vec3 } from 'cc';
 
 import { Card } from '../../foundation/types/game.types';
 import {
+    CardMoveAnimator,
     CardMoveAnimatorConfig,
     CardMoveItem,
 } from '../components/card-move-animator';
@@ -26,6 +27,15 @@ export const DEFAULT_CARD_MOVE_ANIMATION_CONFIG: CardMoveAnimationConfig = {
     drawStaggerDelay: 0.06,
     centerMergeDuration: 0.14,
     centerExpandDelay: 0.04,
+};
+
+export type CardMoveContext = {
+    animator: CardMoveAnimator;
+    deckNode: Node;
+    discardPileNode: Node;
+    discardStackLayerNode: Node;
+    acceptDiscardNode(card: Card, node: Node): void;
+    animationConfig: CardMoveAnimationConfig;
 };
 
 export function createDrawToHandMoveItems(

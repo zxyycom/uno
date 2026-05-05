@@ -124,6 +124,10 @@ export class PlayedCardPile extends Component {
         void this.placeDiscardTopInstant(payload.topCard);
     }
 
+    public acceptDiscardNode(_card: Card, node: Node): void {
+        this.setAsDiscardTop(node);
+    }
+
     /** 从牌堆飞到弃牌堆并保留牌面朝上 */
     private async animateCardToDiscard(card: Card): Promise<void> {
         if (!this.cardManager || !this.deckNode || !this.discardPileNode) {
