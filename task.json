@@ -51,9 +51,7 @@
             "id": "T02",
             "title": "UIManager 提供单例访问",
             "status": "ready",
-            "targetFiles": [
-                "assets/scripts/ui/components/ui-manager.ts"
-            ],
+            "targetFiles": ["assets/scripts/ui/components/ui-manager.ts"],
             "description": "让新增摸牌组件可以通过 UIManager 单例复用已有 UI 属性，避免在摸牌组件上重复绑定同一批节点和组件。",
             "implementationNotes": [
                 "新增 private static instance: UIManager | null。",
@@ -67,9 +65,7 @@
                 "HandDrawAnimator 可以通过 UIManager.getInstance() 取得所需 UI 对象。",
                 "HandDrawAnimator 不需要重复 @property 绑定 cardMoveAnimator、deckNode、discardStackLayerNode 或手牌组件。"
             ],
-            "dependencies": [
-                "T01"
-            ]
+            "dependencies": ["T01"]
         },
         {
             "id": "T03",
@@ -99,17 +95,13 @@
                 "取消时未追加节点被释放。",
                 "HandDrawAnimator 不包含游戏规则判断。"
             ],
-            "dependencies": [
-                "T02"
-            ]
+            "dependencies": ["T02"]
         },
         {
             "id": "T04",
             "title": "改造 PlayerHand 摸牌接收接口",
             "status": "ready",
-            "targetFiles": [
-                "assets/scripts/ui/components/player-hand.ts"
-            ],
+            "targetFiles": ["assets/scripts/ui/components/player-hand.ts"],
             "description": "移除本地玩家手牌组件中的摸牌动画逻辑，只保留动画完成后的节点追加能力。",
             "implementationNotes": [
                 "删除 CARDS_DRAWN 订阅。",
@@ -127,9 +119,7 @@
                 "appendDrawnCards 后会触发中央收起再展开动画。",
                 "PlayerHand 出牌行为不回归。"
             ],
-            "dependencies": [
-                "T03"
-            ]
+            "dependencies": ["T03"]
         },
         {
             "id": "T05",
@@ -155,9 +145,7 @@
                 "appendDrawnCards 后会触发中央收起再展开动画。",
                 "OtherPlayerHand 出牌行为不回归。"
             ],
-            "dependencies": [
-                "T03"
-            ]
+            "dependencies": ["T03"]
         },
         {
             "id": "T06",
@@ -179,9 +167,7 @@
                 "初始发牌、摸牌、出牌后手牌数量显示正确。",
                 "非 1 张手牌时 UNO 标识仍会被清理。"
             ],
-            "dependencies": [
-                "T01"
-            ]
+            "dependencies": ["T01"]
         },
         {
             "id": "T07",
@@ -208,9 +194,7 @@
             "id": "T08",
             "title": "使用 MCP 工具更新场景挂载与绑定",
             "status": "ready",
-            "targetFiles": [
-                "db://assets/res/game.scene"
-            ],
+            "targetFiles": ["db://assets/res/game.scene"],
             "description": "代码变更完成后，通过 Cocos Creator MCP 工具修改场景，将 HandDrawAnimator 挂载到 GameController 节点，绑定 UIManager.cardManager（若新增），并验证所有 @property 引用有效。",
             "implementationNotes": [
                 "使用 cocos_node(action:\"mount_script\") 将 HandDrawAnimator 挂载到 GameController 节点。",
@@ -225,25 +209,13 @@
                 "UIManager 所有已有 @property（playerHand、deckComponent、cardMoveAnimator、deckNode、discardStackLayerNode、playedCardPile、各 PlayerSlotController、各 OtherPlayerHand）在场景中仍然有效。",
                 "未使用文件编辑工具手动修改 .scene/.prefab/.meta。"
             ],
-            "dependencies": [
-                "T01",
-                "T02",
-                "T03",
-                "T04",
-                "T05",
-                "T06",
-                "T07"
-            ]
+            "dependencies": ["T01", "T02", "T03", "T04", "T05", "T06", "T07"]
         },
         {
             "id": "T09",
             "title": "格式化和静态检查",
             "status": "ready",
-            "targetFiles": [
-                "assets/scripts",
-                "plan.md",
-                "task.json"
-            ],
+            "targetFiles": ["assets/scripts", "plan.md", "task.json"],
             "description": "完成重构后运行项目指定格式化、类型检查和 lint。",
             "implementationNotes": [
                 "运行 pnpm run format。",

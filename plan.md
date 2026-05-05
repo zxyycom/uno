@@ -28,19 +28,19 @@
 - 订阅 `GameEventType.CARDS_DRAWN`。
 - 订阅 `START_GAME` 或销毁路径时取消当前 active draw request。
 - 通过 `UIManager.getInstance()` 获取：
-  - `cardMoveAnimator`
-  - `deckNode`
-  - `discardStackLayerNode`
-  - `playerHand`
-  - `otherPlayerHandRight`
-  - `otherPlayerHandTop`
-  - `otherPlayerHandLeft`
-  - `cardManager`
-  - 动画配置
+    - `cardMoveAnimator`
+    - `deckNode`
+    - `discardStackLayerNode`
+    - `playerHand`
+    - `otherPlayerHandRight`
+    - `otherPlayerHandTop`
+    - `otherPlayerHandLeft`
+    - `cardManager`
+    - 动画配置
 - 根据 `payload.player.id` 找到目标手牌组件。
 - 为本次摸到的每张牌创建节点：
-  - 本地玩家：创建真实牌面节点。
-  - 其他玩家：创建卡背节点。
+    - 本地玩家：创建真实牌面节点。
+    - 其他玩家：创建卡背节点。
 - 调用目标手牌组件的单卡布局接口计算目标位置。
 - 使用 `CardMoveAnimator.requestMove()` 发起单个多 item draw-to-hand 请求。
 - `onCompleted` 调用目标手牌组件的追加接口。
@@ -65,14 +65,14 @@
 - 删除 `CARDS_DRAWN` 订阅。
 - 删除 `activeDrawHandle`、摸牌 request 构造、摸牌取消、pending draw request 生命周期。
 - 新增 `appendDrawnCards(cards: readonly Card[], nodes: readonly Node[]): void`：
-  - 将每张真实牌面节点注册到 `cardViewsById`。
-  - 更新 `handOrder`。
-  - 绑定点击、悬停、触摸事件。
-  - 追加完成后触发中央收起再展开动画。
+    - 将每张真实牌面节点注册到 `cardViewsById`。
+    - 更新 `handOrder`。
+    - 绑定点击、悬停、触摸事件。
+    - 追加完成后触发中央收起再展开动画。
 - 新增 `getDrawTargetLayout(card: Card, index: number, totalCount: number): CardLayoutTransform`：
-  - `index` 是该 card 在本次摸牌中的索引。
-  - `totalCount` 是追加后的最终手牌数量。
-  - 返回该 card 的目标位置、角度、缩放和 siblingIndex。
+    - `index` 是该 card 在本次摸牌中的索引。
+    - `totalCount` 是追加后的最终手牌数量。
+    - 返回该 card 的目标位置、角度、缩放和 siblingIndex。
 - `HAND_UPDATED` 不再用于常规摸牌 UI；本地手牌出牌仍通过 `CARD_PLAYED` 移除真实节点并飞向弃牌堆。
 - `uiContext` 改为必初始化字段：`private uiContext: PlayerHandContext = null!;`，去掉可选语义和重复 `this.uiContext!`。
 
@@ -83,11 +83,11 @@
 - 删除 `CARDS_DRAWN` 订阅。
 - 删除 `activeDrawHandle`、摸牌 request 构造、摸牌取消逻辑。
 - 新增 `appendDrawnCards(cards: readonly Card[], nodes: readonly Node[]): void`：
-  - 将卡背节点追加到 `cardNodes`。
-  - 追加完成后触发中央收起再展开动画。
+    - 将卡背节点追加到 `cardNodes`。
+    - 追加完成后触发中央收起再展开动画。
 - 新增 `getDrawTargetLayout(card: Card, index: number, totalCount: number): CardLayoutTransform`：
-  - 根据追加后的最终数量计算本次新增卡牌的目标布局。
-  - `card` 参数用于与 `PlayerHand` 保持统一接口，其他玩家手牌无需读取牌面业务信息。
+    - 根据追加后的最终数量计算本次新增卡牌的目标布局。
+    - `card` 参数用于与 `PlayerHand` 保持统一接口，其他玩家手牌无需读取牌面业务信息。
 - 其他玩家出牌逻辑继续保留在 `OtherPlayerHand`，因为它需要从已有卡背节点中选一张切换成真实牌面并飞向弃牌堆。
 
 ### 5. 调整手牌事件模型
@@ -98,8 +98,8 @@
 - 常规手牌减少继续使用 `CARD_PLAYED`。
 - 移除常规流程中对 `HAND_UPDATED` 的 UI 驱动依赖。
 - 新增全量手牌同步事件，例如 `HAND_SNAPSHOT_SYNCED`：
-  - payload 包含 `playerId`、`hand`、`cardCount`。
-  - 注释说明：该事件用于未来校验 UI 与 Core 手牌数据是否一致，或处理重连/强制同步，不用于常规摸牌/出牌 UI。
+    - payload 包含 `playerId`、`hand`、`cardCount`。
+    - 注释说明：该事件用于未来校验 UI 与 Core 手牌数据是否一致，或处理重连/强制同步，不用于常规摸牌/出牌 UI。
 - 初始化发牌改为发出 `CARDS_DRAWN`，由统一摸牌组件播放初始手牌进入动画。
 
 ### 6. 更新玩家槽位数量
@@ -118,9 +118,9 @@
 
 - 保留开始和完成时的 `node.isValid` 校验。
 - 在启动 tween 的逻辑附近补充注释：
-  - 摸牌 tween 期间节点控制权归动画组件。
-  - 其他组件不应 release/destroy 正在动画中的节点。
-  - 因此节点中途失效理论上不应发生，现有校验是防御性保护。
+    - 摸牌 tween 期间节点控制权归动画组件。
+    - 其他组件不应 release/destroy 正在动画中的节点。
+    - 因此节点中途失效理论上不应发生，现有校验是防御性保护。
 - 不增加复杂的节点销毁监听机制。
 
 ## Acceptance Criteria
@@ -151,14 +151,13 @@
 8. 为 `CardMoveAnimator` 增加节点中途失效相关注释。
 9. 使用 MCP 工具修改场景，挂载和绑定新组件：
 
-   代码变更完成后，使用 Cocos Creator MCP 工具更新场景，使脚本与场景绑定一致：
-
-   - 在 `GameController` 节点（UIManager 所在节点）挂载 `HandDrawAnimator` 组件脚本。
-     - `HandDrawAnimator` 通过 `UIManager.getInstance()` 获取所有依赖，无需单独绑定节点属性。
-     - 与 `UIManager` 同节点确保其 `onLoad`/`onDestroy` 生命周期正常触发。
-   - 若 `UIManager` 新增 `@property(CardManager) cardManager`，通过 MCP 将场景中的 `CardManager` 节点绑定到该属性。
-   - 验证 `UIManager` 上所有已有 `@property` 引用（`playerHand`、`deckComponent`、`cardMoveAnimator`、`deckNode`、`discardStackLayerNode`、`playedCardPile`、各 `PlayerSlotController`、各 `OtherPlayerHand`）在场景中仍然有效。
-   - 不手动编辑 `.scene`/`.prefab`/`.meta` 文件——全部通过 Cocos Creator MCP 工具操作。
+    代码变更完成后，使用 Cocos Creator MCP 工具更新场景，使脚本与场景绑定一致：
+    - 在 `GameController` 节点（UIManager 所在节点）挂载 `HandDrawAnimator` 组件脚本。
+        - `HandDrawAnimator` 通过 `UIManager.getInstance()` 获取所有依赖，无需单独绑定节点属性。
+        - 与 `UIManager` 同节点确保其 `onLoad`/`onDestroy` 生命周期正常触发。
+    - 若 `UIManager` 新增 `@property(CardManager) cardManager`，通过 MCP 将场景中的 `CardManager` 节点绑定到该属性。
+    - 验证 `UIManager` 上所有已有 `@property` 引用（`playerHand`、`deckComponent`、`cardMoveAnimator`、`deckNode`、`discardStackLayerNode`、`playedCardPile`、各 `PlayerSlotController`、各 `OtherPlayerHand`）在场景中仍然有效。
+    - 不手动编辑 `.scene`/`.prefab`/`.meta` 文件——全部通过 Cocos Creator MCP 工具操作。
 
 10. 运行 `pnpm run format`。
 11. 运行 `pnpm run type-check`。

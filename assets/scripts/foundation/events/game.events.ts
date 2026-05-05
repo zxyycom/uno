@@ -259,9 +259,7 @@ export interface GameEvents {
     [GameEventType.PLAYER_SKIPPED]: [payload: PlayerSkippedPayload];
     [GameEventType.DRAW_REQUIRED]: [payload: DrawRequiredPayload];
     [GameEventType.HAND_UPDATED]: [payload: HandUpdatedPayload];
-    [GameEventType.HAND_SNAPSHOT_SYNCED]: [
-        payload: HandSnapshotSyncedPayload,
-    ];
+    [GameEventType.HAND_SNAPSHOT_SYNCED]: [payload: HandSnapshotSyncedPayload];
     [GameEventType.DECK_UPDATED]: [payload: DeckUpdatedPayload];
     [GameEventType.DISCARD_UPDATED]: [payload: DiscardUpdatedPayload];
     [GameEventType.DISCARD_CLEARED]: [];

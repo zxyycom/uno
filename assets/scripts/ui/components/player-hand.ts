@@ -683,7 +683,10 @@ export class PlayerHand extends Component {
     }
 
     /** 从摸牌动画系统接收已创建并定位好的卡牌节点，注册视图并触发布局动画 */
-    public appendDrawnCards(cards: readonly Card[], nodes: readonly Node[]): void {
+    public appendDrawnCards(
+        cards: readonly Card[],
+        nodes: readonly Node[]
+    ): void {
         const lifecycleVersion = this.lifecycleVersion;
 
         for (let i = 0; i < cards.length; i++) {
@@ -693,29 +696,53 @@ export class PlayerHand extends Component {
             this.registerCardView(card, node);
             this.handOrder.push(card.id);
 
-            node.on(Node.EventType.TOUCH_END, () => {
-                this.onCardTapped(card.id);
-                this.onCardHoverChanged(card.id, false);
-            }, this);
-            node.on(Node.EventType.MOUSE_ENTER, () => {
-                this.onCardHoverChanged(card.id, true);
-            }, this);
-            node.on(Node.EventType.MOUSE_LEAVE, () => {
-                this.onCardHoverChanged(card.id, false);
-            }, this);
-            node.on(Node.EventType.TOUCH_START, () => {
-                this.onCardHoverChanged(card.id, true);
-            }, this);
-            node.on(Node.EventType.TOUCH_CANCEL, () => {
-                this.onCardHoverChanged(card.id, false);
-            }, this);
+            node.on(
+                Node.EventType.TOUCH_END,
+                () => {
+                    this.onCardTapped(card.id);
+                    this.onCardHoverChanged(card.id, false);
+                },
+                this
+            );
+            node.on(
+                Node.EventType.MOUSE_ENTER,
+                () => {
+                    this.onCardHoverChanged(card.id, true);
+                },
+                this
+            );
+            node.on(
+                Node.EventType.MOUSE_LEAVE,
+                () => {
+                    this.onCardHoverChanged(card.id, false);
+                },
+                this
+            );
+            node.on(
+                Node.EventType.TOUCH_START,
+                () => {
+                    this.onCardHoverChanged(card.id, true);
+                },
+                this
+            );
+            node.on(
+                Node.EventType.TOUCH_CANCEL,
+                () => {
+                    this.onCardHoverChanged(card.id, false);
+                },
+                this
+            );
         }
 
         this.animateCenterMergeExpand(lifecycleVersion);
     }
 
     /** 获取单张待摸入卡牌在手牌扇形展开中的目标布局 */
-    public getDrawTargetLayout(card: Card, index: number, totalCount: number): CardLayoutTransform {
+    public getDrawTargetLayout(
+        card: Card,
+        index: number,
+        totalCount: number
+    ): CardLayoutTransform {
         const layouts = calculateCurvedFanCardLayouts(
             totalCount,
             this.getCurvedFanLayoutConfig()

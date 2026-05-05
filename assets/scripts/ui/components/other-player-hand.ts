@@ -136,7 +136,6 @@ export class OtherPlayerHand extends Component {
             },
             this
         );
-
     }
 
     private onCardPlayed(payload: CardPlayedPayload): void {
@@ -349,7 +348,10 @@ export class OtherPlayerHand extends Component {
         );
     }
 
-    public appendDrawnCards(cards: readonly Card[], nodes: readonly Node[]): void {
+    public appendDrawnCards(
+        cards: readonly Card[],
+        nodes: readonly Node[]
+    ): void {
         for (const node of nodes) {
             this.cardNodes.push(node);
         }
