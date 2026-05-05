@@ -8,23 +8,35 @@
  * - 使用实数曲线控制 Y 轴偏移，并按总扇形夹角均匀旋转
  */
 
-import { _decorator, Component, Node, RealCurve } from 'cc';
+import { _decorator, Component, Node, RealCurve, Vec3 } from 'cc';
 
 import {
+    CardPlayedPayload,
+    CardsDrawnPayload,
     eventBus,
     GameEventType,
     HandUpdatedPayload,
 } from '../../foundation/events';
-import { CardMoveContext } from '../utils/card-move-animation';
+import { Card } from '../../foundation/types/game.types';
+import {
+    animateCenterMergeExpand,
+    CardMoveContext,
+    createDrawToHandMoveItems,
+} from '../utils/card-move-animation';
 import {
     applyCardLayoutTransform,
     calculateCurvedFanCardLayouts,
     CardLayoutTransform,
-    createCurvedFanLayoutSignature,
     createDefaultPlacementCurve,
     CurvedFanLayoutConfig,
 } from '../utils/hand-card-layout';
 import { CardManager } from './card-manager';
+import {
+    CardMoveCancelReason,
+    CardMoveKind,
+    CardMoveRequest,
+    CardMoveRequestHandle,
+} from './card-move-animator';
 
 const { ccclass, property } = _decorator;
 
@@ -90,11 +102,11 @@ export class OtherPlayerHand extends Component {
     private playerId: string = '';
     private cardMoveContext: CardMoveContext = null!;
     private readonly cardNodes: Node[] = [];
-    private layoutSignature: string = '';
-
-    update(_dt: number): void {
-        this.refreshCurvedFanLayoutIfChanged(false);
-    }
+    private readonly pendingPlayNodes = new Set<Node>();
+    private activeDrawHandle: CardMoveRequestHandle | null = null;
+    private activePlayHandle: CardMoveRequestHandle | null = null;
+    private lifecycleVersion: number = 0;
+    private requestSequence: number = 0;
 
     public init(playerId: string, cardMoveContext: CardMoveContext): void {
         this.playerId = playerId;
@@ -114,6 +126,8 @@ export class OtherPlayerHand extends Component {
         eventBus.on(
             GameEventType.START_GAME,
             () => {
+                this.invalidateLifecycle();
+                this.cancelActiveRequests(CardMoveCancelReason.Requested);
                 this.renderCardBacks(0, false);
             },
             this
@@ -128,6 +142,22 @@ export class OtherPlayerHand extends Component {
             },
             this
         );
+
+        eventBus.on(
+            GameEventType.CARD_PLAYED,
+            (payload) => {
+                this.onCardPlayed(payload);
+            },
+            this
+        );
+
+        eventBus.on(
+            GameEventType.CARDS_DRAWN,
+            (payload) => {
+                this.onCardsDrawn(payload);
+            },
+            this
+        );
     }
 
     private onHandUpdated(payload: HandUpdatedPayload): void {
@@ -135,7 +165,30 @@ export class OtherPlayerHand extends Component {
             return;
         }
 
+        if (
+            this.activeDrawHandle?.isActive() &&
+            this.cardNodes.length === payload.cardCount
+        ) {
+            return;
+        }
+
         this.renderCardBacks(payload.cardCount, true);
+    }
+
+    private onCardPlayed(payload: CardPlayedPayload): void {
+        if (payload.player.id !== this.playerId) {
+            return;
+        }
+
+        void this.startPlayToDiscard(payload.card);
+    }
+
+    private onCardsDrawn(payload: CardsDrawnPayload): void {
+        if (payload.player.id !== this.playerId) {
+            return;
+        }
+
+        this.startDrawToHand(payload.cards);
     }
 
     private renderCardBacks(count: number, animated: boolean): void {
@@ -157,14 +210,6 @@ export class OtherPlayerHand extends Component {
         }
     }
 
-    private refreshCurvedFanLayoutIfChanged(animated: boolean): void {
-        const nextSignature = this.getLayoutSignature();
-        if (nextSignature === this.layoutSignature) {
-            return;
-        }
-        this.refreshCurvedFanLayout(animated);
-    }
-
     private refreshCurvedFanLayout(animated: boolean): void {
         const layouts = calculateCurvedFanCardLayouts(
             this.cardNodes.length,
@@ -176,8 +221,6 @@ export class OtherPlayerHand extends Component {
             const layout = layouts[i];
             this.applyCardLayout(node, layout, animated);
         }
-
-        this.layoutSignature = this.getLayoutSignature();
     }
 
     private applyCardLayout(
@@ -203,14 +246,156 @@ export class OtherPlayerHand extends Component {
         };
     }
 
-    private getLayoutSignature(): string {
-        return createCurvedFanLayoutSignature(
+    private async startPlayToDiscard(card: Card): Promise<void> {
+        const playNode = this.cardNodes.pop();
+        if (!playNode) {
+            return;
+        }
+
+        this.cancelActivePlayRequest(CardMoveCancelReason.Requested);
+        this.pendingPlayNodes.add(playNode);
+        this.refreshCurvedFanLayout(true);
+
+        const requestId = this.createRequestId('play');
+        const lifecycleVersion = this.lifecycleVersion;
+        await this.cardManager.setCardFace(playNode, card);
+
+        if (!this.canApplyAsyncResult(lifecycleVersion)) {
+            this.releasePendingPlayNode(playNode);
+            return;
+        }
+
+        if (!playNode.isValid || !this.pendingPlayNodes.has(playNode)) {
+            return;
+        }
+
+        const request: CardMoveRequest = {
+            id: requestId,
+            kind: CardMoveKind.PlayToDiscard,
+            playerId: this.playerId,
+            items: [
+                {
+                    card,
+                    node: playNode,
+                    fromPosition: new Vec3(
+                        playNode.worldPosition.x,
+                        playNode.worldPosition.y,
+                        playNode.worldPosition.z
+                    ),
+                    toPosition: new Vec3(
+                        this.cardMoveContext.discardPileNode.worldPosition.x,
+                        this.cardMoveContext.discardPileNode.worldPosition.y,
+                        this.cardMoveContext.discardPileNode.worldPosition.z
+                    ),
+                    targetParent: this.cardMoveContext.discardStackLayerNode,
+                    targetRotation: 0,
+                    targetScale: Vec3.ONE,
+                    targetLayer: this.cardMoveContext.discardStackLayerNode,
+                },
+            ],
+            onCompleted: () => {
+                if (!this.isCurrentPlayRequest(requestId, lifecycleVersion)) {
+                    return;
+                }
+                this.activePlayHandle = null;
+                this.pendingPlayNodes.delete(playNode);
+                this.cardMoveContext.acceptDiscardNode(card, playNode);
+            },
+            onCancelled: () => {
+                this.releasePendingPlayNode(playNode);
+                if (this.activePlayHandle?.id === requestId) {
+                    this.activePlayHandle = null;
+                }
+            },
+        };
+
+        this.activePlayHandle =
+            this.cardMoveContext.animator.requestMove(request);
+    }
+
+    private startDrawToHand(cards: readonly Card[]): void {
+        if (cards.length === 0) {
+            return;
+        }
+
+        this.cancelActiveDrawRequest(CardMoveCancelReason.Requested);
+
+        const lifecycleVersion = this.lifecycleVersion;
+        const nodes: Node[] = [];
+        for (let i = 0; i < cards.length; i++) {
+            const node = this.cardManager.acquireCardBack(this.node);
+            node.active = true;
+            this.cardNodes.push(node);
+            nodes.push(node);
+        }
+
+        const requestId = this.createRequestId('draw');
+        const layouts = this.createDrawLayouts(nodes.length);
+        const request: CardMoveRequest = {
+            id: requestId,
+            kind: CardMoveKind.DrawToHand,
+            playerId: this.playerId,
+            items: createDrawToHandMoveItems(
+                cards,
+                nodes,
+                layouts,
+                this.cardMoveContext.deckNode.worldPosition,
+                this.node,
+                this.cardMoveContext.discardStackLayerNode,
+                this.cardMoveContext.animationConfig.drawStaggerDelay
+            ),
+            onCompleted: () => {
+                if (!this.isCurrentDrawRequest(requestId, lifecycleVersion)) {
+                    return;
+                }
+                this.activeDrawHandle = null;
+                this.animateCenterMergeExpand(lifecycleVersion);
+            },
+            onCancelled: () => {
+                this.releaseDrawNodesNoLongerInHand(nodes);
+                if (this.activeDrawHandle?.id === requestId) {
+                    this.activeDrawHandle = null;
+                }
+            },
+        };
+
+        this.activeDrawHandle =
+            this.cardMoveContext.animator.requestMove(request);
+    }
+
+    private createDrawLayouts(drawCount: number): CardLayoutTransform[] {
+        const allLayouts = calculateCurvedFanCardLayouts(
             this.cardNodes.length,
             this.getCurvedFanLayoutConfig()
         );
+        return allLayouts.slice(this.cardNodes.length - drawCount);
+    }
+
+    private animateCenterMergeExpand(lifecycleVersion: number): void {
+        animateCenterMergeExpand(
+            this.cardNodes,
+            this,
+            (animated) => {
+                this.refreshCurvedFanLayout(animated);
+            },
+            () => this.lifecycleVersion === lifecycleVersion,
+            this.cardMoveContext.animationConfig
+        );
+    }
+
+    private releaseDrawNodesNoLongerInHand(nodes: readonly Node[]): void {
+        for (const node of nodes) {
+            if (this.cardNodes.includes(node)) {
+                continue;
+            }
+            this.cardManager.releaseCard(node);
+        }
+        this.refreshCurvedFanLayout(true);
     }
 
     private clearCards(): void {
+        this.cancelActiveRequests(CardMoveCancelReason.Requested);
+        this.releasePendingPlayNodes();
         while (this.cardNodes.length > 0) {
             const node = this.cardNodes.pop()!;
             this.cardManager.releaseCard(node);
@@ -218,7 +403,80 @@ export class OtherPlayerHand extends Component {
     }
 
     public dispose(): void {
+        this.invalidateLifecycle();
         eventBus.targetOff(this);
         this.clearCards();
+    }
+
+    private releasePendingPlayNode(node: Node): void {
+        if (!this.pendingPlayNodes.has(node)) {
+            return;
+        }
+        this.pendingPlayNodes.delete(node);
+        this.cardManager.releaseCard(node);
+    }
+
+    private releasePendingPlayNodes(): void {
+        const nodes = Array.from(this.pendingPlayNodes);
+        this.pendingPlayNodes.clear();
+        for (const node of nodes) {
+            this.cardManager.releaseCard(node);
+        }
+    }
+
+    private cancelActiveRequests(reason: CardMoveCancelReason): void {
+        this.cancelActivePlayRequest(reason);
+        this.cancelActiveDrawRequest(reason);
+    }
+
+    private cancelActivePlayRequest(reason: CardMoveCancelReason): void {
+        const handle = this.activePlayHandle;
+        if (!handle) {
+            return;
+        }
+        this.activePlayHandle = null;
+        handle.cancel(reason);
+    }
+
+    private cancelActiveDrawRequest(reason: CardMoveCancelReason): void {
+        const handle = this.activeDrawHandle;
+        if (!handle) {
+            return;
+        }
+        this.activeDrawHandle = null;
+        handle.cancel(reason);
+    }
+
+    private createRequestId(prefix: string): string {
+        this.requestSequence += 1;
+        return `${this.playerId}-${prefix}-${this.requestSequence}`;
+    }
+
+    private invalidateLifecycle(): void {
+        this.lifecycleVersion += 1;
+    }
+
+    private canApplyAsyncResult(lifecycleVersion: number): boolean {
+        return this.isValid && this.lifecycleVersion === lifecycleVersion;
+    }
+
+    private isCurrentPlayRequest(
+        requestId: string,
+        lifecycleVersion: number
+    ): boolean {
+        return (
+            this.lifecycleVersion === lifecycleVersion &&
+            this.activePlayHandle?.id === requestId
+        );
+    }
+
+    private isCurrentDrawRequest(
+        requestId: string,
+        lifecycleVersion: number
+    ): boolean {
+        return (
+            this.lifecycleVersion === lifecycleVersion &&
+            this.activeDrawHandle?.id === requestId
+        );
     }
 }
