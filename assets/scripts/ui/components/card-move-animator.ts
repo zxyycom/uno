@@ -141,6 +141,9 @@ export class CardMoveAnimator extends Component {
     }
 
     private startMoveItem(requestId: string, item: CardMoveItem): void {
+        // 设计约定：tween 动画期间，被动画节点的控制权属于动画组件。
+        // 其他组件不应在此期间销毁正在执行动画的节点。
+        // isValid 检查为防御性代码，正常运行中不应触发。
         if (!item.node.isValid) {
             this.cancelRequest(requestId, CardMoveCancelReason.NodeInvalid);
             return;
@@ -174,6 +177,7 @@ export class CardMoveAnimator extends Component {
             return;
         }
 
+        // 同上：节点在 tween 生命周期内应保持有效，此检查仅防御异常情况。
         if (!item.node.isValid) {
             this.cancelRequest(requestId, CardMoveCancelReason.NodeInvalid);
             return;
