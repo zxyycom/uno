@@ -371,7 +371,7 @@ export class PlayerHand extends Component {
 
     /** 处理 UNO 呼叫，可在这里挂接后续提示动画 */
     private onUnoCalled(): void {
-        console.log(`[PlayerHand] ${this.playerId} 呼叫 UNO!`);
+        // TODO: 挂接 UNO 呼叫提示动画
     }
 
     // ---------------------------------------------------------------------
