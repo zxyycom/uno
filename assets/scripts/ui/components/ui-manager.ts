@@ -88,15 +88,21 @@ export class UIManager extends Component {
     @property(OtherPlayerHand)
     public otherPlayerHandLeft: OtherPlayerHand = null!;
 
+    private static instance: UIManager | null = null;
+
     private gameManager: GameManager = null!;
     private currentTopCard: TopCard | null = null;
-    private readonly animationConfig: CardMoveAnimationConfig = {
+    public readonly animationConfig: CardMoveAnimationConfig = {
         ...DEFAULT_CARD_MOVE_ANIMATION_CONFIG,
     };
 
     // 方位绑定状态
     private localPlayerId: string = '';
     private playerIdByDirection: PlayerIdByDirection | null = null;
+
+    onLoad() {
+        UIManager.instance = this;
+    }
 
     start() {
         this.initEventSubscriptions();
@@ -111,6 +117,9 @@ export class UIManager extends Component {
 
     onDestroy() {
         this.dispose();
+        if (UIManager.instance === this) {
+            UIManager.instance = null;
+        }
     }
 
     /** 初始化UI层共享状态事件订阅 */
@@ -287,5 +296,9 @@ export class UIManager extends Component {
     /** 取消订阅 */
     public dispose(): void {
         eventBus.targetOff(this);
+    }
+
+    static getInstance(): UIManager | null {
+        return UIManager.instance;
     }
 }
