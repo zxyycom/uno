@@ -12,10 +12,8 @@ import { _decorator, Component, Node, RealCurve, Tween, Vec3 } from 'cc';
 import { validateCanPlayCard } from '../../core/utils/input-validator';
 import {
     CardPlayedPayload,
-    CardsDrawnPayload,
     eventBus,
     GameEventType,
-    HandUpdatedPayload,
     TurnChangedPayload,
 } from '../../foundation/events';
 import {
@@ -27,7 +25,6 @@ import {
 import {
     animateCenterMergeExpand,
     CardMoveContext,
-    createDrawToHandMoveItems,
 } from '../utils/card-move-animation';
 import {
     applyCardLayoutTransform,
@@ -253,15 +250,13 @@ export class PlayerHand extends Component {
 
     private readonly cardViewsById = new Map<string, HandCardView>();
     private handOrder: string[] = [];
-    private playerId: string = '';
-    private uiContext?: PlayerHandContext;
+    public playerId: string = '';
+    private uiContext: PlayerHandContext = null!;
     private isMyTurn: boolean = false;
     private hoveredCardId: string | null = null;
     private selectedCardId: string | null = null;
     private pendingWildCard: Card | null = null;
     private readonly cardIdsByNode = new WeakMap<Node, string>();
-    private readonly pendingDrawCardIds = new Set<string>();
-    private activeDrawHandle: CardMoveRequestHandle | null = null;
     private activePlayHandle: CardMoveRequestHandle | null = null;
     private lifecycleVersion: number = 0;
     private requestSequence: number = 0;
@@ -290,20 +285,10 @@ export class PlayerHand extends Component {
     /** 初始化游戏事件订阅，所有回调都绑定 this 方便统一释放 */
     private initEventSubscriptions(): void {
         eventBus.on(
-            GameEventType.HAND_UPDATED,
-            (payload) => {
-                if (payload.playerId === this.playerId) {
-                    this.onHandUpdated(payload);
-                }
-            },
-            this
-        );
-
-        eventBus.on(
             GameEventType.START_GAME,
             () => {
                 this.invalidateLifecycle();
-                this.cancelActiveRequests(CardMoveCancelReason.Requested);
+                this.cancelActivePlayRequest(CardMoveCancelReason.Requested);
                 this.hoveredCardId = null;
                 this.selectCard(null, false);
                 this.pendingWildCard = null;
@@ -317,14 +302,6 @@ export class PlayerHand extends Component {
             GameEventType.CARD_PLAYED,
             (payload) => {
                 this.onCardPlayed(payload);
-            },
-            this
-        );
-
-        eventBus.on(
-            GameEventType.CARDS_DRAWN,
-            (payload) => {
-                this.onCardsDrawn(payload);
             },
             this
         );
@@ -348,15 +325,6 @@ export class PlayerHand extends Component {
         );
     }
 
-    /** 响应手牌更新事件：同步手牌数据并触发重渲染 */
-    private onHandUpdated(payload: HandUpdatedPayload): void {
-        this.hoveredCardId = null;
-        this.selectCard(null, false);
-        const shouldAnimateInitialHand =
-            this.cardViewsById.size === 0 && payload.hand.length > 0;
-        void this.syncHand(payload.hand, shouldAnimateInitialHand);
-    }
-
     /** 响应回合变化事件：维护当前回合状态，并刷新可出牌提示 */
     private onTurnChanged(payload: TurnChangedPayload): void {
         this.isMyTurn = payload.currentPlayer.id === this.playerId;
@@ -378,111 +346,6 @@ export class PlayerHand extends Component {
     // 渲染与节点操作
     // ---------------------------------------------------------------------
 
-    /** 按 card.id 差量同步手牌节点，保留已存在的真实节点和正在执行的动画节点 */
-    private async syncHand(
-        hand: readonly Card[],
-        animateNewCards: boolean
-    ): Promise<void> {
-        const lifecycleVersion = this.lifecycleVersion;
-        const nextCardIds = new Set(hand.map((card) => card.id));
-        const cardsToCreate: Card[] = [];
-
-        for (const cardId of this.handOrder) {
-            if (!nextCardIds.has(cardId)) {
-                this.releaseViewById(cardId);
-            }
-        }
-
-        this.handOrder = hand.map((card) => card.id);
-
-        for (const card of hand) {
-            const currentView = this.cardViewsById.get(card.id);
-            if (currentView) {
-                currentView.card = card;
-                continue;
-            }
-            if (this.pendingDrawCardIds.has(card.id)) {
-                continue;
-            }
-            cardsToCreate.push(card);
-        }
-
-        if (cardsToCreate.length === 0) {
-            this.refreshFanLayout(true);
-            return;
-        }
-
-        const nodes = await Promise.all(
-            cardsToCreate.map((card) => this.createCardNode(card))
-        );
-
-        if (!this.canApplyAsyncResult(lifecycleVersion)) {
-            this.releaseNodes(nodes);
-            return;
-        }
-
-        for (let i = 0; i < cardsToCreate.length; i++) {
-            const card = cardsToCreate[i];
-            const node = nodes[i];
-            if (!this.handOrder.includes(card.id)) {
-                this.releasePreparedNode(node);
-                continue;
-            }
-            this.registerCardView(card, node);
-        }
-
-        if (animateNewCards) {
-            this.animateCenterMergeExpand(lifecycleVersion);
-            return;
-        }
-
-        this.refreshFanLayout(false);
-    }
-
-    /** 创建单张卡牌节点，并绑定点击事件 */
-    private async createCardNode(card: Card): Promise<Node> {
-        const cardNode = await this.cardManager.acquireCard(card, this.node);
-        this.cardIdsByNode.set(cardNode, card.id);
-        cardNode.on(
-            Node.EventType.TOUCH_END,
-            () => {
-                this.onCardTapped(card.id);
-                this.onCardHoverChanged(card.id, false);
-            },
-            this
-        );
-        cardNode.on(
-            Node.EventType.MOUSE_ENTER,
-            () => {
-                this.onCardHoverChanged(card.id, true);
-            },
-            this
-        );
-        cardNode.on(
-            Node.EventType.MOUSE_LEAVE,
-            () => {
-                this.onCardHoverChanged(card.id, false);
-            },
-            this
-        );
-        cardNode.on(
-            Node.EventType.TOUCH_START,
-            () => {
-                this.onCardHoverChanged(card.id, true);
-            },
-            this
-        );
-        cardNode.on(
-            Node.EventType.TOUCH_CANCEL,
-            () => {
-                this.onCardHoverChanged(card.id, false);
-            },
-            this
-        );
-
-        return cardNode;
-    }
-
     /** 刷新扇形布局与可出牌抬升，渲染层只负责应用纯计算结果 */
     private refreshFanLayout(animated: boolean): void {
         const orderedViews = this.getOrderedViews();
@@ -491,7 +354,7 @@ export class PlayerHand extends Component {
             return;
         }
 
-        const topCard = this.uiContext!.getTopCard();
+        const topCard = this.uiContext.getTopCard();
         const config = this.getFanLayoutConfig();
         const baseLayouts = calculateCurvedFanCardLayouts(
             count,
@@ -523,8 +386,7 @@ export class PlayerHand extends Component {
 
     /** 清除所有卡牌节点和点击事件绑定 */
     private clearCards(): void {
-        this.cancelActiveRequests(CardMoveCancelReason.Requested);
-        this.pendingDrawCardIds.clear();
+        this.cancelActivePlayRequest(CardMoveCancelReason.Requested);
 
         if (this.cardViewsById.size === 0) {
             this.handOrder = [];
@@ -575,14 +437,6 @@ export class PlayerHand extends Component {
         this.startPlayToDiscard(payload.card);
     }
 
-    private onCardsDrawn(payload: CardsDrawnPayload): void {
-        if (payload.player.id !== this.playerId) {
-            return;
-        }
-
-        void this.startDrawToHand(payload.cards);
-    }
-
     private startPlayToDiscard(card: Card): void {
         const view = this.cardViewsById.get(card.id);
         if (!view) {
@@ -615,14 +469,14 @@ export class PlayerHand extends Component {
                         view.node.worldPosition.z
                     ),
                     toPosition: new Vec3(
-                        this.uiContext!.discardPileNode.worldPosition.x,
-                        this.uiContext!.discardPileNode.worldPosition.y,
-                        this.uiContext!.discardPileNode.worldPosition.z
+                        this.uiContext.discardPileNode.worldPosition.x,
+                        this.uiContext.discardPileNode.worldPosition.y,
+                        this.uiContext.discardPileNode.worldPosition.z
                     ),
-                    targetParent: this.uiContext!.discardStackLayerNode,
+                    targetParent: this.uiContext.discardStackLayerNode,
                     targetRotation: 0,
                     targetScale: Vec3.ONE,
-                    targetLayer: this.uiContext!.discardStackLayerNode,
+                    targetLayer: this.uiContext.discardStackLayerNode,
                 },
             ],
             onCompleted: () => {
@@ -630,7 +484,7 @@ export class PlayerHand extends Component {
                     return;
                 }
                 this.activePlayHandle = null;
-                this.uiContext!.acceptDiscardNode(card, view.node);
+                this.uiContext.acceptDiscardNode(card, view.node);
             },
             onCancelled: () => {
                 this.releasePreparedNode(view.node);
@@ -640,83 +494,8 @@ export class PlayerHand extends Component {
             },
         };
 
-        this.activePlayHandle = this.uiContext!.animator.requestMove(request);
+        this.activePlayHandle = this.uiContext.animator.requestMove(request);
         this.refreshFanLayout(true);
-    }
-
-    private async startDrawToHand(cards: readonly Card[]): Promise<void> {
-        if (cards.length === 0) {
-            return;
-        }
-
-        this.cancelActiveDrawRequest(CardMoveCancelReason.Requested);
-
-        const lifecycleVersion = this.lifecycleVersion;
-        for (const card of cards) {
-            this.pendingDrawCardIds.add(card.id);
-            if (!this.handOrder.includes(card.id)) {
-                this.handOrder.push(card.id);
-            }
-        }
-
-        const nodes = await Promise.all(
-            cards.map((card) => this.createCardNode(card))
-        );
-
-        if (!this.canApplyAsyncResult(lifecycleVersion)) {
-            this.releaseNodes(nodes);
-            return;
-        }
-
-        for (let i = 0; i < cards.length; i++) {
-            this.registerCardView(cards[i], nodes[i]);
-        }
-
-        const requestId = this.createRequestId('draw');
-        const layoutsByCardId = this.createLayoutByCardId();
-        const drawLayouts: CardLayoutTransform[] = [];
-        const drawCards: Card[] = [];
-        const drawNodes: Node[] = [];
-        for (let i = 0; i < cards.length; i++) {
-            const layout = layoutsByCardId.get(cards[i].id);
-            if (layout) {
-                drawLayouts.push(layout);
-                drawCards.push(cards[i]);
-                drawNodes.push(nodes[i]);
-            }
-        }
-
-        const request: CardMoveRequest = {
-            id: requestId,
-            kind: CardMoveKind.DrawToHand,
-            playerId: this.playerId,
-            items: createDrawToHandMoveItems(
-                drawCards,
-                drawNodes,
-                drawLayouts,
-                this.uiContext!.deckNode.worldPosition,
-                this.node,
-                this.uiContext!.discardStackLayerNode,
-                this.uiContext!.animationConfig.drawStaggerDelay
-            ),
-            onCompleted: () => {
-                if (!this.isCurrentDrawRequest(requestId, lifecycleVersion)) {
-                    return;
-                }
-                this.activeDrawHandle = null;
-                this.clearPendingDrawCards(cards);
-                this.animateCenterMergeExpand(lifecycleVersion);
-            },
-            onCancelled: () => {
-                this.clearPendingDrawCards(cards);
-                this.releaseDrawNodesNoLongerInHand(cards, nodes);
-                if (this.activeDrawHandle?.id === requestId) {
-                    this.activeDrawHandle = null;
-                }
-            },
-        };
-
-        this.activeDrawHandle = this.uiContext!.animator.requestMove(request);
     }
 
     /** 鼠标悬停或触摸开始时预抬升卡牌，结束时恢复；已选中的卡牌保持抬升 */
@@ -753,7 +532,7 @@ export class PlayerHand extends Component {
 
         this.pendingWildCard = null;
         this.hideWildColorPanel();
-        this.uiContext!.playCard(this.playerId, card, chosenColor);
+        this.uiContext.playCard(this.playerId, card, chosenColor);
     }
 
     /** 绑定万能牌颜色按钮，点击后会继续完成待处理的万能牌出牌 */
@@ -892,12 +671,6 @@ export class PlayerHand extends Component {
         this.cardManager.releaseCard(node);
     }
 
-    private releaseNodes(nodes: readonly Node[]): void {
-        for (const node of nodes) {
-            this.releasePreparedNode(node);
-        }
-    }
-
     private getOrderedViews(): HandCardView[] {
         const views: HandCardView[] = [];
         for (const cardId of this.handOrder) {
@@ -909,16 +682,46 @@ export class PlayerHand extends Component {
         return views;
     }
 
-    private createLayoutByCardId(): Map<string, CardLayoutTransform> {
+    /** 从摸牌动画系统接收已创建并定位好的卡牌节点，注册视图并触发布局动画 */
+    public appendDrawnCards(cards: readonly Card[], nodes: readonly Node[]): void {
+        const lifecycleVersion = this.lifecycleVersion;
+
+        for (let i = 0; i < cards.length; i++) {
+            const card = cards[i];
+            const node = nodes[i];
+
+            this.registerCardView(card, node);
+            this.handOrder.push(card.id);
+
+            node.on(Node.EventType.TOUCH_END, () => {
+                this.onCardTapped(card.id);
+                this.onCardHoverChanged(card.id, false);
+            }, this);
+            node.on(Node.EventType.MOUSE_ENTER, () => {
+                this.onCardHoverChanged(card.id, true);
+            }, this);
+            node.on(Node.EventType.MOUSE_LEAVE, () => {
+                this.onCardHoverChanged(card.id, false);
+            }, this);
+            node.on(Node.EventType.TOUCH_START, () => {
+                this.onCardHoverChanged(card.id, true);
+            }, this);
+            node.on(Node.EventType.TOUCH_CANCEL, () => {
+                this.onCardHoverChanged(card.id, false);
+            }, this);
+        }
+
+        this.animateCenterMergeExpand(lifecycleVersion);
+    }
+
+    /** 获取单张待摸入卡牌在手牌扇形展开中的目标布局 */
+    public getDrawTargetLayout(card: Card, index: number, totalCount: number): CardLayoutTransform {
         const layouts = calculateCurvedFanCardLayouts(
-            this.handOrder.length,
+            totalCount,
             this.getCurvedFanLayoutConfig()
         );
-        const layoutsByCardId = new Map<string, CardLayoutTransform>();
-        for (let i = 0; i < this.handOrder.length; i++) {
-            layoutsByCardId.set(this.handOrder[i], layouts[i]);
-        }
-        return layoutsByCardId;
+        const currentCount = this.handOrder.length;
+        return layouts[currentCount + index];
     }
 
     private animateCenterMergeExpand(lifecycleVersion: number): void {
@@ -929,34 +732,8 @@ export class PlayerHand extends Component {
                 this.refreshFanLayout(animated);
             },
             () => this.lifecycleVersion === lifecycleVersion,
-            this.uiContext!.animationConfig
+            this.uiContext.animationConfig
         );
-    }
-
-    private clearPendingDrawCards(cards: readonly Card[]): void {
-        for (const card of cards) {
-            this.pendingDrawCardIds.delete(card.id);
-        }
-    }
-
-    private releaseDrawNodesNoLongerInHand(
-        cards: readonly Card[],
-        nodes: readonly Node[]
-    ): void {
-        const validHandIds = new Set(this.handOrder);
-        for (let i = 0; i < cards.length; i++) {
-            if (validHandIds.has(cards[i].id)) {
-                continue;
-            }
-            this.cardViewsById.delete(cards[i].id);
-            this.releasePreparedNode(nodes[i]);
-        }
-        this.refreshFanLayout(true);
-    }
-
-    private cancelActiveRequests(reason: CardMoveCancelReason): void {
-        this.cancelActivePlayRequest(reason);
-        this.cancelActiveDrawRequest(reason);
     }
 
     private cancelActivePlayRequest(reason: CardMoveCancelReason): void {
@@ -965,15 +742,6 @@ export class PlayerHand extends Component {
             return;
         }
         this.activePlayHandle = null;
-        handle.cancel(reason);
-    }
-
-    private cancelActiveDrawRequest(reason: CardMoveCancelReason): void {
-        const handle = this.activeDrawHandle;
-        if (!handle) {
-            return;
-        }
-        this.activeDrawHandle = null;
         handle.cancel(reason);
     }
 
@@ -986,10 +754,6 @@ export class PlayerHand extends Component {
         this.lifecycleVersion += 1;
     }
 
-    private canApplyAsyncResult(lifecycleVersion: number): boolean {
-        return this.isValid && this.lifecycleVersion === lifecycleVersion;
-    }
-
     private isCurrentPlayRequest(
         requestId: string,
         lifecycleVersion: number
@@ -997,16 +761,6 @@ export class PlayerHand extends Component {
         return (
             this.lifecycleVersion === lifecycleVersion &&
             this.activePlayHandle?.id === requestId
-        );
-    }
-
-    private isCurrentDrawRequest(
-        requestId: string,
-        lifecycleVersion: number
-    ): boolean {
-        return (
-            this.lifecycleVersion === lifecycleVersion &&
-            this.activeDrawHandle?.id === requestId
         );
     }
 }
