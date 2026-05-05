@@ -7,7 +7,7 @@
  * - 渲染函数：创建/销毁节点并把计算结果应用到 Cocos 节点。
  */
 
-import { _decorator, Component, Node, RealCurve, Vec3 } from 'cc';
+import { _decorator, Component, Node, RealCurve, Tween, Vec3 } from 'cc';
 
 import { validateCanPlayCard } from '../../core/utils/input-validator';
 import {
@@ -112,7 +112,7 @@ function canPlayInCurrentTurn(
 }
 
 /**
- * 计算单张手牌的扇形位置、旋转、缩放、透明度和可出状态。
+ * 计算单张手牌的扇形位置、旋转、缩放和可出状态。
  * 纯计算函数：不创建节点、不启动 tween，方便单独测试和复用。
  */
 function calculateFanCardLayout(input: FanLayoutInput): FanLayoutResult {
@@ -511,6 +511,7 @@ export class PlayerHand extends Component {
             });
 
             view.playable = layout.playable;
+            Tween.stopAllByTarget(view.node);
             applyCardLayoutTransform(
                 view.node,
                 layout,

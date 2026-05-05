@@ -8,7 +8,7 @@
  * - 使用实数曲线控制 Y 轴偏移，并按总扇形夹角均匀旋转
  */
 
-import { _decorator, Component, Node, RealCurve, Vec3 } from 'cc';
+import { _decorator, Component, Node, RealCurve, Tween, Vec3 } from 'cc';
 
 import {
     CardPlayedPayload,
@@ -228,6 +228,7 @@ export class OtherPlayerHand extends Component {
         layout: CardLayoutTransform,
         animated: boolean
     ): void {
+        Tween.stopAllByTarget(node);
         applyCardLayoutTransform(
             node,
             layout,

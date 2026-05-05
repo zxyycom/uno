@@ -3,14 +3,13 @@
  * 只处理节点排列的底层计算和 transform 应用，不包含玩家身份、牌面和交互逻辑。
  */
 
-import { Node, RealCurve, tween, Tween, UIOpacity, Vec3 } from 'cc';
+import { Node, RealCurve, tween, Vec3 } from 'cc';
 
 export type CardLayoutTransform = {
     position: Vec3;
     angle: number;
     scale: Vec3;
     siblingIndex: number;
-    opacity?: number;
 };
 
 export type CurvedFanLayoutConfig = {
@@ -80,9 +79,6 @@ export function applyCardLayoutTransform(
     animated: boolean,
     duration: number
 ): void {
-    applyOpacity(node, layout);
-
-    Tween.stopAllByTarget(node);
     if (animated) {
         tween(node)
             .to(duration, {
@@ -173,21 +169,4 @@ function createRealCurveSignature(curve: RealCurve): string {
     }
 
     return parts.join(';');
-}
-
-function applyOpacity(node: Node, layout: CardLayoutTransform): void {
-    if (typeof layout.opacity !== 'number') {
-        return;
-    }
-
-    const opacity = ensureOpacity(node);
-    opacity.opacity = layout.opacity;
-}
-
-function ensureOpacity(node: Node): UIOpacity {
-    const opacity = node.getComponent(UIOpacity);
-    if (opacity) {
-        return opacity;
-    }
-    return node.addComponent(UIOpacity);
 }
