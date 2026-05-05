@@ -61,9 +61,7 @@
             "id": "T02",
             "title": "扩展 CardManager 节点复用能力",
             "status": "ready",
-            "targetFiles": [
-                "assets/scripts/ui/components/card-manager.ts"
-            ],
+            "targetFiles": ["assets/scripts/ui/components/card-manager.ts"],
             "description": "集中卡面、卡背和节点 reset 逻辑，支持其他玩家卡背出牌时切换真实牌面。",
             "implementationNotes": [
                 "新增 setCardFace(node, card)，异步设置真实卡牌 sprite。",
@@ -83,9 +81,7 @@
             "id": "T03",
             "title": "新增动画工具和配置入口",
             "status": "ready",
-            "targetFiles": [
-                "assets/scripts/ui/utils/card-move-animation.ts"
-            ],
+            "targetFiles": ["assets/scripts/ui/utils/card-move-animation.ts"],
             "description": "提供动画配置、draw-to-hand item 构造纯函数和中央合并再展开工具。",
             "implementationNotes": [
                 "定义 CardMoveAnimationConfig 和默认配置常量。",
@@ -105,9 +101,7 @@
             "id": "T04",
             "title": "通过 UIManager 注入动画依赖",
             "status": "ready",
-            "targetFiles": [
-                "assets/scripts/ui/components/ui-manager.ts"
-            ],
+            "targetFiles": ["assets/scripts/ui/components/ui-manager.ts"],
             "description": "让 UIManager 负责绑定并注入 CardMoveAnimator、牌堆锚点、弃牌堆目标和弃牌堆接管能力。",
             "implementationNotes": [
                 "新增 @property(CardMoveAnimator) cardMoveAnimator。",
@@ -129,9 +123,7 @@
             "id": "T05",
             "title": "重建 PlayedCardPile 接管模型",
             "status": "ready",
-            "targetFiles": [
-                "assets/scripts/ui/components/played-card-pile.ts"
-            ],
+            "targetFiles": ["assets/scripts/ui/components/played-card-pile.ts"],
             "description": "弃牌堆不再自行发起出牌飞行动画，只接管已经飞完的真实节点。",
             "implementationNotes": [
                 "删除 CARD_PLAYED 订阅和从 deckNode 创建卡牌飞向弃牌堆的逻辑。",
@@ -153,9 +145,7 @@
             "id": "T06",
             "title": "重建 PlayerHand 差量同步和动画流程",
             "status": "ready",
-            "targetFiles": [
-                "assets/scripts/ui/components/player-hand.ts"
-            ],
+            "targetFiles": ["assets/scripts/ui/components/player-hand.ts"],
             "description": "本地玩家手牌使用真实节点差量同步，并通过 CardMoveAnimator API 完成出牌和摸牌动画。",
             "implementationNotes": [
                 "HAND_UPDATED 改为按 card.id 差量同步，不再全量 clear 后重建。",
@@ -257,11 +247,7 @@
             "id": "T10",
             "title": "运行格式化和静态检查",
             "status": "ready",
-            "targetFiles": [
-                "assets/scripts",
-                "plan.md",
-                "task.json"
-            ],
+            "targetFiles": ["assets/scripts", "plan.md", "task.json"],
             "description": "完成重构后运行项目指定格式化、类型检查和 lint，并记录剩余既有 warning。",
             "implementationNotes": [
                 "运行 pnpm run format。",
