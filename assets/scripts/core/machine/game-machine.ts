@@ -106,10 +106,9 @@ export const gameMachine = setup({
                 localPlayerId: event.localPlayerId,
             });
             for (const player of context.playManager.players) {
-                eventBus.emit(GameEventType.HAND_UPDATED, {
-                    playerId: player.id,
-                    hand: player.hand.toArray(),
-                    cardCount: player.hand.size,
+                eventBus.emit(GameEventType.CARDS_DRAWN, {
+                    player,
+                    cards: player.hand.toArray(),
                 });
             }
             eventBus.emit(GameEventType.DECK_UPDATED, {
@@ -216,11 +215,6 @@ export const gameMachine = setup({
                 isDraw2Effect: removedCard.type === UnoCardType.DRAW_2,
                 isDraw4Effect: removedCard.type === UnoCardType.WILD_DRAW_4,
             });
-            eventBus.emit(GameEventType.HAND_UPDATED, {
-                playerId: player.id,
-                hand: player.hand.toArray(),
-                cardCount: player.hand.size,
-            });
             eventBus.emit(GameEventType.DISCARD_UPDATED, {
                 topCard: context.topCard.card,
                 topCardInfo: context.topCard,
@@ -288,11 +282,6 @@ export const gameMachine = setup({
             eventBus.emit(GameEventType.CARDS_DRAWN, {
                 player: drawPlayer,
                 cards: drawnCards,
-            });
-            eventBus.emit(GameEventType.HAND_UPDATED, {
-                playerId: drawPlayer.id,
-                hand: drawPlayer.hand.toArray(),
-                cardCount: drawPlayer.hand.size,
             });
             eventBus.emit(GameEventType.DECK_UPDATED, {
                 remainingCards: context.deckManager.deckCount,
