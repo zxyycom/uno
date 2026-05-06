@@ -26,6 +26,7 @@ export type PreparedPlayCard = {
  * 可以面向协议编程，无需区分本地/远程玩家。
  */
 export interface HandView {
+    readonly node: Node;
     readonly cardManager: CardManager;
 
     /** 返回手牌逻辑数量（非节点子元素数量） */

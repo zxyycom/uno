@@ -15,8 +15,7 @@ import { Card } from '../../foundation/types/game.types';
 import { createDrawToHandMoveItems } from '../utils/card-move-animation';
 import { CardLayoutTransform } from '../utils/hand-card-layout';
 import { CardMoveKind, CardMoveRequest } from './card-move-animator';
-import { OtherPlayerHand } from './other-player-hand';
-import { PlayerHand } from './player-hand';
+import { HandView } from './hand-view-contract';
 import { UIManager } from './ui-manager';
 
 const { ccclass } = _decorator;
@@ -49,14 +48,14 @@ export class HandDrawAnimator extends Component {
         }
 
         const uiManager = UIManager.getInstance()!;
-        const targetHand = this.resolveTargetHand(payload.player.id, uiManager);
+        const targetHand = uiManager.resolveHandView(payload.player.id);
         if (!targetHand) {
             return;
         }
 
         const { cards } = payload;
         const isLocalPlayer = targetHand === uiManager.playerHand;
-        const currentHandCount = targetHand.node.children.length;
+        const currentHandCount = targetHand.getLogicalCardCount();
         const totalCount = currentHandCount + cards.length;
 
         const { nodes, cardOrder } = await this.createCardNodes(
@@ -97,27 +96,8 @@ export class HandDrawAnimator extends Component {
         uiManager.cardMoveAnimator.requestMove(request);
     }
 
-    private resolveTargetHand(
-        playerId: string,
-        uiManager: UIManager
-    ): PlayerHand | OtherPlayerHand | null {
-        if (uiManager.playerHand.playerId === playerId) {
-            return uiManager.playerHand;
-        }
-        if (uiManager.otherPlayerHandRight.playerId === playerId) {
-            return uiManager.otherPlayerHandRight;
-        }
-        if (uiManager.otherPlayerHandTop.playerId === playerId) {
-            return uiManager.otherPlayerHandTop;
-        }
-        if (uiManager.otherPlayerHandLeft.playerId === playerId) {
-            return uiManager.otherPlayerHandLeft;
-        }
-        return null;
-    }
-
     private async createCardNodes(
-        targetHand: PlayerHand | OtherPlayerHand,
+        targetHand: HandView,
         cards: readonly Card[],
         isLocalPlayer: boolean
     ): Promise<{ nodes: Node[]; cardOrder: Card[] }> {
@@ -143,7 +123,7 @@ export class HandDrawAnimator extends Component {
     }
 
     private releaseNodes(
-        targetHand: PlayerHand | OtherPlayerHand,
+        targetHand: HandView,
         nodes: readonly Node[]
     ): void {
         for (const node of nodes) {
