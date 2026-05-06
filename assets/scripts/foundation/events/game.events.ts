@@ -38,7 +38,11 @@ export enum GameEventType {
     DRAW_REQUIRED = 'DRAW_REQUIRED',
 
     // === 状态更新事件 ===
+    // HAND_UPDATED is DEPRECATED for routine UI driving.
+    // Routine hand increase → use CARDS_DRAWN. Routine hand decrease → use CARD_PLAYED.
     HAND_UPDATED = 'HAND_UPDATED',
+    // Reserved for future UI/Core consistency verification, reconnection, or forced sync.
+    HAND_SNAPSHOT_SYNCED = 'HAND_SNAPSHOT_SYNCED',
     DECK_UPDATED = 'DECK_UPDATED',
     DISCARD_UPDATED = 'DISCARD_UPDATED',
     DISCARD_CLEARED = 'DISCARD_CLEARED',
@@ -186,6 +190,16 @@ export interface HandUpdatedPayload {
     cardCount: number;
 }
 
+/** 手牌快照同步参数 — reserved for future UI/Core consistency verification, reconnection, or forced sync */
+export interface HandSnapshotSyncedPayload {
+    /** 玩家ID */
+    playerId: string;
+    /** 完整手牌列表 */
+    hand: Card[];
+    /** 手牌数量 */
+    cardCount: number;
+}
+
 /** 牌堆更新参数 */
 export interface DeckUpdatedPayload {
     /** 剩余牌数量 */
@@ -245,6 +259,7 @@ export interface GameEvents {
     [GameEventType.PLAYER_SKIPPED]: [payload: PlayerSkippedPayload];
     [GameEventType.DRAW_REQUIRED]: [payload: DrawRequiredPayload];
     [GameEventType.HAND_UPDATED]: [payload: HandUpdatedPayload];
+    [GameEventType.HAND_SNAPSHOT_SYNCED]: [payload: HandSnapshotSyncedPayload];
     [GameEventType.DECK_UPDATED]: [payload: DeckUpdatedPayload];
     [GameEventType.DISCARD_UPDATED]: [payload: DiscardUpdatedPayload];
     [GameEventType.DISCARD_CLEARED]: [];

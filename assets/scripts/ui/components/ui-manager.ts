@@ -3,7 +3,7 @@
  * 协调所有UI组件的初始化和事件订阅
  */
 
-import { _decorator, Component } from 'cc';
+import { _decorator, Component, Node } from 'cc';
 
 import { LocalPlayerProfile } from '../../client/local-player-profile';
 import { GameManager } from '../../core/machine/game-manager';
@@ -21,12 +21,18 @@ import {
     TopCard,
 } from '../../foundation/types/game.types';
 import {
+    CardMoveAnimationConfig,
+    CardMoveContext,
+    DEFAULT_CARD_MOVE_ANIMATION_CONFIG,
+} from '../utils/card-move-animation';
+import {
     calculateDirectionBinding,
     PlayerIdByDirection,
 } from '../utils/seat-direction';
+import { CardMoveAnimator } from './card-move-animator';
 import { DeckComponent } from './deck-component';
-import { GameMessage } from './game-message';
 import { OtherPlayerHand } from './other-player-hand';
+import { PlayedCardPile } from './played-card-pile';
 import { PlayerHand } from './player-hand';
 import { PlayerSlotController } from './player-slot-controller';
 
@@ -44,8 +50,20 @@ export class UIManager extends Component {
     @property(DeckComponent)
     public deckComponent: DeckComponent = null!;
 
-    @property(GameMessage)
-    public gameMessage: GameMessage = null!;
+    @property(CardMoveAnimator)
+    public cardMoveAnimator: CardMoveAnimator = null!;
+
+    @property(Node)
+    public deckNode: Node = null!;
+
+    @property(Node)
+    public discardPileNode: Node = null!;
+
+    @property(Node)
+    public discardStackLayerNode: Node = null!;
+
+    @property(PlayedCardPile)
+    public playedCardPile: PlayedCardPile = null!;
 
     // 方位绑定的玩家槽位控制器
     @property(PlayerSlotController)
@@ -70,12 +88,21 @@ export class UIManager extends Component {
     @property(OtherPlayerHand)
     public otherPlayerHandLeft: OtherPlayerHand = null!;
 
+    private static instance: UIManager | null = null;
+
     private gameManager: GameManager = null!;
     private currentTopCard: TopCard | null = null;
+    public readonly animationConfig: CardMoveAnimationConfig = {
+        ...DEFAULT_CARD_MOVE_ANIMATION_CONFIG,
+    };
 
     // 方位绑定状态
     private localPlayerId: string = '';
     private playerIdByDirection: PlayerIdByDirection | null = null;
+
+    onLoad() {
+        UIManager.instance = this;
+    }
 
     start() {
         this.initEventSubscriptions();
@@ -90,6 +117,9 @@ export class UIManager extends Component {
 
     onDestroy() {
         this.dispose();
+        if (UIManager.instance === this) {
+            UIManager.instance = null;
+        }
     }
 
     /** 初始化UI层共享状态事件订阅 */
@@ -122,6 +152,9 @@ export class UIManager extends Component {
         const sortedPlayers = [...players].sort(
             (a, b) => a.seatIndex - b.seatIndex
         );
+        const playersById = new Map(
+            sortedPlayers.map((player) => [player.id, player])
+        );
 
         // 使用纯函数计算方位绑定
         const direction = calculateDirectionBinding(
@@ -133,16 +166,23 @@ export class UIManager extends Component {
         this.playerIdByDirection = direction;
 
         // 绑定本地玩家手牌
-        this.playerHand.init(this.localPlayerId, this);
+        const cardMoveContext = this.createCardMoveContext();
+        this.playerHand.init(this.localPlayerId, {
+            ...cardMoveContext,
+            getTopCard: () => this.getTopCard(),
+            playCard: (playerId, card, chosenColor) => {
+                this.playCard(playerId, card, chosenColor);
+            },
+        });
 
         // 绑定其他玩家手牌
         const rightId = this.playerIdByDirection.right;
         const topId = this.playerIdByDirection.top;
         const leftId = this.playerIdByDirection.left;
 
-        this.otherPlayerHandRight.init(rightId);
-        this.otherPlayerHandTop.init(topId);
-        this.otherPlayerHandLeft.init(leftId);
+        this.otherPlayerHandRight.init(rightId, cardMoveContext);
+        this.otherPlayerHandTop.init(topId, cardMoveContext);
+        this.otherPlayerHandLeft.init(leftId, cardMoveContext);
 
         // 获取AI玩家显示名称
         const getDisplayName = (player: GamePlayerSetup): string => {
@@ -161,7 +201,7 @@ export class UIManager extends Component {
             playerId: string,
             dir: 'bottom' | 'right' | 'top' | 'left'
         ) => {
-            const player = sortedPlayers.find((p) => p.id === playerId)!;
+            const player = playersById.get(playerId)!;
             const isLocal = playerId === localPlayerId;
             controller.initSlot(playerId, getDisplayName(player), isLocal, dir);
         };
@@ -180,6 +220,20 @@ export class UIManager extends Component {
     private initUIComponents(): void {
         // 获取游戏管理器
         this.gameManager = GameManager.getInstance()!;
+        this.cardMoveAnimator.initialize(this.animationConfig);
+    }
+
+    private createCardMoveContext(): CardMoveContext {
+        return {
+            animator: this.cardMoveAnimator,
+            deckNode: this.deckNode,
+            discardPileNode: this.discardPileNode,
+            discardStackLayerNode: this.discardStackLayerNode,
+            acceptDiscardNode: (card, node) => {
+                this.playedCardPile.acceptDiscardNode(card, node);
+            },
+            animationConfig: this.animationConfig,
+        };
     }
 
     /** 开始新游戏 */
@@ -242,5 +296,9 @@ export class UIManager extends Component {
     /** 取消订阅 */
     public dispose(): void {
         eventBus.targetOff(this);
+    }
+
+    static getInstance(): UIManager | null {
+        return UIManager.instance;
     }
 }

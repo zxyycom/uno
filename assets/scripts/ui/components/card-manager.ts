@@ -47,6 +47,7 @@ export class CardManager extends Component {
     public maxRetainedNodes: number = 40;
 
     private readonly pool = new NodePool();
+    private readonly spriteLoadVersions = new WeakMap<Node, number>();
     private cardBackSpriteFrame: SpriteFrame | null = null;
 
     onLoad() {
@@ -66,17 +67,10 @@ export class CardManager extends Component {
      */
     public async acquireCard(card: Card, parent: Node): Promise<Node> {
         const cardNode = this.acquireNode();
+        this.resetNode(cardNode);
         cardNode.setParent(parent);
         cardNode.active = true;
-        this.resetNode(cardNode);
-
-        const sprite = cardNode.getComponent(Sprite);
-        if (sprite) {
-            const spriteFrame = await loadCardSprite(card);
-            if (spriteFrame && cardNode.isValid) {
-                sprite.spriteFrame = spriteFrame;
-            }
-        }
+        await this.setCardFace(cardNode, card);
 
         return cardNode;
     }
@@ -88,22 +82,63 @@ export class CardManager extends Component {
      */
     public acquireCardBack(parent: Node): Node {
         const cardNode = this.acquireNode();
+        this.resetNode(cardNode);
         cardNode.setParent(parent);
         cardNode.active = true;
-        this.resetNode(cardNode);
-
-        const sprite = cardNode.getComponent(Sprite);
-        if (sprite && this.cardBackSpriteFrame) {
-            sprite.spriteFrame = this.cardBackSpriteFrame;
-        } else if (sprite) {
-            void loadCardBackSprite().then((spriteFrame) => {
-                if (spriteFrame && cardNode.isValid) {
-                    sprite.spriteFrame = spriteFrame;
-                }
-            });
-        }
+        this.setCardBack(cardNode);
 
         return cardNode;
+    }
+
+    /**
+     * 将已有卡牌节点切换为真实牌面。
+     * @param cardNode 卡牌节点
+     * @param card 卡牌数据
+     */
+    public async setCardFace(cardNode: Node, card: Card): Promise<void> {
+        const loadVersion = this.nextSpriteLoadVersion(cardNode);
+        const spriteFrame = await loadCardSprite(card);
+        if (!spriteFrame || !this.canApplySpriteFrame(cardNode, loadVersion)) {
+            return;
+        }
+
+        const sprite = cardNode.getComponent(Sprite);
+        if (sprite) {
+            sprite.spriteFrame = spriteFrame;
+        }
+    }
+
+    /**
+     * 将已有卡牌节点切换为卡背。
+     * @param cardNode 卡牌节点
+     */
+    public setCardBack(cardNode: Node): void {
+        const loadVersion = this.nextSpriteLoadVersion(cardNode);
+        const sprite = cardNode.getComponent(Sprite);
+        if (!sprite) {
+            return;
+        }
+
+        if (this.cardBackSpriteFrame) {
+            sprite.spriteFrame = this.cardBackSpriteFrame;
+            return;
+        }
+
+        void loadCardBackSprite().then((spriteFrame) => {
+            if (
+                !spriteFrame ||
+                !this.canApplySpriteFrame(cardNode, loadVersion)
+            ) {
+                return;
+            }
+
+            this.cardBackSpriteFrame = spriteFrame;
+
+            const currentSprite = cardNode.getComponent(Sprite);
+            if (currentSprite) {
+                currentSprite.spriteFrame = spriteFrame;
+            }
+        });
     }
 
     /**
@@ -111,9 +146,6 @@ export class CardManager extends Component {
      * @param cardNode 要归还的节点
      */
     public releaseCard(cardNode: Node): void {
-        Tween.stopAllByTarget(cardNode);
-        cardNode.removeFromParent();
-        cardNode.active = false;
         this.resetNode(cardNode);
 
         if (!this.node || !this.node.isValid) {
@@ -161,6 +193,10 @@ export class CardManager extends Component {
             return;
         }
 
+        this.nextSpriteLoadVersion(cardNode);
+        Tween.stopAllByTarget(cardNode);
+        cardNode.removeFromParent();
+        cardNode.active = false;
         cardNode.setPosition(0, 0, 0);
         cardNode.setScale(1, 1, 1);
         cardNode.angle = 0;
@@ -174,6 +210,21 @@ export class CardManager extends Component {
         if (opacity) {
             opacity.opacity = 255;
         }
+    }
+
+    /** 递增节点贴图加载版本，防止旧异步回调污染复用节点 */
+    private nextSpriteLoadVersion(cardNode: Node): number {
+        const nextVersion = (this.spriteLoadVersions.get(cardNode) ?? 0) + 1;
+        this.spriteLoadVersions.set(cardNode, nextVersion);
+        return nextVersion;
+    }
+
+    /** 判断异步加载结果是否仍可应用到当前节点 */
+    private canApplySpriteFrame(cardNode: Node, loadVersion: number): boolean {
+        return (
+            cardNode.isValid &&
+            this.spriteLoadVersions.get(cardNode) === loadVersion
+        );
     }
 
     /** 预加载卡背图片 */

@@ -7,13 +7,13 @@
  * - 渲染函数：创建/销毁节点并把计算结果应用到 Cocos 节点。
  */
 
-import { _decorator, Component, Node, RealCurve, Vec3 } from 'cc';
+import { _decorator, Component, Node, RealCurve, Tween, Vec3 } from 'cc';
 
 import { validateCanPlayCard } from '../../core/utils/input-validator';
 import {
+    CardPlayedPayload,
     eventBus,
     GameEventType,
-    HandUpdatedPayload,
     TurnChangedPayload,
 } from '../../foundation/events';
 import {
@@ -23,17 +23,28 @@ import {
     UnoCardType,
 } from '../../foundation/types/game.types';
 import {
+    animateCenterMergeExpand,
+    CardMoveContext,
+} from '../utils/card-move-animation';
+import {
     applyCardLayoutTransform,
+    calculateCurvedFanCardLayout,
     calculateCurvedFanCardLayouts,
     CardLayoutTransform,
     createDefaultPlacementCurve,
     CurvedFanLayoutConfig,
 } from '../utils/hand-card-layout';
 import { CardManager } from './card-manager';
+import {
+    CardMoveCancelReason,
+    CardMoveKind,
+    CardMoveRequest,
+    CardMoveRequestHandle,
+} from './card-move-animator';
 
 const { ccclass, property } = _decorator;
 
-export type PlayerHandContext = {
+export type PlayerHandContext = CardMoveContext & {
     getTopCard(): TopCard;
     playCard(playerId: string, card: Card, chosenColor?: CardColor): void;
 };
@@ -49,10 +60,6 @@ type FanLayoutConfig = {
     playableLift: number;
     /** 已选中卡牌额外向上抬升距离 */
     selectedLift: number;
-    /** 不可出牌透明度 */
-    disabledCardOpacity: number;
-    /** 可出牌透明度 */
-    enabledCardOpacity: number;
 };
 
 type FanLayoutInput = {
@@ -103,7 +110,7 @@ function canPlayInCurrentTurn(
 }
 
 /**
- * 计算单张手牌的扇形位置、旋转、缩放、透明度和可出状态。
+ * 计算单张手牌的扇形位置、旋转、缩放和可出状态。
  * 纯计算函数：不创建节点、不启动 tween，方便单独测试和复用。
  */
 function calculateFanCardLayout(input: FanLayoutInput): FanLayoutResult {
@@ -136,10 +143,6 @@ function calculateFanCardLayout(input: FanLayoutInput): FanLayoutResult {
         scale: isMyTurn ? new Vec3(1, 1, 1) : new Vec3(0.92, 0.92, 1),
         angle: baseLayout.angle,
         siblingIndex: baseLayout.siblingIndex,
-        opacity:
-            isMyTurn && !playable
-                ? config.disabledCardOpacity
-                : config.enabledCardOpacity,
     };
 }
 
@@ -199,17 +202,6 @@ export class PlayerHand extends Component {
     })
     public selectedLift: number = 22;
 
-    /** 非可出牌透明度，用于弱化不可出牌项 */
-    @property({
-        tooltip: '非可出牌透明度，用于弱化不可出牌项',
-        group: PLAYER_HAND_LAYOUT_GROUP,
-    })
-    public disabledCardOpacity: number = 150;
-
-    /** 可出牌透明度 */
-    @property({ tooltip: '可出牌透明度', group: PLAYER_HAND_LAYOUT_GROUP })
-    public enabledCardOpacity: number = 255;
-
     /** 手牌重新布局动画时长，单位为秒 */
     @property({
         tooltip: '手牌重新布局动画时长，单位为秒',
@@ -257,15 +249,18 @@ export class PlayerHand extends Component {
     })
     public wildBlueButton: Node = null!;
 
-    private cardViews: HandCardView[] = [];
     private readonly cardViewsById = new Map<string, HandCardView>();
-    private playerId: string = '';
-    private uiContext?: PlayerHandContext;
+    private handOrder: string[] = [];
+    public playerId: string = '';
+    private uiContext: PlayerHandContext = null!;
     private isMyTurn: boolean = false;
     private hoveredCardId: string | null = null;
     private selectedCardId: string | null = null;
     private pendingWildCard: Card | null = null;
     private readonly cardIdsByNode = new WeakMap<Node, string>();
+    private activePlayHandle: CardMoveRequestHandle | null = null;
+    private lifecycleVersion: number = 0;
+    private requestSequence: number = 0;
 
     /** 初始化手牌归属玩家，并清空旧手牌节点 */
     public init(playerId: string, uiContext: PlayerHandContext): void {
@@ -291,22 +286,23 @@ export class PlayerHand extends Component {
     /** 初始化游戏事件订阅，所有回调都绑定 this 方便统一释放 */
     private initEventSubscriptions(): void {
         eventBus.on(
-            GameEventType.HAND_UPDATED,
-            (payload) => {
-                if (payload.playerId === this.playerId) {
-                    this.onHandUpdated(payload);
-                }
+            GameEventType.START_GAME,
+            () => {
+                this.invalidateLifecycle();
+                this.cancelActivePlayRequest(CardMoveCancelReason.Requested);
+                this.hoveredCardId = null;
+                this.selectCard(null, false);
+                this.pendingWildCard = null;
+                this.hideWildColorPanel();
+                this.clearCards();
             },
             this
         );
 
         eventBus.on(
-            GameEventType.START_GAME,
-            () => {
-                this.hoveredCardId = null;
-                this.selectCard(null, false);
-                this.pendingWildCard = null;
-                this.hideWildColorPanel();
+            GameEventType.CARD_PLAYED,
+            (payload) => {
+                this.onCardPlayed(payload);
             },
             this
         );
@@ -330,13 +326,6 @@ export class PlayerHand extends Component {
         );
     }
 
-    /** 响应手牌更新事件：同步手牌数据并触发重渲染 */
-    private onHandUpdated(payload: HandUpdatedPayload): void {
-        this.hoveredCardId = null;
-        this.selectCard(null, false);
-        void this.renderHand(payload.hand);
-    }
-
     /** 响应回合变化事件：维护当前回合状态，并刷新可出牌提示 */
     private onTurnChanged(payload: TurnChangedPayload): void {
         this.isMyTurn = payload.currentPlayer.id === this.playerId;
@@ -351,86 +340,22 @@ export class PlayerHand extends Component {
 
     /** 处理 UNO 呼叫，可在这里挂接后续提示动画 */
     private onUnoCalled(): void {
-        console.log(`[PlayerHand] ${this.playerId} 呼叫 UNO!`);
+        // TODO: 挂接 UNO 呼叫提示动画
     }
 
     // ---------------------------------------------------------------------
     // 渲染与节点操作
     // ---------------------------------------------------------------------
 
-    /** 重新渲染手牌节点：清空旧节点，再按当前手牌数据创建新节点 */
-    private async renderHand(hand: readonly Card[]): Promise<void> {
-        this.clearCards();
-
-        const nodes = await Promise.all(
-            hand.map((card) => this.createCardNode(card))
-        );
-
-        for (let i = 0; i < hand.length; i++) {
-            const view: HandCardView = {
-                card: hand[i],
-                node: nodes[i],
-                playable: false,
-            };
-            this.cardViews.push(view);
-            this.cardViewsById.set(hand[i].id, view);
-        }
-
-        this.refreshFanLayout(false);
-    }
-
-    /** 创建单张卡牌节点，并绑定点击事件 */
-    private async createCardNode(card: Card): Promise<Node> {
-        const cardNode = await this.cardManager.acquireCard(card, this.node);
-        this.cardIdsByNode.set(cardNode, card.id);
-        cardNode.on(
-            Node.EventType.TOUCH_END,
-            () => {
-                this.onCardTapped(card.id);
-                this.onCardHoverChanged(card.id, false);
-            },
-            this
-        );
-        cardNode.on(
-            Node.EventType.MOUSE_ENTER,
-            () => {
-                this.onCardHoverChanged(card.id, true);
-            },
-            this
-        );
-        cardNode.on(
-            Node.EventType.MOUSE_LEAVE,
-            () => {
-                this.onCardHoverChanged(card.id, false);
-            },
-            this
-        );
-        cardNode.on(
-            Node.EventType.TOUCH_START,
-            () => {
-                this.onCardHoverChanged(card.id, true);
-            },
-            this
-        );
-        cardNode.on(
-            Node.EventType.TOUCH_CANCEL,
-            () => {
-                this.onCardHoverChanged(card.id, false);
-            },
-            this
-        );
-
-        return cardNode;
-    }
-
     /** 刷新扇形布局与可出牌抬升，渲染层只负责应用纯计算结果 */
     private refreshFanLayout(animated: boolean): void {
-        const count = this.cardViews.length;
+        const orderedViews = this.getOrderedViews();
+        const count = orderedViews.length;
         if (count === 0) {
             return;
         }
 
-        const topCard = this.uiContext!.getTopCard();
+        const topCard = this.uiContext.getTopCard();
         const config = this.getFanLayoutConfig();
         const baseLayouts = calculateCurvedFanCardLayouts(
             count,
@@ -438,7 +363,7 @@ export class PlayerHand extends Component {
         );
 
         for (let i = 0; i < count; i++) {
-            const view = this.cardViews[i];
+            const view = orderedViews[i];
             const layout = calculateFanCardLayout({
                 card: view.card,
                 baseLayout: baseLayouts[i],
@@ -450,6 +375,7 @@ export class PlayerHand extends Component {
             });
 
             view.playable = layout.playable;
+            Tween.stopAllByTarget(view.node);
             applyCardLayoutTransform(
                 view.node,
                 layout,
@@ -461,19 +387,18 @@ export class PlayerHand extends Component {
 
     /** 清除所有卡牌节点和点击事件绑定 */
     private clearCards(): void {
-        if (this.cardViews.length === 0) {
+        this.cancelActivePlayRequest(CardMoveCancelReason.Requested);
+
+        if (this.cardViewsById.size === 0) {
+            this.handOrder = [];
             return;
         }
 
-        for (const view of this.cardViews) {
-            if (view.node && view.node.isValid) {
-                view.node.targetOff(this);
-                this.cardIdsByNode.delete(view.node);
-            }
-            this.cardManager.releaseCard(view.node);
+        for (const view of this.cardViewsById.values()) {
+            this.releaseView(view);
         }
-        this.cardViews = [];
         this.cardViewsById.clear();
+        this.handOrder = [];
     }
 
     /** 外部共享状态变化后刷新可出牌提示 */
@@ -503,6 +428,75 @@ export class PlayerHand extends Component {
         }
 
         this.tryPlayCard(view.card);
+    }
+
+    private onCardPlayed(payload: CardPlayedPayload): void {
+        if (payload.player.id !== this.playerId) {
+            return;
+        }
+
+        this.startPlayToDiscard(payload.card);
+    }
+
+    private startPlayToDiscard(card: Card): void {
+        const view = this.cardViewsById.get(card.id);
+        if (!view) {
+            return;
+        }
+
+        this.cancelActivePlayRequest(CardMoveCancelReason.Requested);
+        this.hoveredCardId = null;
+        this.selectCard(null, false);
+        this.pendingWildCard = null;
+        this.hideWildColorPanel();
+
+        this.cardViewsById.delete(card.id);
+        this.handOrder = this.handOrder.filter((cardId) => cardId !== card.id);
+        this.unregisterCardNode(view.node);
+
+        const requestId = this.createRequestId('play');
+        const lifecycleVersion = this.lifecycleVersion;
+        const request: CardMoveRequest = {
+            id: requestId,
+            kind: CardMoveKind.PlayToDiscard,
+            playerId: this.playerId,
+            items: [
+                {
+                    card,
+                    node: view.node,
+                    fromPosition: new Vec3(
+                        view.node.worldPosition.x,
+                        view.node.worldPosition.y,
+                        view.node.worldPosition.z
+                    ),
+                    toPosition: new Vec3(
+                        this.uiContext.discardPileNode.worldPosition.x,
+                        this.uiContext.discardPileNode.worldPosition.y,
+                        this.uiContext.discardPileNode.worldPosition.z
+                    ),
+                    targetParent: this.uiContext.discardStackLayerNode,
+                    targetRotation: 0,
+                    targetScale: Vec3.ONE,
+                    targetLayer: this.uiContext.discardStackLayerNode,
+                },
+            ],
+            onCompleted: () => {
+                if (!this.isCurrentPlayRequest(requestId, lifecycleVersion)) {
+                    return;
+                }
+                this.activePlayHandle = null;
+                this.uiContext.acceptDiscardNode(card, view.node);
+            },
+            onCancelled: () => {
+                this.releasePreparedNode(view.node);
+                if (this.activePlayHandle?.id === requestId) {
+                    this.activePlayHandle = null;
+                }
+            },
+        };
+
+        this.activePlayHandle = this.uiContext.animator.requestMove(request);
+        this.refreshFanLayout(true);
     }
 
     /** 鼠标悬停或触摸开始时预抬升卡牌，结束时恢复；已选中的卡牌保持抬升 */
@@ -539,7 +533,7 @@ export class PlayerHand extends Component {
 
         this.pendingWildCard = null;
         this.hideWildColorPanel();
-        this.uiContext!.playCard(this.playerId, card, chosenColor);
+        this.uiContext.playCard(this.playerId, card, chosenColor);
     }
 
     /** 绑定万能牌颜色按钮，点击后会继续完成待处理的万能牌出牌 */
@@ -588,8 +582,6 @@ export class PlayerHand extends Component {
         return {
             playableLift: this.playableLift,
             selectedLift: this.selectedLift,
-            disabledCardOpacity: this.disabledCardOpacity,
-            enabledCardOpacity: this.enabledCardOpacity,
         };
     }
 
@@ -629,8 +621,174 @@ export class PlayerHand extends Component {
 
     /** 取消订阅并清理运行时节点 */
     public dispose(): void {
+        this.invalidateLifecycle();
         eventBus.targetOff(this);
         this.hideWildColorPanel();
         this.clearCards();
+    }
+
+    private registerCardView(card: Card, node: Node): void {
+        const existingView = this.cardViewsById.get(card.id);
+        if (existingView) {
+            this.releasePreparedNode(node);
+            existingView.card = card;
+            return;
+        }
+
+        this.cardViewsById.set(card.id, {
+            card,
+            node,
+            playable: false,
+        });
+        this.cardIdsByNode.set(node, card.id);
+        node.setParent(this.node);
+        node.active = true;
+    }
+
+    private releaseViewById(cardId: string): void {
+        const view = this.cardViewsById.get(cardId);
+        if (!view) {
+            return;
+        }
+
+        this.cardViewsById.delete(cardId);
+        this.releaseView(view);
+    }
+
+    private releaseView(view: HandCardView): void {
+        this.unregisterCardNode(view.node);
+        this.cardManager.releaseCard(view.node);
+    }
+
+    private unregisterCardNode(node: Node): void {
+        if (node.isValid) {
+            node.targetOff(this);
+            this.cardIdsByNode.delete(node);
+        }
+    }
+
+    private releasePreparedNode(node: Node): void {
+        this.unregisterCardNode(node);
+        this.cardManager.releaseCard(node);
+    }
+
+    private getOrderedViews(): HandCardView[] {
+        const views: HandCardView[] = [];
+        for (const cardId of this.handOrder) {
+            const view = this.cardViewsById.get(cardId);
+            if (view) {
+                views.push(view);
+            }
+        }
+        return views;
+    }
+
+    /** 从摸牌动画系统接收已创建并定位好的卡牌节点，注册视图并触发布局动画 */
+    public appendDrawnCards(
+        cards: readonly Card[],
+        nodes: readonly Node[]
+    ): void {
+        const lifecycleVersion = this.lifecycleVersion;
+
+        for (let i = 0; i < cards.length; i++) {
+            const card = cards[i];
+            const node = nodes[i];
+
+            this.registerCardView(card, node);
+            this.handOrder.push(card.id);
+
+            node.on(
+                Node.EventType.TOUCH_END,
+                () => {
+                    this.onCardTapped(card.id);
+                    this.onCardHoverChanged(card.id, false);
+                },
+                this
+            );
+            node.on(
+                Node.EventType.MOUSE_ENTER,
+                () => {
+                    this.onCardHoverChanged(card.id, true);
+                },
+                this
+            );
+            node.on(
+                Node.EventType.MOUSE_LEAVE,
+                () => {
+                    this.onCardHoverChanged(card.id, false);
+                },
+                this
+            );
+            node.on(
+                Node.EventType.TOUCH_START,
+                () => {
+                    this.onCardHoverChanged(card.id, true);
+                },
+                this
+            );
+            node.on(
+                Node.EventType.TOUCH_CANCEL,
+                () => {
+                    this.onCardHoverChanged(card.id, false);
+                },
+                this
+            );
+        }
+
+        this.animateCenterMergeExpand(lifecycleVersion);
+    }
+
+    /** 获取单张待摸入卡牌在手牌扇形展开中的目标布局 */
+    public getDrawTargetLayout(
+        card: Card,
+        index: number,
+        totalCount: number
+    ): CardLayoutTransform {
+        const drawIndex = this.handOrder.length + index;
+        return calculateCurvedFanCardLayout(
+            drawIndex,
+            totalCount,
+            this.getCurvedFanLayoutConfig()
+        );
+    }
+
+    private animateCenterMergeExpand(lifecycleVersion: number): void {
+        animateCenterMergeExpand(
+            this.getOrderedViews().map((view) => view.node),
+            this,
+            (animated) => {
+                this.refreshFanLayout(animated);
+            },
+            () => this.lifecycleVersion === lifecycleVersion,
+            this.uiContext.animationConfig
+        );
+    }
+
+    private cancelActivePlayRequest(reason: CardMoveCancelReason): void {
+        const handle = this.activePlayHandle;
+        if (!handle) {
+            return;
+        }
+        this.activePlayHandle = null;
+        handle.cancel(reason);
+    }
+
+    private createRequestId(prefix: string): string {
+        this.requestSequence += 1;
+        return `${this.playerId}-${prefix}-${this.requestSequence}`;
+    }
+
+    private invalidateLifecycle(): void {
+        this.lifecycleVersion += 1;
+    }
+
+    private isCurrentPlayRequest(
+        requestId: string,
+        lifecycleVersion: number
+    ): boolean {
+        return (
+            this.lifecycleVersion === lifecycleVersion &&
+            this.activePlayHandle?.id === requestId
+        );
     }
 }

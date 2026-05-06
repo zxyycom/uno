@@ -2,9 +2,10 @@ import { _decorator, Component } from 'cc';
 
 import {
     CallUnoPayload,
+    CardPlayedPayload,
+    CardsDrawnPayload,
     eventBus,
     GameEventType,
-    HandUpdatedPayload,
     StartGamePayload,
     TurnChangedPayload,
     TurnTimerSyncPayload,
@@ -34,6 +35,7 @@ export class PlayerSlotController extends Component {
     private playerId: string = '';
     private direction: PlayerSlotDirection = 'bottom';
     private isLocalPlayer: boolean = false;
+    private handCount: number = 0;
 
     public initSlot(
         playerId: string,
@@ -78,9 +80,17 @@ export class PlayerSlotController extends Component {
         );
 
         eventBus.on(
-            GameEventType.HAND_UPDATED,
+            GameEventType.CARDS_DRAWN,
             (payload) => {
-                this.onHandUpdated(payload);
+                this.onCardsDrawn(payload);
+            },
+            this
+        );
+
+        eventBus.on(
+            GameEventType.CARD_PLAYED,
+            (payload) => {
+                this.onCardPlayed(payload);
             },
             this
         );
@@ -107,6 +117,8 @@ export class PlayerSlotController extends Component {
     private onStartGame(_payload: StartGamePayload): void {
         this.turnIndicator.setActive(false);
         this.turnCountdown.stopCountdown();
+        this.handCount = 0;
+        this.handCountView.setCount(0);
         this.handCountView.setUnoActive(false);
     }
 
@@ -120,10 +132,17 @@ export class PlayerSlotController extends Component {
         }
     }
 
-    private onHandUpdated(payload: HandUpdatedPayload): void {
-        if (payload.playerId !== this.playerId) return;
-        this.handCountView.setCount(payload.cardCount);
-        if (payload.cardCount !== 1) {
+    private onCardsDrawn(payload: CardsDrawnPayload): void {
+        if (payload.player.id !== this.playerId) return;
+        this.handCount += payload.cards.length;
+        this.handCountView.setCount(this.handCount);
+    }
+
+    private onCardPlayed(payload: CardPlayedPayload): void {
+        if (payload.player.id !== this.playerId) return;
+        this.handCount -= 1;
+        this.handCountView.setCount(this.handCount);
+        if (this.handCount !== 1) {
             this.handCountView.setUnoActive(false);
         }
     }

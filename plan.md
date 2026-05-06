@@ -1,124 +1,106 @@
-# UNO UI 卡牌移动动画改造执行指导
+# 摸牌布局优化与审查口径调整计划
 
 ## Status: Ready for Agent Execution
 
 ## Summary
 
-本计划聚焦卡牌 UI 动画与手牌重整，不手动编辑 `.scene`、`.prefab`、`.meta`。目标是让所有卡牌保持不透明，并把出牌、摸牌、手牌增删后的重排统一到事件驱动动画流程中。
+按最新 CR 反馈调整统一摸牌组件重构的后续修正方向：
 
-需要处理的问题：
+- `HandDrawAnimator` 只负责创建节点、组织动画参数、请求 `CardMoveAnimator` 执行动画。
+- 摸牌动画触发后，`HandDrawAnimator` 不再主动保存 handle、取消请求或管理动画生命周期。
+- 透明度相关删除是预期内改动，不恢复不可出牌透明度弱化效果。
+- `getDrawTargetLayout` 需要优化为单卡纯函数计算，批量布局基于该单卡函数生成，避免每张新增牌重复计算完整布局数组。
 
-- 卡牌节点当前会出现透明状态，不符合要求。
-- 出牌动画现在从牌堆飞到弃牌堆，应该从对应玩家手牌飞到弃牌堆。
-- 摸牌需要从牌堆飞到对应玩家手牌。
-- 手牌新增卡牌应插入最后，并触发统一重整动画。
-- 手牌移除卡牌后，其余卡牌应缓动到最新布局。
-- 初始化和摸牌后需要支持“所有手牌合并到中央再展开”的动画。
+## Key Decisions
 
-## Current Findings
-
-- `PlayerHand` 当前在 `HAND_UPDATED` 中清空整手并重建节点，会导致真实节点无法参与出牌/摸牌动画。
-- `PlayedCardPile` 当前在 `CARD_PLAYED` 中明确从 `deckNode` 创建卡牌并飞到弃牌堆，这是出牌动画来源错误的直接原因。
-- 本地玩家不可出牌透明度来自 `PlayerHand.disabledCardOpacity = 150`，并通过 `UIOpacity` 应用到卡牌节点。
-- `OtherPlayerHand` 当前只按数量同步卡背节点，适合改造成随机取一张卡背节点执行其他玩家出牌动画。
-- `hand-card-layout.ts` 已经把布局计算和 transform 应用分开，可继续保留纯函数计算布局，再把结果交给 tween 应用。
+- 保留现有统一摸牌组件方向：所有摸牌飞行动画仍由 `HandDrawAnimator` 发起。
+- `HandDrawAnimator` 不处理动画取消、不维护 active draw request、不做 request 生命周期仲裁。
+- 动画完成后的节点交接仍通过 `CardMoveRequest.onCompleted` 调用目标手牌组件 `appendDrawnCards(cards, nodes)`。
+- 不新增异步过期保护；本地玩家创建真实牌面节点时的异步边界不做额外生命周期管理。
+- 不恢复 `disabledCardOpacity` / `enabledCardOpacity`、`CardLayoutTransform.opacity`、`UIOpacity` 应用。
+- `getDrawTargetLayout` 只计算单张目标布局；完整批量布局由底层工具循环调用单卡纯函数生成。
 
 ## Required Code Changes
 
-### 1. 取消卡牌透明状态
+### 1. 简化 HandDrawAnimator 动画管理职责
 
-修改 `assets/scripts/ui/components/player-hand.ts` 和 `assets/scripts/ui/utils/hand-card-layout.ts`：
+修改 `assets/scripts/ui/components/hand-draw-animator.ts`：
 
-- 所有手牌布局结果的透明度统一为 255。
-- 不再用透明度弱化不可出牌卡牌；如果需要提示不可出牌，只保留已有抬升/可交互状态，不改变透明度。
-- 保留 `disabledCardOpacity` / `enabledCardOpacity` 序列化字段不做场景迁移，但运行时不再让卡牌透明。
-- `CardManager.resetNode` 继续把复用节点 `UIOpacity` 重置为 255。
+- 删除 `activeHandle` 字段。
+- 删除 `cancelActiveRequest` 方法。
+- 删除 `START_GAME` 订阅中主动取消当前摸牌动画的逻辑。
+- 删除 `onDestroy` 中主动取消当前摸牌动画的逻辑，仅保留事件解绑。
+- 收到 `CARDS_DRAWN` 后仍按原流程：
+    - 解析目标手牌组件。
+    - 创建本地玩家真实牌面节点或其他玩家卡背节点。
+    - 逐张调用目标组件 `getDrawTargetLayout(card, index, totalCount)`。
+    - 组织 `CardMoveRequest` 并调用 `CardMoveAnimator.requestMove(request)`。
+    - 在 `onCompleted` 中调用 `targetHand.appendDrawnCards(cardOrder, nodes)`。
+- 不在 `HandDrawAnimator` 内实现主动取消、过期判断或节点释放兜底。
 
-### 2. 增加卡牌移动动画事件
+### 2. 抽出单卡布局纯函数
 
-修改 `assets/scripts/foundation/events/game.events.ts`：
+修改 `assets/scripts/ui/utils/hand-card-layout.ts`：
 
-- 增加 `CARD_MOVE_REQUESTED` 和 `CARD_MOVE_COMPLETED` 事件。
-- payload 至少包含 `animationId`、`kind`、`playerId`、`card`、真实 `node`、目标父节点、起止世界坐标、目标角度、目标缩放、目标层级。
-- `kind` 固定使用 `'play-to-discard' | 'draw-to-hand'`，避免调用方自由拼字符串。
-- Core 不直接发这些 UI 动画事件；由 UI 组件在收到 `CARD_PLAYED` / `CARDS_DRAWN` 后转发。
+- 新增导出的单卡纯函数，例如：
+    - `calculateCurvedFanCardLayout(index: number, totalCards: number, config: CurvedFanLayoutConfig): CardLayoutTransform`
+- 该函数只根据 `index`、`totalCards`、`config` 返回单张卡牌的：
+    - `position`
+    - `angle`
+    - `scale`
+    - `siblingIndex`
+- `calculateCurvedFanCardLayouts(totalCards, config)` 改为循环调用 `calculateCurvedFanCardLayout` 生成数组。
+- 保持现有布局数学规则不变：
+    - 单张牌 ratio 为 `0.5`，角度为 `0`。
+    - 多张牌按现有中心点、曲线采样和扇形角度规则计算。
 
-### 3. 新增统一卡牌移动动画组件
-
-新增 `assets/scripts/ui/components/card-move-animator.ts`：
-
-- 监听 `CARD_MOVE_REQUESTED`。
-- 接收真实卡牌节点，把节点临时挂到桌面飞行层，保留原世界坐标。
-- 使用 tween 从起点飞到终点，完成后设置目标父节点、最终局部 transform、层级，并发 `CARD_MOVE_COMPLETED`。
-- 支持多张摸牌的逐张错峰：调用方提供 delay 或 animator 根据同批次 index 处理短间隔。
-- 组件必须只负责飞行动画，不负责手牌数据同步、不负责弃牌堆业务。
-
-### 4. 改造本地玩家手牌
+### 3. 优化 PlayerHand.getDrawTargetLayout
 
 修改 `assets/scripts/ui/components/player-hand.ts`：
 
-- `HAND_UPDATED` 改为按 `card.id` 差量同步，不再每次清空整手重建。
-- 初始化时创建所有手牌节点在中央，再用已有纯布局函数计算目标位置并展开。
-- 本地玩家出牌时，在 `CARD_PLAYED` 中找到真实卡牌节点，从 `cardViews` 中移除，发 `play-to-discard` 移动事件，其余手牌立即按最新布局缓动补位。
-- 摸牌时在 `CARDS_DRAWN` 中为新增卡牌创建真实节点，插入手牌数组最后，逐张从牌堆飞到最终手牌位置；全部到达后执行中央合并再展开。
-- 普通出牌移除只做剩余手牌缓动重排，不触发中央合并再展开。
+- `getDrawTargetLayout(card, index, totalCount)` 不再调用 `calculateCurvedFanCardLayouts(totalCount, config)`。
+- 改为调用新增单卡纯函数。
+- 单卡布局索引使用 `this.handOrder.length + index`。
+- `card` 参数继续保留，用于与其他玩家手牌统一接口；本方法当前无需读取牌面信息。
 
-### 5. 改造其他玩家手牌
+### 4. 优化 OtherPlayerHand.getDrawTargetLayout
 
 修改 `assets/scripts/ui/components/other-player-hand.ts`：
 
-- 出牌时从现有卡背节点中随机选择一张真实节点飞向弃牌堆。
-- 被选中的卡背节点在飞行动画中切换为实际打出的牌面，落入弃牌堆后由弃牌堆组件接管。
-- 未飞出的卡背节点按最新数量和最新布局缓动补位。
-- 摸牌时新增卡背节点插入末尾，逐张从牌堆飞入，完成后中央合并再展开。
-
-### 6. 改造弃牌堆展示
-
-修改 `assets/scripts/ui/components/played-card-pile.ts`：
-
-- 移除当前 `CARD_PLAYED` 中“从牌堆创建卡牌并飞到弃牌堆”的逻辑。
-- 监听 `CARD_MOVE_COMPLETED`，只在 `kind === 'play-to-discard'` 时接管飞来的真实节点。
-- 接管后把节点加入弃牌堆堆叠数组，应用弃牌堆偏移、角度、层级。
-- `DISCARD_UPDATED` 仅用于初始顶牌或同步兜底，不能在动画过程中重复生成顶牌。
-
-### 7. 扩展 CardManager 能力
-
-修改 `assets/scripts/ui/components/card-manager.ts`：
-
-- 增加 `setCardFace(node, card)`，用于把卡背节点切换成真实牌面。
-- 增加 `setCardBack(node)`，用于把复用节点切回卡背。
-- `acquireCard` / `acquireCardBack` 复用这两个方法，避免牌面设置逻辑分散。
-- 所有 acquire/release/reset 路径都确保节点 active、scale、angle、position、opacity 被重置到稳定状态。
-
-## Implementation Order
-
-1. 调整透明度逻辑，保证所有卡牌运行时 `UIOpacity` 为 255。
-2. 增加 `CARD_MOVE_REQUESTED` / `CARD_MOVE_COMPLETED` 类型定义。
-3. 新增 `CardMoveAnimator` 并接入现有飞行层节点。
-4. 改造 `PlayedCardPile`，去掉错误的牌堆到弃牌堆出牌动画。
-5. 改造 `PlayerHand` 的差量同步、真实节点出牌、摸牌飞入、中央合并再展开。
-6. 改造 `OtherPlayerHand` 的随机卡背出牌、摸牌飞入和缓动重排。
-7. 扩展 `CardManager` 的牌面/卡背切换方法并复用。
-8. 运行 `pnpm run format`。
-9. 运行 `pnpm run type-check`。
-10. 运行 `pnpm run lint`，记录或修复新增问题。
+- `getDrawTargetLayout(_card, index, totalCount)` 不再调用 `calculateCurvedFanCardLayouts(totalCount, config)`。
+- 改为调用新增单卡纯函数。
+- 单卡布局索引使用 `this.cardNodes.length + index`。
+- `card` 参数继续保留为统一接口占位。
 
 ## Acceptance Criteria
 
-- 任意手牌、飞行动画牌、弃牌堆牌都不出现半透明状态。
-- 本地玩家出牌时，被点击的真实卡牌从手牌飞到弃牌堆，其余手牌缓动补位。
-- 其他玩家出牌时，随机一张卡背从对应玩家手牌飞到弃牌堆，并在飞行或落点显示真实牌面。
-- 摸 1 张或多张时，卡牌从牌堆逐张错峰飞到对应玩家手牌末尾。
-- 初始化和摸牌后，目标玩家手牌会先合并到中央再展开。
-- 普通出牌移除后，只剩余手牌缓动重排，不触发中央合并展开。
-- `pnpm run format` 已运行。
-- `pnpm run type-check` 通过。
-- `pnpm run lint` 无新增 error；若仍有既有 warning，最终说明中明确记录。
+- `HandDrawAnimator` 不再保存或主动取消摸牌动画 request handle。
+- `HandDrawAnimator` 不再订阅 `START_GAME` 来取消摸牌动画。
+- `HandDrawAnimator.onDestroy` 只做自身事件解绑，不主动 cancel 已触发的摸牌动画。
+- `HandDrawAnimator` 仍负责创建节点、组织 request 参数并请求 `CardMoveAnimator`。
+- 动画完成后，仍由 `onCompleted` 把同一批节点追加给目标手牌组件。
+- `calculateCurvedFanCardLayout` 是可复用的单卡纯函数。
+- `calculateCurvedFanCardLayouts` 基于单卡纯函数生成批量布局。
+- `PlayerHand.getDrawTargetLayout` 和 `OtherPlayerHand.getDrawTargetLayout` 只计算单张新增牌目标布局，不重复生成完整布局数组。
+- 不恢复透明度弱化相关代码。
+- 不新增卡牌移动全局事件。
+- 不手动编辑 `.scene`、`.prefab`、`.meta`。
+
+## Implementation Order
+
+1. 在 `hand-card-layout.ts` 新增单卡布局纯函数，并改造批量布局函数复用它。
+2. 改造 `PlayerHand.getDrawTargetLayout` 使用单卡布局纯函数。
+3. 改造 `OtherPlayerHand.getDrawTargetLayout` 使用单卡布局纯函数。
+4. 简化 `HandDrawAnimator`，移除 active handle 和主动取消逻辑。
+5. 运行 `pnpm run format`。
+6. 运行 `pnpm run type-check`。
+7. 运行 `pnpm run lint`，若仍有既有 warning，在最终说明中记录。
 
 ## Constraints
 
 - 不手动编辑 `.scene`、`.prefab`、`.meta`。
-- 不做 Cocos 预览验证要求；本任务验收以代码格式化、类型检查和 lint 为准。
-- 不引入新的 `any`、不使用 `as` 断言绕过类型系统。
-- 保持依赖方向：Core 不依赖 UI；UI 动画事件由 UI 层根据 Core 事件转发。
-- 修改范围限于纯代码和计划/任务文件。
+- 不新增卡牌移动全局事件。
+- 不新增 `any`，不使用 `as any` 绕过类型系统。
+- 保持依赖方向 UI → Foundation → Core。
+- `HandDrawAnimator` 是 UI 层动画请求组织组件，不处理游戏规则，不改写 Core 状态。
+- 格式化唯一使用 `pnpm run format`。

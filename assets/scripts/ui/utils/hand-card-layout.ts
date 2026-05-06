@@ -3,14 +3,13 @@
  * 只处理节点排列的底层计算和 transform 应用，不包含玩家身份、牌面和交互逻辑。
  */
 
-import { Node, RealCurve, tween, Tween, UIOpacity, Vec3 } from 'cc';
+import { Node, RealCurve, tween, Vec3 } from 'cc';
 
 export type CardLayoutTransform = {
     position: Vec3;
     angle: number;
     scale: Vec3;
     siblingIndex: number;
-    opacity?: number;
 };
 
 export type CurvedFanLayoutConfig = {
@@ -28,7 +27,29 @@ export function createDefaultPlacementCurve(): RealCurve {
 }
 
 /**
- * 计算曲线扇形手牌节点的 transform。
+ * 计算单张卡牌在曲线扇形手牌中的 transform。
+ * 纯函数：只根据 index、totalCards、config 返回单张卡牌布局，不依赖外部状态。
+ */
+export function calculateCurvedFanCardLayout(
+    index: number,
+    totalCards: number,
+    config: CurvedFanLayoutConfig
+): CardLayoutTransform {
+    const ratio = calculateLayoutRatio(index, totalCards);
+    return {
+        position: new Vec3(
+            calculateCurvedFanCenter(index, totalCards, config),
+            config.placementCurve.evaluate(ratio) * config.placementCurveScale,
+            0
+        ),
+        angle: calculateFanCardAngle(index, totalCards, config.fanAngle),
+        scale: new Vec3(1, 1, 1),
+        siblingIndex: index,
+    };
+}
+
+/**
+ * 计算曲线扇形手牌节点的 transform 批量数组。
  * X 轴按中心间距展开，Y 轴由实数曲线采样，旋转按总扇形夹角均分。
  */
 export function calculateCurvedFanCardLayouts(
@@ -39,22 +60,9 @@ export function calculateCurvedFanCardLayouts(
         return [];
     }
 
-    const centers = calculateCurvedFanCenters(totalCards, config);
     const layouts: CardLayoutTransform[] = [];
-
     for (let i = 0; i < totalCards; i++) {
-        const ratio = calculateLayoutRatio(i, totalCards);
-        layouts.push({
-            position: new Vec3(
-                centers[i],
-                config.placementCurve.evaluate(ratio) *
-                    config.placementCurveScale,
-                0
-            ),
-            angle: calculateFanCardAngle(i, totalCards, config.fanAngle),
-            scale: new Vec3(1, 1, 1),
-            siblingIndex: i,
-        });
+        layouts.push(calculateCurvedFanCardLayout(i, totalCards, config));
     }
 
     return layouts;
@@ -80,9 +88,6 @@ export function applyCardLayoutTransform(
     animated: boolean,
     duration: number
 ): void {
-    applyOpacity(node, layout);
-
-    Tween.stopAllByTarget(node);
     if (animated) {
         tween(node)
             .to(duration, {
@@ -100,21 +105,16 @@ export function applyCardLayoutTransform(
     node.setSiblingIndex(layout.siblingIndex);
 }
 
-function calculateCurvedFanCenters(
+function calculateCurvedFanCenter(
+    index: number,
     totalCards: number,
     config: CurvedFanLayoutConfig
-): number[] {
+): number {
     const gapCount = totalCards - 1;
     const stackWidth = calculateStackWidth(gapCount, config);
     const step = gapCount === 0 ? 0 : stackWidth / gapCount;
     const firstCenter = -stackWidth / 2;
-    const centers: number[] = [];
-
-    for (let i = 0; i < totalCards; i++) {
-        centers.push(firstCenter + step * i);
-    }
-
-    return centers;
+    return firstCenter + step * index;
 }
 
 function calculateStackWidth(
@@ -173,21 +173,4 @@ function createRealCurveSignature(curve: RealCurve): string {
     }
 
     return parts.join(';');
-}
-
-function applyOpacity(node: Node, layout: CardLayoutTransform): void {
-    if (typeof layout.opacity !== 'number') {
-        return;
-    }
-
-    const opacity = ensureOpacity(node);
-    opacity.opacity = layout.opacity;
-}
-
-function ensureOpacity(node: Node): UIOpacity {
-    const opacity = node.getComponent(UIOpacity);
-    if (opacity) {
-        return opacity;
-    }
-    return node.addComponent(UIOpacity);
 }

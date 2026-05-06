@@ -1,220 +1,129 @@
 {
-    "title": "UNO UI 卡牌移动动画改造",
+    "title": "摸牌布局优化与审查口径调整",
     "status": "ready_for_agent_execution",
-    "summary": "让卡牌始终不透明，并把出牌、摸牌、手牌新增/移除后的重排改成事件驱动动画：出牌从手牌飞到弃牌堆，摸牌从牌堆飞到手牌末尾，初始化和摸牌后执行中央合并再展开。",
+    "summary": "根据最新 CR 反馈，简化 HandDrawAnimator 动画生命周期职责，并将 getDrawTargetLayout 优化为基于单卡纯函数计算。",
     "executionMode": "execute_changes_not_planning",
+    "architectureDecisions": [
+        "HandDrawAnimator 只负责创建节点、组织动画参数、请求 CardMoveAnimator 执行动画。",
+        "摸牌动画触发后，HandDrawAnimator 不保存 handle、不主动 cancel、不做 request 生命周期仲裁。",
+        "动画完成后的节点交接仍通过 CardMoveRequest.onCompleted 调用目标手牌组件 appendDrawnCards(cards, nodes)。",
+        "透明度弱化删除是预期内改动，不恢复 disabledCardOpacity、enabledCardOpacity、CardLayoutTransform.opacity 或 UIOpacity 应用。",
+        "getDrawTargetLayout 只计算单张新增牌目标布局；批量布局由底层工具循环调用单卡纯函数生成。"
+    ],
     "constraints": [
-        "禁止手动编辑 .scene、.prefab、.meta 文件。",
-        "不做 Cocos 预览验证要求；本任务验收以代码格式化、类型检查和 lint 为准。",
-        "Core 不依赖 UI；UI 动画事件由 UI 层根据 Core 事件转发。",
-        "不新增 any，不使用 as 类型断言绕过类型系统。",
-        "格式化唯一使用 pnpm run format，并且必须在验证阶段运行。"
+        "不手动编辑 .scene、.prefab、.meta。",
+        "不新增卡牌移动全局事件。",
+        "不新增 any，不使用 as any 绕过类型系统。",
+        "保持依赖方向 UI → Foundation → Core。",
+        "HandDrawAnimator 是 UI 层动画请求组织组件，不处理游戏规则，不改写 Core 状态。",
+        "格式化唯一使用 pnpm run format。",
+        "不恢复透明度弱化相关代码。",
+        "不新增异步过期保护；本地玩家创建真实牌面节点时的异步边界不做额外生命周期管理。"
     ],
     "tasks": [
         {
             "id": "T01",
-            "title": "取消卡牌透明状态",
+            "title": "抽出单卡布局纯函数",
             "status": "ready",
-            "description": "保证手牌、飞行动画牌和弃牌堆牌运行时都保持完全不透明。",
-            "targetFiles": [
-                "assets/scripts/ui/components/player-hand.ts",
-                "assets/scripts/ui/utils/hand-card-layout.ts",
-                "assets/scripts/ui/components/card-manager.ts"
-            ],
+            "targetFiles": ["assets/scripts/ui/utils/hand-card-layout.ts"],
+            "description": "新增单卡曲线扇形布局计算函数，并让现有批量布局函数基于该单卡函数生成数组。",
             "implementationNotes": [
-                "所有手牌布局结果统一使用 255 透明度，或不再写入透明度并由 CardManager reset 保持 255。",
-                "不再通过 disabledCardOpacity 弱化不可出牌卡牌；保留序列化字段，避免场景迁移。",
-                "CardManager.resetNode 继续重置 UIOpacity 为 255。"
+                "新增导出的 calculateCurvedFanCardLayout(index, totalCards, config): CardLayoutTransform。",
+                "单卡函数返回 position、angle、scale、siblingIndex。",
+                "保持现有中心点、曲线采样、扇形角度和单张牌特殊规则不变。",
+                "calculateCurvedFanCardLayouts(totalCards, config) 改为循环调用 calculateCurvedFanCardLayout。",
+                "不恢复 opacity 字段或 UIOpacity 应用。"
             ],
             "acceptanceCriteria": [
-                "不可出牌卡不会变透明。",
-                "对象池复用后的卡牌节点不会继承旧透明度。",
-                "弃牌堆和飞行动画节点不会出现半透明状态。"
+                "存在可复用的单卡布局纯函数。",
+                "批量布局函数复用单卡布局函数。",
+                "现有批量布局输出与重构前的数学规则一致。",
+                "CardLayoutTransform 不包含透明度回归字段。"
             ],
             "dependencies": []
         },
         {
             "id": "T02",
-            "title": "增加卡牌移动动画事件",
+            "title": "优化 PlayerHand 摸牌目标布局",
             "status": "ready",
-            "description": "为 UI 层新增统一卡牌移动请求和完成事件，后续手牌与弃牌堆通过该事件协作。",
-            "targetFiles": ["assets/scripts/foundation/events/game.events.ts"],
+            "targetFiles": ["assets/scripts/ui/components/player-hand.ts"],
+            "description": "让本地玩家手牌 getDrawTargetLayout 只计算单张新增牌布局，避免每次调用重复生成完整布局数组。",
             "implementationNotes": [
-                "新增 CARD_MOVE_REQUESTED 和 CARD_MOVE_COMPLETED。",
-                "payload 包含 animationId、kind、playerId、card、node、目标父节点、起止世界坐标、目标角度、目标缩放、目标层级。",
-                "kind 固定为 play-to-discard 或 draw-to-hand。",
-                "Core 不直接发这些事件。"
+                "从 hand-card-layout.ts 引入 calculateCurvedFanCardLayout。",
+                "getDrawTargetLayout(card, index, totalCount) 调用单卡布局函数。",
+                "单卡布局索引使用 this.handOrder.length + index。",
+                "保留 card 参数以维持与 OtherPlayerHand 的统一接口；当前无需读取牌面信息。"
             ],
             "acceptanceCriteria": [
-                "事件类型在 GameEvents 中有完整类型映射。",
-                "新增事件不破坏现有事件订阅和 emit 类型检查。",
-                "UI 层可以基于事件传递真实卡牌节点。"
-            ],
-            "dependencies": []
-        },
-        {
-            "id": "T03",
-            "title": "新增 CardMoveAnimator",
-            "status": "ready",
-            "description": "实现统一卡牌飞行动画组件，专门监听卡牌移动事件并执行 tween。",
-            "targetFiles": [
-                "assets/scripts/ui/components/card-move-animator.ts"
-            ],
-            "implementationNotes": [
-                "监听 CARD_MOVE_REQUESTED。",
-                "把真实节点临时挂到桌面飞行层，保留原世界坐标。",
-                "按请求的起点、终点、角度、缩放、层级执行 tween。",
-                "完成后设置目标父节点和最终 transform，再发 CARD_MOVE_COMPLETED。",
-                "支持请求中的 delay，用于多张摸牌逐张错峰。"
-            ],
-            "acceptanceCriteria": [
-                "组件不负责手牌数据同步。",
-                "组件不负责弃牌堆业务。",
-                "飞行完成后一定发 CARD_MOVE_COMPLETED。"
-            ],
-            "dependencies": ["T02"]
-        },
-        {
-            "id": "T04",
-            "title": "扩展 CardManager 牌面切换",
-            "status": "ready",
-            "description": "让其他玩家卡背节点可以在飞出时切换成真实牌面，并统一复用牌面加载逻辑。",
-            "targetFiles": ["assets/scripts/ui/components/card-manager.ts"],
-            "implementationNotes": [
-                "新增 setCardFace(node, card)。",
-                "新增 setCardBack(node)。",
-                "acquireCard 和 acquireCardBack 复用新增方法。",
-                "所有 acquire/release/reset 路径都确保 active、position、scale、angle、opacity 稳定。"
-            ],
-            "acceptanceCriteria": [
-                "卡背节点可以切换为真实牌面。",
-                "真实牌面节点可以切回卡背。",
-                "卡牌节点复用后不会残留旧 spriteFrame 或 transform。"
+                "PlayerHand.getDrawTargetLayout 不再调用 calculateCurvedFanCardLayouts。",
+                "摸多张牌时每张新增牌只计算自身目标布局。",
+                "本地玩家摸牌目标位置、角度、缩放、siblingIndex 与原布局规则一致。"
             ],
             "dependencies": ["T01"]
         },
         {
+            "id": "T03",
+            "title": "优化 OtherPlayerHand 摸牌目标布局",
+            "status": "ready",
+            "targetFiles": ["assets/scripts/ui/components/other-player-hand.ts"],
+            "description": "让其他玩家手牌 getDrawTargetLayout 只计算单张新增卡背布局，避免重复生成完整布局数组。",
+            "implementationNotes": [
+                "从 hand-card-layout.ts 引入 calculateCurvedFanCardLayout。",
+                "getDrawTargetLayout(_card, index, totalCount) 调用单卡布局函数。",
+                "单卡布局索引使用 this.cardNodes.length + index。",
+                "保留 _card 参数作为统一接口占位。"
+            ],
+            "acceptanceCriteria": [
+                "OtherPlayerHand.getDrawTargetLayout 不再调用 calculateCurvedFanCardLayouts。",
+                "摸多张牌时每张新增卡背只计算自身目标布局。",
+                "其他玩家摸牌目标位置、角度、缩放、siblingIndex 与原布局规则一致。"
+            ],
+            "dependencies": ["T01"]
+        },
+        {
+            "id": "T04",
+            "title": "简化 HandDrawAnimator 动画管理",
+            "status": "ready",
+            "targetFiles": ["assets/scripts/ui/components/hand-draw-animator.ts"],
+            "description": "移除 HandDrawAnimator 中主动管理摸牌动画生命周期的代码，使其只创建节点、组织参数并请求动画。",
+            "implementationNotes": [
+                "删除 activeHandle 字段。",
+                "删除 cancelActiveRequest 方法。",
+                "删除 START_GAME 订阅中主动取消摸牌动画的逻辑。",
+                "onDestroy 仅保留 eventBus.targetOff(this)，不主动 cancel 已触发的摸牌动画。",
+                "收到 CARDS_DRAWN 后仍创建节点、计算布局、组织 CardMoveRequest 并调用 CardMoveAnimator.requestMove(request)。",
+                "保留 onCompleted，把同一批节点追加给目标手牌组件。",
+                "不新增异步过期保护或节点释放兜底。"
+            ],
+            "acceptanceCriteria": [
+                "HandDrawAnimator 不再保存或主动取消摸牌动画 request handle。",
+                "HandDrawAnimator 不再订阅 START_GAME 用于取消动画。",
+                "HandDrawAnimator.onDestroy 不主动 cancel 摸牌动画。",
+                "所有摸牌飞行动画仍由 HandDrawAnimator 发起。",
+                "动画完成后仍通过 appendDrawnCards 完成节点交接。"
+            ],
+            "dependencies": ["T02", "T03"]
+        },
+        {
             "id": "T05",
-            "title": "改造弃牌堆动画接管",
+            "title": "格式化和静态检查",
             "status": "ready",
-            "description": "移除 PlayedCardPile 当前从牌堆创建牌并飞到弃牌堆的错误出牌动画，改为接管飞来的真实节点。",
-            "targetFiles": ["assets/scripts/ui/components/played-card-pile.ts"],
-            "implementationNotes": [
-                "删除或停用 CARD_PLAYED 中 animateCardToDiscard 的牌堆到弃牌堆逻辑。",
-                "监听 CARD_MOVE_COMPLETED。",
-                "仅 kind 为 play-to-discard 时把节点加入弃牌堆堆叠数组。",
-                "DISCARD_UPDATED 只处理初始顶牌或同步兜底，动画期间不重复生成顶牌。"
-            ],
-            "acceptanceCriteria": [
-                "出牌动画不再从 deckNode 起飞。",
-                "飞到弃牌堆的真实节点会成为弃牌堆堆叠的一部分。",
-                "弃牌堆不会因 CARD_PLAYED 和 DISCARD_UPDATED 双重生成同一张牌。"
-            ],
-            "dependencies": ["T02", "T03", "T04"]
-        },
-        {
-            "id": "T06",
-            "title": "改造本地玩家手牌动画",
-            "status": "ready",
-            "description": "让本地玩家出牌使用真实被点击节点飞向弃牌堆，摸牌从牌堆飞入手牌末尾，并支持中央合并再展开。",
-            "targetFiles": ["assets/scripts/ui/components/player-hand.ts"],
-            "implementationNotes": [
-                "HAND_UPDATED 改为按 card.id 差量同步，不再整手清空重建。",
-                "初始化时先把所有手牌节点放在中央，再展开到纯布局函数计算出的目标位置。",
-                "CARD_PLAYED 命中本地玩家时，移除对应真实节点并发 play-to-discard 移动事件。",
-                "出牌后其余手牌按最新布局缓动补位，不触发中央合并展开。",
-                "CARDS_DRAWN 命中本地玩家时，新增节点插入末尾，逐张从牌堆飞入，全部到达后中央合并再展开。"
-            ],
-            "acceptanceCriteria": [
-                "本地玩家出牌时飞出的就是点击的那张牌。",
-                "本地玩家摸牌时新增牌插入手牌末尾。",
-                "本地玩家摸多张牌时逐张错峰飞入。",
-                "本地玩家手牌新增后会中央合并再展开。",
-                "本地玩家手牌移除后剩余牌缓动到目标位置。"
-            ],
-            "dependencies": ["T01", "T02", "T03", "T04", "T05"]
-        },
-        {
-            "id": "T07",
-            "title": "改造其他玩家手牌动画",
-            "status": "ready",
-            "description": "让其他玩家出牌随机一张卡背飞出，摸牌从牌堆飞入卡背末尾，并支持中央合并再展开。",
-            "targetFiles": [
-                "assets/scripts/ui/components/other-player-hand.ts"
-            ],
-            "implementationNotes": [
-                "CARD_PLAYED 命中该玩家时，从现有卡背节点中随机取一张真实节点发 play-to-discard 移动事件。",
-                "飞出的卡背节点在飞行前或飞行中通过 CardManager.setCardFace 切换为实际打出的牌面。",
-                "未飞出的卡背节点按最新数量和布局缓动补位。",
-                "CARDS_DRAWN 命中该玩家时，新增卡背节点插入末尾，逐张从牌堆飞入。",
-                "摸牌完成后中央合并再展开。"
-            ],
-            "acceptanceCriteria": [
-                "其他玩家出牌时不是从牌堆飞出。",
-                "其他玩家出牌时随机一张现有卡背节点飞出。",
-                "其他玩家摸牌时新增卡背插入末尾。",
-                "其他玩家手牌数量和卡背数量保持一致。"
-            ],
-            "dependencies": ["T01", "T02", "T03", "T04", "T05"]
-        },
-        {
-            "id": "T08",
-            "title": "复用纯布局并统一重整动画",
-            "status": "ready",
-            "description": "把手牌新增、移除、初始化后的布局统一为先计算最终布局，再用 tween 应用。",
-            "targetFiles": [
-                "assets/scripts/ui/components/player-hand.ts",
-                "assets/scripts/ui/components/other-player-hand.ts",
-                "assets/scripts/ui/utils/hand-card-layout.ts"
-            ],
-            "implementationNotes": [
-                "继续使用 calculateCurvedFanCardLayouts 计算目标布局。",
-                "新增中央合并再展开流程时，不把布局计算和节点状态读取混在一起。",
-                "新增卡牌默认插入数组末尾。",
-                "移除卡牌后剩余节点只缓动到最新目标布局。"
-            ],
-            "acceptanceCriteria": [
-                "初始化触发中央合并再展开。",
-                "摸牌完成后触发中央合并再展开。",
-                "普通出牌移除只触发缓动重排。",
-                "布局函数仍保持纯计算职责。"
-            ],
-            "dependencies": ["T06", "T07"]
-        },
-        {
-            "id": "T09",
-            "title": "运行格式化和静态检查",
-            "status": "ready",
-            "description": "按项目要求完成代码格式化、类型检查和 lint，不包含 Cocos 预览验证。",
-            "targetFiles": [
-                "assets/scripts",
-                "package.json",
-                "tsconfig.json",
-                "eslint.config.mjs"
-            ],
+            "targetFiles": ["assets/scripts", "plan.md", "task.json"],
+            "description": "完成修正后运行项目指定格式化、类型检查和 lint。",
             "implementationNotes": [
                 "运行 pnpm run format。",
                 "运行 pnpm run type-check。",
                 "运行 pnpm run lint。",
-                "优先修复本次新增 error 或 warning。",
-                "若仍存在既有 warning，最终说明中明确记录。"
+                "优先修复本次改造引入的 error 或 warning。",
+                "若仍有既有 warning，在最终说明中明确记录。"
             ],
             "acceptanceCriteria": [
                 "pnpm run format 已运行。",
                 "pnpm run type-check 通过。",
                 "pnpm run lint 无新增 error。",
-                "最终说明不要求 Cocos 预览验证。"
+                "最终说明记录剩余既有 warning。"
             ],
-            "dependencies": [
-                "T01",
-                "T02",
-                "T03",
-                "T04",
-                "T05",
-                "T06",
-                "T07",
-                "T08"
-            ]
+            "dependencies": ["T01", "T02", "T03", "T04"]
         }
     ]
 }
