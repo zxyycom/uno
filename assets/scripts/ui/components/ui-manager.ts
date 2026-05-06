@@ -31,6 +31,7 @@ import {
 } from '../utils/seat-direction';
 import { CardMoveAnimator } from './card-move-animator';
 import { DeckComponent } from './deck-component';
+import { HandView } from './hand-view-contract';
 import { OtherPlayerHand } from './other-player-hand';
 import { PlayedCardPile } from './played-card-pile';
 import { PlayerHand } from './player-hand';
@@ -285,6 +286,26 @@ export class UIManager extends Component {
         chosenColor?: CardColor
     ): void {
         this.gameManager.playCard(playerId, card, chosenColor);
+    }
+
+    /**
+     * 根据 playerId 解析对应的手牌视图组件
+     * 匹配顺序: playerHand → otherPlayerHandRight → otherPlayerHandTop → otherPlayerHandLeft
+     */
+    public resolveHandView(playerId: string): HandView | null {
+        if (this.playerHand.playerId === playerId) {
+            return this.playerHand;
+        }
+        if (this.otherPlayerHandRight.playerId === playerId) {
+            return this.otherPlayerHandRight;
+        }
+        if (this.otherPlayerHandTop.playerId === playerId) {
+            return this.otherPlayerHandTop;
+        }
+        if (this.otherPlayerHandLeft.playerId === playerId) {
+            return this.otherPlayerHandLeft;
+        }
+        return null;
     }
 
     /** 弃牌堆更新：同步 UI 层顶牌状态，并通知手牌刷新可出牌提示 */
