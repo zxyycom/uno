@@ -86,7 +86,9 @@
             "id": "T04",
             "title": "改造 OtherPlayerHand 暴露逻辑接口",
             "status": "ready",
-            "targetFiles": ["assets/scripts/ui/components/other-player-hand.ts"],
+            "targetFiles": [
+                "assets/scripts/ui/components/other-player-hand.ts"
+            ],
             "description": "让其他玩家手牌实现 HandView 协议，并移除自身出牌动画管理职责。",
             "implementationNotes": [
                 "新增 getLogicalCardCount(): number，返回 this.cardNodes.length。",
@@ -108,7 +110,9 @@
             "id": "T05",
             "title": "修复 HandDrawAnimator 计数和解析逻辑",
             "status": "ready",
-            "targetFiles": ["assets/scripts/ui/components/hand-draw-animator.ts"],
+            "targetFiles": [
+                "assets/scripts/ui/components/hand-draw-animator.ts"
+            ],
             "description": "摸牌动画使用逻辑手牌数量计算目标布局，避免 WildColorPanel 被计入。",
             "implementationNotes": [
                 "通过 UIManager.resolveHandView(playerId) 获取目标手牌。",
@@ -127,7 +131,9 @@
             "id": "T06",
             "title": "新增 HandPlayAnimator 集中管理出牌动画",
             "status": "ready",
-            "targetFiles": ["assets/scripts/ui/components/hand-play-animator.ts"],
+            "targetFiles": [
+                "assets/scripts/ui/components/hand-play-animator.ts"
+            ],
             "description": "新增独立 Cocos 组件，像 HandDrawAnimator 一样消费 CARD_PLAYED 并统一组织出牌飞行动画。",
             "implementationNotes": [
                 "订阅 GameEventType.CARD_PLAYED。",

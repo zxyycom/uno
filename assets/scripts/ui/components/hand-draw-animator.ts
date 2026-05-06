@@ -122,10 +122,7 @@ export class HandDrawAnimator extends Component {
         return { nodes, cardOrder: [...cards] };
     }
 
-    private releaseNodes(
-        targetHand: HandView,
-        nodes: readonly Node[]
-    ): void {
+    private releaseNodes(targetHand: HandView, nodes: readonly Node[]): void {
         for (const node of nodes) {
             targetHand.cardManager.releaseCard(node);
         }

@@ -549,9 +549,7 @@ export class PlayerHand extends Component implements HandView {
     }
 
     /** 准备出牌：从手牌中取出对应卡牌节点，清理交互状态并捕获当前世界坐标 */
-    public async preparePlayCard(
-        card: Card
-    ): Promise<PreparedPlayCard | null> {
+    public async preparePlayCard(card: Card): Promise<PreparedPlayCard | null> {
         const view = this.cardViewsById.get(card.id);
         if (!view) {
             return null;
@@ -563,9 +561,7 @@ export class PlayerHand extends Component implements HandView {
         this.hideWildColorPanel();
 
         this.cardViewsById.delete(card.id);
-        this.handOrder = this.handOrder.filter(
-            (cardId) => cardId !== card.id
-        );
+        this.handOrder = this.handOrder.filter((cardId) => cardId !== card.id);
         this.unregisterCardNode(view.node);
 
         const fromPosition = new Vec3(

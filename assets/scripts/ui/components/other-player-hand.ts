@@ -10,10 +10,7 @@
 
 import { _decorator, Component, Node, RealCurve, Tween, Vec3 } from 'cc';
 
-import {
-    eventBus,
-    GameEventType,
-} from '../../foundation/events';
+import { eventBus, GameEventType } from '../../foundation/events';
 import { Card } from '../../foundation/types/game.types';
 import {
     animateCenterMergeExpand,
@@ -216,9 +213,7 @@ export class OtherPlayerHand extends Component implements HandView {
      * 准备出牌：从卡背手牌中弹出一张节点，异步翻为真实牌面后返回
      * PreparedPlayCard 供 HandPlayAnimator 构造 CardMoveItem。
      */
-    public async preparePlayCard(
-        card: Card
-    ): Promise<PreparedPlayCard | null> {
+    public async preparePlayCard(card: Card): Promise<PreparedPlayCard | null> {
         const playNode = this.cardNodes.pop();
         if (!playNode) {
             return null;
