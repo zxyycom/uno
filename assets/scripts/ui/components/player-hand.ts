@@ -28,6 +28,7 @@ import {
 } from '../utils/card-move-animation';
 import {
     applyCardLayoutTransform,
+    calculateCurvedFanCardLayout,
     calculateCurvedFanCardLayouts,
     CardLayoutTransform,
     createDefaultPlacementCurve,
@@ -743,12 +744,12 @@ export class PlayerHand extends Component {
         index: number,
         totalCount: number
     ): CardLayoutTransform {
-        const layouts = calculateCurvedFanCardLayouts(
+        const drawIndex = this.handOrder.length + index;
+        return calculateCurvedFanCardLayout(
+            drawIndex,
             totalCount,
             this.getCurvedFanLayoutConfig()
         );
-        const currentCount = this.handOrder.length;
-        return layouts[currentCount + index];
     }
 
     private animateCenterMergeExpand(lifecycleVersion: number): void {

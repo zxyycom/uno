@@ -22,6 +22,7 @@ import {
 } from '../utils/card-move-animation';
 import {
     applyCardLayoutTransform,
+    calculateCurvedFanCardLayout,
     calculateCurvedFanCardLayouts,
     CardLayoutTransform,
     createDefaultPlacementCurve,
@@ -363,11 +364,11 @@ export class OtherPlayerHand extends Component {
         index: number,
         totalCount: number
     ): CardLayoutTransform {
-        const allLayouts = calculateCurvedFanCardLayouts(
+        const drawIndex = this.cardNodes.length + index;
+        return calculateCurvedFanCardLayout(
+            drawIndex,
             totalCount,
             this.getCurvedFanLayoutConfig()
         );
-        const currentCount = this.cardNodes.length;
-        return allLayouts[currentCount + index];
     }
 }

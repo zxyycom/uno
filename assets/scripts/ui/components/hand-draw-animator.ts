@@ -14,12 +14,7 @@ import {
 import { Card } from '../../foundation/types/game.types';
 import { createDrawToHandMoveItems } from '../utils/card-move-animation';
 import { CardLayoutTransform } from '../utils/hand-card-layout';
-import {
-    CardMoveCancelReason,
-    CardMoveKind,
-    CardMoveRequest,
-    CardMoveRequestHandle,
-} from './card-move-animator';
+import { CardMoveKind, CardMoveRequest } from './card-move-animator';
 import { OtherPlayerHand } from './other-player-hand';
 import { PlayerHand } from './player-hand';
 import { UIManager } from './ui-manager';
@@ -28,7 +23,6 @@ const { ccclass } = _decorator;
 
 @ccclass('HandDrawAnimator')
 export class HandDrawAnimator extends Component {
-    private activeHandle: CardMoveRequestHandle | null = null;
     private requestSequence: number = 0;
 
     start() {
@@ -36,7 +30,6 @@ export class HandDrawAnimator extends Component {
     }
 
     onDestroy() {
-        this.cancelActiveRequest(CardMoveCancelReason.ComponentDestroyed);
         eventBus.targetOff(this);
     }
 
@@ -45,14 +38,6 @@ export class HandDrawAnimator extends Component {
             GameEventType.CARDS_DRAWN,
             (payload) => {
                 void this.onCardsDrawn(payload);
-            },
-            this
-        );
-
-        eventBus.on(
-            GameEventType.START_GAME,
-            () => {
-                this.cancelActiveRequest(CardMoveCancelReason.Requested);
             },
             this
         );
@@ -68,8 +53,6 @@ export class HandDrawAnimator extends Component {
         if (!targetHand) {
             return;
         }
-
-        this.cancelActiveRequest(CardMoveCancelReason.Requested);
 
         const { cards } = payload;
         const isLocalPlayer = targetHand === uiManager.playerHand;
@@ -104,18 +87,14 @@ export class HandDrawAnimator extends Component {
                 uiManager.animationConfig.drawStaggerDelay
             ),
             onCompleted: () => {
-                this.activeHandle = null;
                 targetHand.appendDrawnCards(cardOrder, nodes);
             },
             onCancelled: () => {
                 this.releaseNodes(targetHand, nodes);
-                if (this.activeHandle?.id === requestId) {
-                    this.activeHandle = null;
-                }
             },
         };
 
-        this.activeHandle = uiManager.cardMoveAnimator.requestMove(request);
+        uiManager.cardMoveAnimator.requestMove(request);
     }
 
     private resolveTargetHand(
@@ -170,15 +149,6 @@ export class HandDrawAnimator extends Component {
         for (const node of nodes) {
             targetHand.cardManager.releaseCard(node);
         }
-    }
-
-    private cancelActiveRequest(reason: CardMoveCancelReason): void {
-        const handle = this.activeHandle;
-        if (!handle) {
-            return;
-        }
-        this.activeHandle = null;
-        handle.cancel(reason);
     }
 
     private createRequestId(): string {
