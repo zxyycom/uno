@@ -1,106 +1,155 @@
-# 摸牌布局优化与审查口径调整计划
+# 手牌计数、出牌动画拆分与手牌组件复用计划
 
 ## Status: Ready for Agent Execution
 
 ## Summary
 
-按最新 CR 反馈调整统一摸牌组件重构的后续修正方向：
+实现两个 UI 层改造，并同步考虑本地玩家手牌与其他玩家手牌的复用方式：
 
-- `HandDrawAnimator` 只负责创建节点、组织动画参数、请求 `CardMoveAnimator` 执行动画。
-- 摸牌动画触发后，`HandDrawAnimator` 不再主动保存 handle、取消请求或管理动画生命周期。
-- 透明度相关删除是预期内改动，不恢复不可出牌透明度弱化效果。
-- `getDrawTargetLayout` 需要优化为单卡纯函数计算，批量布局基于该单卡函数生成，避免每张新增牌重复计算完整布局数组。
+- 修复 `HandDrawAnimator` 使用 `targetHand.node.children.length` 计算手牌数量的问题，改为读取手牌组件公开的逻辑卡牌数量，避免把 `WildColorPanel` 算进手牌数量。
+- 新增独立 `HandPlayAnimator` 组件，集中管理所有玩家的出牌到弃牌堆动画，形态与 `HandDrawAnimator` 对齐。
+- 不引入 `PlayerHand` / `OtherPlayerHand` 继承层级；改用组合方式抽共享协议和纯工具，降低 Cocos 组件序列化与职责差异带来的复杂度。
 
 ## Key Decisions
 
-- 保留现有统一摸牌组件方向：所有摸牌飞行动画仍由 `HandDrawAnimator` 发起。
-- `HandDrawAnimator` 不处理动画取消、不维护 active draw request、不做 request 生命周期仲裁。
-- 动画完成后的节点交接仍通过 `CardMoveRequest.onCompleted` 调用目标手牌组件 `appendDrawnCards(cards, nodes)`。
-- 不新增异步过期保护；本地玩家创建真实牌面节点时的异步边界不做额外生命周期管理。
-- 不恢复 `disabledCardOpacity` / `enabledCardOpacity`、`CardLayoutTransform.opacity`、`UIOpacity` 应用。
-- `getDrawTargetLayout` 只计算单张目标布局；完整批量布局由底层工具循环调用单卡纯函数生成。
+- `PlayerHand` 和 `OtherPlayerHand` 继续作为独立 Cocos 组件存在。
+- 共享逻辑通过接口契约和工具函数组合复用，不建立 `BaseHand` 抽象组件。
+- `HandDrawAnimator` 与 `HandPlayAnimator` 负责消费全局事件并组织动画请求。
+- 手牌组件只负责维护自身节点集合、布局、节点准备与释放。
+- 不改变 Core 事件结构，继续由 `CARDS_DRAWN` 和 `CARD_PLAYED` 驱动 UI。
+- 不手动编辑 `.scene`、`.prefab`、`.meta`；新增组件的场景绑定通过 Cocos Creator / Cocos MCP 完成。
 
 ## Required Code Changes
 
-### 1. 简化 HandDrawAnimator 动画管理职责
+### 1. 建立手牌视图协议与共享工具
+
+新增或调整 UI 层类型/工具，例如：
+
+- `assets/scripts/ui/components/hand-view-contract.ts`
+- `assets/scripts/ui/utils/hand-play-animation.ts`
+
+协议至少覆盖以下公共能力：
+
+- `getLogicalCardCount(): number`
+- `getDrawTargetLayout(card, index, totalCount): CardLayoutTransform`
+- `appendDrawnCards(cards, nodes): void`
+- `preparePlayCard(card): Promise<PreparedPlayCard | null>`
+- `releasePreparedPlayNode(node): void`
+- `refreshHandLayout(animated): void`
+
+`PreparedPlayCard` 至少包含：
+
+- `card: Card`
+- `node: Node`
+- `fromPosition: Vec3`
+
+共享工具负责：
+
+- 构造出牌到弃牌堆的 `CardMoveItem`。
+- 保存统一接口类型，减少 `HandDrawAnimator` / `HandPlayAnimator` 对具体组件实现细节的依赖。
+
+### 2. 修复摸牌动画手牌数量计算
 
 修改 `assets/scripts/ui/components/hand-draw-animator.ts`：
 
-- 删除 `activeHandle` 字段。
-- 删除 `cancelActiveRequest` 方法。
-- 删除 `START_GAME` 订阅中主动取消当前摸牌动画的逻辑。
-- 删除 `onDestroy` 中主动取消当前摸牌动画的逻辑，仅保留事件解绑。
-- 收到 `CARDS_DRAWN` 后仍按原流程：
-    - 解析目标手牌组件。
-    - 创建本地玩家真实牌面节点或其他玩家卡背节点。
-    - 逐张调用目标组件 `getDrawTargetLayout(card, index, totalCount)`。
-    - 组织 `CardMoveRequest` 并调用 `CardMoveAnimator.requestMove(request)`。
-    - 在 `onCompleted` 中调用 `targetHand.appendDrawnCards(cardOrder, nodes)`。
-- 不在 `HandDrawAnimator` 内实现主动取消、过期判断或节点释放兜底。
+- `currentHandCount` 改为 `targetHand.getLogicalCardCount()`。
+- 不再读取 `targetHand.node.children.length`。
+- 其他摸牌流程保持不变：创建节点、计算目标布局、提交 `CardMoveRequest`、完成后调用 `appendDrawnCards(cards, nodes)`。
 
-### 2. 抽出单卡布局纯函数
-
-修改 `assets/scripts/ui/utils/hand-card-layout.ts`：
-
-- 新增导出的单卡纯函数，例如：
-    - `calculateCurvedFanCardLayout(index: number, totalCards: number, config: CurvedFanLayoutConfig): CardLayoutTransform`
-- 该函数只根据 `index`、`totalCards`、`config` 返回单张卡牌的：
-    - `position`
-    - `angle`
-    - `scale`
-    - `siblingIndex`
-- `calculateCurvedFanCardLayouts(totalCards, config)` 改为循环调用 `calculateCurvedFanCardLayout` 生成数组。
-- 保持现有布局数学规则不变：
-    - 单张牌 ratio 为 `0.5`，角度为 `0`。
-    - 多张牌按现有中心点、曲线采样和扇形角度规则计算。
-
-### 3. 优化 PlayerHand.getDrawTargetLayout
+### 3. 改造 PlayerHand
 
 修改 `assets/scripts/ui/components/player-hand.ts`：
 
-- `getDrawTargetLayout(card, index, totalCount)` 不再调用 `calculateCurvedFanCardLayouts(totalCount, config)`。
-- 改为调用新增单卡纯函数。
-- 单卡布局索引使用 `this.handOrder.length + index`。
-- `card` 参数继续保留，用于与其他玩家手牌统一接口；本方法当前无需读取牌面信息。
+- 新增 `getLogicalCardCount()`，返回 `this.handOrder.length`。
+- 暴露 `refreshHandLayout(animated)`，内部复用现有扇形布局刷新逻辑。
+- 新增 `preparePlayCard(card)`：
+    - 找到对应 `HandCardView`。
+    - 清理悬停、选中、待选色状态和 `WildColorPanel`。
+    - 从 `cardViewsById` 和 `handOrder` 移除卡牌。
+    - 解绑卡牌节点事件，但不释放节点。
+    - 刷新剩余手牌布局。
+    - 返回待动画节点及其世界坐标。
+- 新增 `releasePreparedPlayNode(node)`，用于出牌动画取消时释放准备好的节点。
+- 移除 `CARD_PLAYED` 订阅、`startPlayToDiscard`、`activePlayHandle` 与相关取消逻辑。
+- 保留点击、选中、万能牌选色、可出牌提示等本地玩家专属逻辑。
 
-### 4. 优化 OtherPlayerHand.getDrawTargetLayout
+### 4. 改造 OtherPlayerHand
 
 修改 `assets/scripts/ui/components/other-player-hand.ts`：
 
-- `getDrawTargetLayout(_card, index, totalCount)` 不再调用 `calculateCurvedFanCardLayouts(totalCount, config)`。
-- 改为调用新增单卡纯函数。
-- 单卡布局索引使用 `this.cardNodes.length + index`。
-- `card` 参数继续保留为统一接口占位。
+- 新增 `getLogicalCardCount()`，返回 `this.cardNodes.length`。
+- 暴露 `refreshHandLayout(animated)`，内部复用现有卡背布局刷新逻辑。
+- 新增 `preparePlayCard(card)`：
+    - 从 `cardNodes` 弹出一张卡背节点。
+    - 将节点加入 pending 集合。
+    - 刷新剩余卡背布局。
+    - 异步调用 `cardManager.setCardFace(node, card)`。
+    - 若组件生命周期失效或节点不再 pending，则释放或返回 `null`。
+    - 返回待动画节点及其世界坐标。
+- 新增 `releasePreparedPlayNode(node)`，用于取消时从 pending 集合移除并释放节点。
+- 移除 `CARD_PLAYED` 订阅、`startPlayToDiscard`、`activePlayHandle` 与相关取消逻辑。
+- 保留其他玩家只展示卡背、不交互、不暴露真实手牌的职责。
+
+### 5. 新增 HandPlayAnimator
+
+新增 `assets/scripts/ui/components/hand-play-animator.ts`：
+
+- 作为独立 Cocos 组件，类似 `HandDrawAnimator`。
+- 订阅 `GameEventType.CARD_PLAYED`。
+- 通过 `UIManager` 根据 `payload.player.id` 解析目标手牌组件。
+- 调用 `targetHand.preparePlayCard(payload.card)` 获取待飞行动画节点。
+- 使用 `CardMoveKind.PlayToDiscard` 组织 `CardMoveRequest`。
+- 动画目标为 `uiManager.discardPileNode.worldPosition`。
+- `targetParent` 和 `targetLayer` 使用 `uiManager.discardStackLayerNode`。
+- `onCompleted` 调用 `uiManager.playedCardPile.acceptDiscardNode(card, node)`。
+- `onCancelled` 调用 `targetHand.releasePreparedPlayNode(node)`。
+
+### 6. UIManager 提供手牌解析能力
+
+修改 `assets/scripts/ui/components/ui-manager.ts`：
+
+- 新增公共方法，例如 `resolveHandView(playerId: string): HandView | null`。
+- 该方法复用现有本地手牌与三个其他玩家手牌引用。
+- `HandDrawAnimator` 和 `HandPlayAnimator` 都通过该方法解析目标手牌，避免重复维护解析逻辑。
+
+### 7. 场景集成
+
+- 通过 Cocos Creator / Cocos MCP 将 `HandPlayAnimator` 挂到现有 UI 根节点。
+- 不直接手动修改 `.scene` / `.prefab`。
+- 不手动创建或修改 `.meta` 文件。
 
 ## Acceptance Criteria
 
-- `HandDrawAnimator` 不再保存或主动取消摸牌动画 request handle。
-- `HandDrawAnimator` 不再订阅 `START_GAME` 来取消摸牌动画。
-- `HandDrawAnimator.onDestroy` 只做自身事件解绑，不主动 cancel 已触发的摸牌动画。
-- `HandDrawAnimator` 仍负责创建节点、组织 request 参数并请求 `CardMoveAnimator`。
-- 动画完成后，仍由 `onCompleted` 把同一批节点追加给目标手牌组件。
-- `calculateCurvedFanCardLayout` 是可复用的单卡纯函数。
-- `calculateCurvedFanCardLayouts` 基于单卡纯函数生成批量布局。
-- `PlayerHand.getDrawTargetLayout` 和 `OtherPlayerHand.getDrawTargetLayout` 只计算单张新增牌目标布局，不重复生成完整布局数组。
-- 不恢复透明度弱化相关代码。
+- `HandDrawAnimator` 不再通过 `node.children.length` 计算手牌数量。
+- 本地玩家打开 `WildColorPanel` 后摸牌，新增牌目标布局不再多算 1 张。
+- 本地玩家与其他玩家都通过 `getLogicalCardCount()` 暴露逻辑手牌数量。
+- `PlayerHand` 和 `OtherPlayerHand` 不再直接订阅 `CARD_PLAYED` 做出牌动画。
+- 所有出牌飞行动画由 `HandPlayAnimator` 统一发起。
+- 本地玩家出牌后，手牌节点飞入弃牌堆，其余手牌立即重新布局。
+- 其他玩家出牌时，卡背翻成真实牌面后飞入弃牌堆，剩余卡背数量正确。
+- 新开局、重置或组件销毁时，进行中的出牌动画不会残留节点或重复进入弃牌堆。
 - 不新增卡牌移动全局事件。
 - 不手动编辑 `.scene`、`.prefab`、`.meta`。
 
 ## Implementation Order
 
-1. 在 `hand-card-layout.ts` 新增单卡布局纯函数，并改造批量布局函数复用它。
-2. 改造 `PlayerHand.getDrawTargetLayout` 使用单卡布局纯函数。
-3. 改造 `OtherPlayerHand.getDrawTargetLayout` 使用单卡布局纯函数。
-4. 简化 `HandDrawAnimator`，移除 active handle 和主动取消逻辑。
-5. 运行 `pnpm run format`。
-6. 运行 `pnpm run type-check`。
-7. 运行 `pnpm run lint`，若仍有既有 warning，在最终说明中记录。
+1. 新增手牌视图协议与出牌动画 item 构造工具。
+2. 在 `UIManager` 增加 `resolveHandView(playerId)`。
+3. 给 `PlayerHand` 增加逻辑数量、布局刷新、出牌准备和释放接口，并移除本地出牌动画订阅。
+4. 给 `OtherPlayerHand` 增加同样接口，并移除其他玩家出牌动画订阅。
+5. 修改 `HandDrawAnimator` 使用 `getLogicalCardCount()` 和 `UIManager.resolveHandView()`。
+6. 新增 `HandPlayAnimator` 并集中消费 `CARD_PLAYED`。
+7. 通过 Cocos Creator / Cocos MCP 绑定 `HandPlayAnimator` 到场景。
+8. 运行 `pnpm run format`。
+9. 运行 `pnpm run type-check`。
+10. 运行 `pnpm run lint`，若仍有既有 warning，在最终说明中记录。
 
 ## Constraints
 
-- 不手动编辑 `.scene`、`.prefab`、`.meta`。
-- 不新增卡牌移动全局事件。
+- 保持依赖方向 UI -> Foundation -> Core。
 - 不新增 `any`，不使用 `as any` 绕过类型系统。
-- 保持依赖方向 UI → Foundation → Core。
-- `HandDrawAnimator` 是 UI 层动画请求组织组件，不处理游戏规则，不改写 Core 状态。
+- 不新增卡牌移动全局事件。
+- 不恢复或引入无关 UI 行为。
+- `.meta` 文件由 Cocos Creator 管理；不手动创建或修改。
+- `.scene`、`.prefab` 必须通过 Cocos Creator / Cocos MCP 修改。
 - 格式化唯一使用 `pnpm run format`。

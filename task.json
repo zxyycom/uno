@@ -1,115 +1,176 @@
 {
-    "title": "摸牌布局优化与审查口径调整",
+    "title": "手牌计数、出牌动画拆分与手牌组件复用",
     "status": "ready_for_agent_execution",
-    "summary": "根据最新 CR 反馈，简化 HandDrawAnimator 动画生命周期职责，并将 getDrawTargetLayout 优化为基于单卡纯函数计算。",
+    "summary": "修复 HandDrawAnimator 用 children 计算手牌数量导致 WildColorPanel 被计入的问题；新增独立 HandPlayAnimator 集中管理出牌动画；通过组合协议和工具简化 PlayerHand 与 OtherPlayerHand 的重复逻辑。",
     "executionMode": "execute_changes_not_planning",
     "architectureDecisions": [
-        "HandDrawAnimator 只负责创建节点、组织动画参数、请求 CardMoveAnimator 执行动画。",
-        "摸牌动画触发后，HandDrawAnimator 不保存 handle、不主动 cancel、不做 request 生命周期仲裁。",
-        "动画完成后的节点交接仍通过 CardMoveRequest.onCompleted 调用目标手牌组件 appendDrawnCards(cards, nodes)。",
-        "透明度弱化删除是预期内改动，不恢复 disabledCardOpacity、enabledCardOpacity、CardLayoutTransform.opacity 或 UIOpacity 应用。",
-        "getDrawTargetLayout 只计算单张新增牌目标布局；批量布局由底层工具循环调用单卡纯函数生成。"
+        "PlayerHand 和 OtherPlayerHand 继续作为独立 Cocos 组件存在。",
+        "共享逻辑通过接口契约和工具函数组合复用，不建立 BaseHand 抽象组件。",
+        "HandDrawAnimator 与 HandPlayAnimator 负责消费全局事件并组织动画请求。",
+        "手牌组件只负责维护自身节点集合、布局、节点准备与释放。",
+        "不改变 Core 事件结构，继续由 CARDS_DRAWN 和 CARD_PLAYED 驱动 UI。",
+        "不手动编辑 .scene、.prefab、.meta；新增组件的场景绑定通过 Cocos Creator / Cocos MCP 完成。"
     ],
     "constraints": [
-        "不手动编辑 .scene、.prefab、.meta。",
-        "不新增卡牌移动全局事件。",
+        "保持依赖方向 UI -> Foundation -> Core。",
         "不新增 any，不使用 as any 绕过类型系统。",
-        "保持依赖方向 UI → Foundation → Core。",
-        "HandDrawAnimator 是 UI 层动画请求组织组件，不处理游戏规则，不改写 Core 状态。",
-        "格式化唯一使用 pnpm run format。",
-        "不恢复透明度弱化相关代码。",
-        "不新增异步过期保护；本地玩家创建真实牌面节点时的异步边界不做额外生命周期管理。"
+        "不新增卡牌移动全局事件。",
+        "不恢复或引入无关 UI 行为。",
+        ".meta 文件由 Cocos Creator 管理；不手动创建或修改。",
+        ".scene、.prefab 必须通过 Cocos Creator / Cocos MCP 修改。",
+        "格式化唯一使用 pnpm run format。"
     ],
     "tasks": [
         {
             "id": "T01",
-            "title": "抽出单卡布局纯函数",
+            "title": "新增手牌视图协议与共享工具",
             "status": "ready",
-            "targetFiles": ["assets/scripts/ui/utils/hand-card-layout.ts"],
-            "description": "新增单卡曲线扇形布局计算函数，并让现有批量布局函数基于该单卡函数生成数组。",
+            "targetFiles": [
+                "assets/scripts/ui/components/hand-view-contract.ts",
+                "assets/scripts/ui/utils/hand-play-animation.ts"
+            ],
+            "description": "定义 PlayerHand 与 OtherPlayerHand 供动画管理组件使用的统一协议，并抽出出牌到弃牌堆动画 item 构造逻辑。",
             "implementationNotes": [
-                "新增导出的 calculateCurvedFanCardLayout(index, totalCards, config): CardLayoutTransform。",
-                "单卡函数返回 position、angle、scale、siblingIndex。",
-                "保持现有中心点、曲线采样、扇形角度和单张牌特殊规则不变。",
-                "calculateCurvedFanCardLayouts(totalCards, config) 改为循环调用 calculateCurvedFanCardLayout。",
-                "不恢复 opacity 字段或 UIOpacity 应用。"
+                "定义 HandView 接口，至少包含 getLogicalCardCount、getDrawTargetLayout、appendDrawnCards、preparePlayCard、releasePreparedPlayNode、refreshHandLayout。",
+                "定义 PreparedPlayCard，至少包含 card、node、fromPosition。",
+                "共享工具负责构造 CardMoveKind.PlayToDiscard 的 CardMoveItem。",
+                "不要把本地玩家点击、选中、万能牌选色逻辑抽进共享协议。"
             ],
             "acceptanceCriteria": [
-                "存在可复用的单卡布局纯函数。",
-                "批量布局函数复用单卡布局函数。",
-                "现有批量布局输出与重构前的数学规则一致。",
-                "CardLayoutTransform 不包含透明度回归字段。"
+                "存在可被 HandDrawAnimator 与 HandPlayAnimator 共同依赖的 HandView 协议。",
+                "出牌动画 item 构造逻辑不重复散落在 PlayerHand 和 OtherPlayerHand 中。",
+                "共享层只位于 UI 层，不引入 Core 依赖反向引用。"
             ],
             "dependencies": []
         },
         {
             "id": "T02",
-            "title": "优化 PlayerHand 摸牌目标布局",
+            "title": "UIManager 增加手牌解析接口",
             "status": "ready",
-            "targetFiles": ["assets/scripts/ui/components/player-hand.ts"],
-            "description": "让本地玩家手牌 getDrawTargetLayout 只计算单张新增牌布局，避免每次调用重复生成完整布局数组。",
+            "targetFiles": ["assets/scripts/ui/components/ui-manager.ts"],
+            "description": "集中提供 playerId 到目标手牌组件的解析能力，供摸牌和出牌动画管理组件复用。",
             "implementationNotes": [
-                "从 hand-card-layout.ts 引入 calculateCurvedFanCardLayout。",
-                "getDrawTargetLayout(card, index, totalCount) 调用单卡布局函数。",
-                "单卡布局索引使用 this.handOrder.length + index。",
-                "保留 card 参数以维持与 OtherPlayerHand 的统一接口；当前无需读取牌面信息。"
+                "新增 public resolveHandView(playerId: string): HandView | null。",
+                "优先匹配 playerHand.playerId，再匹配 otherPlayerHandRight、otherPlayerHandTop、otherPlayerHandLeft。",
+                "HandDrawAnimator 后续应使用该方法替代自身私有 resolveTargetHand。"
             ],
             "acceptanceCriteria": [
-                "PlayerHand.getDrawTargetLayout 不再调用 calculateCurvedFanCardLayouts。",
-                "摸多张牌时每张新增牌只计算自身目标布局。",
-                "本地玩家摸牌目标位置、角度、缩放、siblingIndex 与原布局规则一致。"
+                "UIManager 提供统一手牌解析方法。",
+                "解析逻辑不再需要在多个动画组件里重复维护。"
             ],
             "dependencies": ["T01"]
         },
         {
             "id": "T03",
-            "title": "优化 OtherPlayerHand 摸牌目标布局",
+            "title": "改造 PlayerHand 暴露逻辑接口",
             "status": "ready",
-            "targetFiles": ["assets/scripts/ui/components/other-player-hand.ts"],
-            "description": "让其他玩家手牌 getDrawTargetLayout 只计算单张新增卡背布局，避免重复生成完整布局数组。",
+            "targetFiles": ["assets/scripts/ui/components/player-hand.ts"],
+            "description": "让本地玩家手牌实现 HandView 协议，并移除自身出牌动画管理职责。",
             "implementationNotes": [
-                "从 hand-card-layout.ts 引入 calculateCurvedFanCardLayout。",
-                "getDrawTargetLayout(_card, index, totalCount) 调用单卡布局函数。",
-                "单卡布局索引使用 this.cardNodes.length + index。",
-                "保留 _card 参数作为统一接口占位。"
+                "新增 getLogicalCardCount(): number，返回 this.handOrder.length。",
+                "新增 refreshHandLayout(animated)，内部复用现有 refreshFanLayout。",
+                "新增 preparePlayCard(card)，负责清理 hover、selected、pendingWildCard、WildColorPanel，从 cardViewsById 和 handOrder 移除卡牌，解绑节点事件，刷新剩余布局，并返回 PreparedPlayCard。",
+                "新增 releasePreparedPlayNode(node)，用于动画取消时释放已准备节点。",
+                "移除 CARD_PLAYED 订阅、startPlayToDiscard、activePlayHandle、cancelActivePlayRequest、isCurrentPlayRequest 等本地出牌动画生命周期逻辑。",
+                "保留点击、选中、万能牌选色、可出牌提示等本地玩家专属逻辑。"
             ],
             "acceptanceCriteria": [
-                "OtherPlayerHand.getDrawTargetLayout 不再调用 calculateCurvedFanCardLayouts。",
-                "摸多张牌时每张新增卡背只计算自身目标布局。",
-                "其他玩家摸牌目标位置、角度、缩放、siblingIndex 与原布局规则一致。"
+                "PlayerHand.getLogicalCardCount 不依赖 node.children。",
+                "PlayerHand 不再直接订阅 CARD_PLAYED 做出牌动画。",
+                "本地玩家出牌准备后，剩余手牌立即刷新布局。",
+                "出牌动画取消时可释放准备好的节点。"
             ],
             "dependencies": ["T01"]
         },
         {
             "id": "T04",
-            "title": "简化 HandDrawAnimator 动画管理",
+            "title": "改造 OtherPlayerHand 暴露逻辑接口",
             "status": "ready",
-            "targetFiles": ["assets/scripts/ui/components/hand-draw-animator.ts"],
-            "description": "移除 HandDrawAnimator 中主动管理摸牌动画生命周期的代码，使其只创建节点、组织参数并请求动画。",
+            "targetFiles": ["assets/scripts/ui/components/other-player-hand.ts"],
+            "description": "让其他玩家手牌实现 HandView 协议，并移除自身出牌动画管理职责。",
             "implementationNotes": [
-                "删除 activeHandle 字段。",
-                "删除 cancelActiveRequest 方法。",
-                "删除 START_GAME 订阅中主动取消摸牌动画的逻辑。",
-                "onDestroy 仅保留 eventBus.targetOff(this)，不主动 cancel 已触发的摸牌动画。",
-                "收到 CARDS_DRAWN 后仍创建节点、计算布局、组织 CardMoveRequest 并调用 CardMoveAnimator.requestMove(request)。",
-                "保留 onCompleted，把同一批节点追加给目标手牌组件。",
-                "不新增异步过期保护或节点释放兜底。"
+                "新增 getLogicalCardCount(): number，返回 this.cardNodes.length。",
+                "新增 refreshHandLayout(animated)，内部复用现有 refreshCurvedFanLayout。",
+                "新增 preparePlayCard(card)，从 cardNodes 弹出一张卡背，加入 pending 集合，刷新剩余布局，异步 setCardFace 后返回 PreparedPlayCard。",
+                "若组件生命周期失效、节点无效或节点不在 pending 集合，preparePlayCard 返回 null 或释放节点。",
+                "新增 releasePreparedPlayNode(node)，用于取消时从 pending 集合移除并释放节点。",
+                "移除 CARD_PLAYED 订阅、startPlayToDiscard、activePlayHandle、cancelActivePlayRequest、isCurrentPlayRequest 等出牌动画生命周期逻辑。"
             ],
             "acceptanceCriteria": [
-                "HandDrawAnimator 不再保存或主动取消摸牌动画 request handle。",
-                "HandDrawAnimator 不再订阅 START_GAME 用于取消动画。",
-                "HandDrawAnimator.onDestroy 不主动 cancel 摸牌动画。",
-                "所有摸牌飞行动画仍由 HandDrawAnimator 发起。",
-                "动画完成后仍通过 appendDrawnCards 完成节点交接。"
+                "OtherPlayerHand.getLogicalCardCount 不依赖 node.children。",
+                "OtherPlayerHand 不再直接订阅 CARD_PLAYED 做出牌动画。",
+                "其他玩家出牌时先减少一张卡背并刷新布局。",
+                "异步翻面失败或取消时不会残留 pending 节点。"
             ],
-            "dependencies": ["T02", "T03"]
+            "dependencies": ["T01"]
         },
         {
             "id": "T05",
-            "title": "格式化和静态检查",
+            "title": "修复 HandDrawAnimator 计数和解析逻辑",
+            "status": "ready",
+            "targetFiles": ["assets/scripts/ui/components/hand-draw-animator.ts"],
+            "description": "摸牌动画使用逻辑手牌数量计算目标布局，避免 WildColorPanel 被计入。",
+            "implementationNotes": [
+                "通过 UIManager.resolveHandView(playerId) 获取目标手牌。",
+                "currentHandCount 改为 targetHand.getLogicalCardCount()。",
+                "totalCount 使用 currentHandCount + cards.length。",
+                "保留创建节点、计算 getDrawTargetLayout、提交 CardMoveRequest、onCompleted appendDrawnCards 的流程。"
+            ],
+            "acceptanceCriteria": [
+                "HandDrawAnimator 不再读取 targetHand.node.children.length。",
+                "本地玩家 WildColorPanel active 或 inactive 都不会影响摸牌目标布局。",
+                "摸牌动画行为除计数来源外保持一致。"
+            ],
+            "dependencies": ["T02", "T03", "T04"]
+        },
+        {
+            "id": "T06",
+            "title": "新增 HandPlayAnimator 集中管理出牌动画",
+            "status": "ready",
+            "targetFiles": ["assets/scripts/ui/components/hand-play-animator.ts"],
+            "description": "新增独立 Cocos 组件，像 HandDrawAnimator 一样消费 CARD_PLAYED 并统一组织出牌飞行动画。",
+            "implementationNotes": [
+                "订阅 GameEventType.CARD_PLAYED。",
+                "通过 UIManager.resolveHandView(payload.player.id) 获取目标手牌。",
+                "调用 targetHand.preparePlayCard(payload.card)。",
+                "preparePlayCard 返回 null 时直接结束。",
+                "使用 CardMoveKind.PlayToDiscard 构造 CardMoveRequest。",
+                "toPosition 使用 uiManager.discardPileNode.worldPosition。",
+                "targetParent 和 targetLayer 使用 uiManager.discardStackLayerNode。",
+                "onCompleted 调用 uiManager.playedCardPile.acceptDiscardNode(card, node)。",
+                "onCancelled 调用 targetHand.releasePreparedPlayNode(node)。"
+            ],
+            "acceptanceCriteria": [
+                "所有出牌飞行动画由 HandPlayAnimator 发起。",
+                "本地玩家出牌节点飞入弃牌堆后进入 PlayedCardPile 管理。",
+                "其他玩家卡背翻面后飞入弃牌堆并进入 PlayedCardPile 管理。",
+                "动画取消时目标手牌组件负责释放准备节点。"
+            ],
+            "dependencies": ["T02", "T03", "T04"]
+        },
+        {
+            "id": "T07",
+            "title": "场景绑定 HandPlayAnimator",
+            "status": "ready",
+            "targetFiles": ["assets/res/game.scene"],
+            "description": "通过 Cocos Creator / Cocos MCP 将 HandPlayAnimator 挂到现有 UI 根节点。",
+            "implementationNotes": [
+                "不要直接手动编辑 .scene。",
+                "不要手动创建或修改 .meta。",
+                "组件挂载位置建议与 UIManager、HandDrawAnimator、CardMoveAnimator 同一 UI 根节点。"
+            ],
+            "acceptanceCriteria": [
+                "运行场景时 HandPlayAnimator 能正常 start 并订阅 CARD_PLAYED。",
+                "场景文件变更由 Cocos 工具完成。"
+            ],
+            "dependencies": ["T06"]
+        },
+        {
+            "id": "T08",
+            "title": "验证与格式化",
             "status": "ready",
             "targetFiles": ["assets/scripts", "plan.md", "task.json"],
-            "description": "完成修正后运行项目指定格式化、类型检查和 lint。",
+            "description": "完成实现后运行项目指定格式化、类型检查和 lint。",
             "implementationNotes": [
                 "运行 pnpm run format。",
                 "运行 pnpm run type-check。",
@@ -123,7 +184,7 @@
                 "pnpm run lint 无新增 error。",
                 "最终说明记录剩余既有 warning。"
             ],
-            "dependencies": ["T01", "T02", "T03", "T04"]
+            "dependencies": ["T01", "T02", "T03", "T04", "T05", "T06", "T07"]
         }
     ]
 }
