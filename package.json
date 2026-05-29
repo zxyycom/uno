@@ -37,7 +37,8 @@
         "rollup": "4.55.3",
         "rollup-plugin-dts": "6.3.0",
         "sharp": "^0.34.5",
-        "tsconfig-paths": "4.2.0"
+        "tsconfig-paths": "4.2.0",
+        "typescript": "^6.0.3"
     },
     "creator": {
         "version": "3.8.8"

@@ -21,3 +21,10 @@ README.md
 docs/.vitepress/dist
 docs/.vitepress/cache
 extensions/
+
+.serena/
+.codegraph/
+.codex/skills/
+.claude/skills/
+.claude/commands/
+pnpm-workspace.yaml

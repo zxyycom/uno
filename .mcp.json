@@ -1,24 +1,21 @@
 {
-  "mcpServers": {
-    "serena": {
-      "command": "serena",
-      "args": [
-        "start-mcp-server",
-        "--context=claude-code",
-        "--project-from-cwd"
-      ]
-    },
-    "codegraph": {
-      "type": "stdio",
-      "command": "codegraph",
-      "args": [
-        "serve",
-        "--mcp"
-      ]
-    },
-    "cocos-creator": {
-      "type": "http",
-      "url": "http://127.0.0.1:3000/mcp"
+    "mcpServers": {
+        "serena": {
+            "command": "serena",
+            "args": [
+                "start-mcp-server",
+                "--context=claude-code",
+                "--project-from-cwd"
+            ]
+        },
+        "codegraph": {
+            "type": "stdio",
+            "command": "codegraph",
+            "args": ["serve", "--mcp"]
+        },
+        "cocos-creator": {
+            "type": "http",
+            "url": "http://127.0.0.1:3000/mcp"
+        }
     }
-  }
 }

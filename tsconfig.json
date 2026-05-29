@@ -5,6 +5,7 @@
     "compilerOptions": {
         "target": "esnext",
         "module": "esnext",
+        "moduleResolution": "bundler",
         "esModuleInterop": true,
         "allowSyntheticDefaultImports": true,
         "skipLibCheck": true,
