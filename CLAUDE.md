@@ -42,10 +42,6 @@ pnpm run format       # 格式化代码，格式化唯一方式
 | **Foundation Layer** | 事件总线、类型定义、纯工具函数     | 无业务依赖，可被所有层依赖             |
 | **Core Layer**       | 游戏规则、状态机、抽牌逻辑、AI决策 | 不依赖 UI 和 Foundation 以外的任何东西 |
 
-### 3.2 文件索引
-
-详细文件索引见 [.claude/FILE_INDEX.md](.claude/FILE_INDEX.md)。
-
 ### 3.3 状态机 (game-machine.ts)
 
 游戏流程由 xstate v5 状态机管理：
@@ -78,7 +74,7 @@ pnpm run format       # 格式化代码，格式化唯一方式
 - **逻辑分离**: 纯计算函数与业务编排分离、类内 `#region` 分离
 - **代码组织**: 禁止 Bracket Notation、kebab-case 命名
 
-完整规则和示例请参阅 [ENCODING_STYLE.md](.claude/ENCODING_STYLE.md)。
+完整规则和示例请参阅 [ENCODING_STYLE.md](docs/ENCODING_STYLE.md)。
 
 ## 5. Cocos Creator 资源文件
 
